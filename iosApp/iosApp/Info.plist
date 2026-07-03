@@ -4,5 +4,16 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>logtrain</string>
+			</array>
+			<key>CFBundleURLName</key>
+			<string>dev.balaji.moonrose.logtrain</string>
+		</dict>
+	</array>
 </dict>
 </plist>
