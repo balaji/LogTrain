@@ -15,6 +15,7 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "SharedUI"
             isStatic = true
+            export(projects.sharedLogic)
         }
     }
 

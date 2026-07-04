@@ -1,11 +1,8 @@
 package dev.balaji.moonrose.logtrain
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -14,16 +11,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import org.jetbrains.compose.resources.painterResource
-
-import logtrain.sharedui.generated.resources.Res
-import logtrain.sharedui.generated.resources.compose_multiplatform
+import dev.balaji.moonrose.logtrain.auth.AppAuth
 
 @Composable
 @Preview
 fun App() {
     MaterialTheme {
-        var showContent by remember { mutableStateOf(false) }
+        var isSignedIn by remember { mutableStateOf(AppAuth.loginController.isSignedIn()) }
+
+        DisposableEffect(Unit) {
+            val listener = { isSignedIn = AppAuth.loginController.isSignedIn() }
+            AppAuth.loginController.addListener(listener)
+            onDispose { AppAuth.loginController.removeListener(listener) }
+        }
+
         Column(
             modifier = Modifier
                 .background(MaterialTheme.colorScheme.primaryContainer)
@@ -31,17 +32,14 @@ fun App() {
                 .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
-            }
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
+            if (isSignedIn) {
+                Text("Signed in")
+                Button(onClick = { AppAuth.loginController.signOut() }) {
+                    Text("Sign out")
+                }
+            } else {
+                Button(onClick = { AppAuth.loginController.startLogin() }) {
+                    Text("Sign in with Google")
                 }
             }
         }

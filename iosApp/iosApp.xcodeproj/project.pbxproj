@@ -11,7 +11,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		A12DD7DAC7181EA8E8B7D3E4 /* Exceptions for "iosApp" folder in "iosApp" target */ = {
+		A12DD7DAC7181EA8E8B7D3E4 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -21,17 +21,17 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		CB1FAADF89F031827519B2A5 /* iosApp */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				A12DD7DAC7181EA8E8B7D3E4 /* Exceptions for "iosApp" folder in "iosApp" target */,
-			);
-			path = iosApp;
-			sourceTree = "<group>";
-		};
 		BECC79F0880529F528F917CA /* Configuration */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Configuration;
+			sourceTree = "<group>";
+		};
+		CB1FAADF89F031827519B2A5 /* iosApp */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A12DD7DAC7181EA8E8B7D3E4 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+			);
+			path = iosApp;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -47,6 +47,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0C37406D456A22CAD969EAEC /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D6C5514B9E7A18884A7D7AB2 /* LogTrain.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 		9D8E5BEC4F8A994FF57F0180 = {
 			isa = PBXGroup;
 			children = (
@@ -54,14 +62,6 @@
 				CB1FAADF89F031827519B2A5 /* iosApp */,
 				0C37406D456A22CAD969EAEC /* Products */,
 			);
-			sourceTree = "<group>";
-		};
-		0C37406D456A22CAD969EAEC /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				D6C5514B9E7A18884A7D7AB2 /* LogTrain.app */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -299,7 +299,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
-				DEVELOPMENT_TEAM = "${TEAM_ID}";
+				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
@@ -349,20 +349,20 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		8ED1144FB9C519FF8B7715E7 /* Build configuration list for PBXProject "iosApp" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				2895C7B84797675FAC1F98D6 /* Debug */,
-				74BEDE43784D0BFBCBA0CD9E /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		5D145DE46C53FB0BF5395937 /* Build configuration list for PBXNativeTarget "iosApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				E50CD20E3783D065825D9CCA /* Debug */,
 				FF406F7958A769196658812B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8ED1144FB9C519FF8B7715E7 /* Build configuration list for PBXProject "iosApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2895C7B84797675FAC1F98D6 /* Debug */,
+				74BEDE43784D0BFBCBA0CD9E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

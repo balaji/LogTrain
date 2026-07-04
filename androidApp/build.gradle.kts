@@ -36,9 +36,16 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+    buildFeatures {
+        buildConfig = true
+    }
     buildTypes {
+        getByName("debug") {
+            buildConfigField("String", "API_BASE_URL", "\"http://localhost:3000\"")
+        }
         getByName("release") {
             isMinifyEnabled = false
+            buildConfigField("String", "API_BASE_URL", "\"https://moonrose.balaji.dev\"")
         }
     }
     compileOptions {
