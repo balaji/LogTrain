@@ -23,6 +23,39 @@ repo — start that first if you need a live backend.
 single point of configuration for which backend a build talks to — defaults
 to `http://localhost:3000`.
 
+## UI architecture
+
+Goal: native look-and-feel per platform, following JetBrains' hybrid pattern
+(https://kotlinlang.org/docs/multiplatform/ios-liquid-glass.html).
+
+- **iOS (26.0+ only, no fallback)**: SwiftUI owns all navigation chrome —
+  `TabView` + per-tab `NavigationStack` in `iosApp/iosApp/ContentView.swift`
+  get real Liquid Glass styling. Compose renders screen *content* only, hosted
+  per-screen via the entry points in `sharedUI/src/iosMain/.../MainViewController.kt`
+  (`AuthViewController`, `MainViewController(route:onNavigate:)`,
+  `ScreenViewController(route:onNavigate:onGoBack:)`). Navigation intents flow
+  Kotlin → Swift through those callbacks; Swift coordinators push/pop the stack.
+  The shared `App()` composable is **not** used on iOS.
+- **Android/Desktop**: pure Compose. `App()` (`sharedUI/.../App.kt`) renders
+  auth gate → `NavigationBar` tab scaffold, with a hand-rolled `NavStack`
+  (no navigation library — deliberate; SwiftUI owns the iOS stack, so a shared
+  nav library would be dead weight). Android theming is `MaterialExpressiveTheme`
+  + Material You dynamic color (`PlatformTheme.android.kt`); predictive back is
+  enabled in the manifest.
+
+Adding a shared screen means: define its route in `sharedUI/.../navigation/Routes.kt`
+(routes carry `title`/`subtitle` so SwiftUI can draw nav bars without calling
+Kotlin), branch it in `navigation/ScreenContent.kt`, and in the screen itself
+gate any top bar / back button on `LocalUseNativeNavigation` (true when SwiftUI
+draws the chrome) and use `WindowInsets.safeDrawing` padding *inside* scrollables
+so content flows behind translucent system bars. A new tab additionally needs a
+`Tab` + coordinator in `ContentView.swift` and a `TabSpec` in `App.kt`.
+
+Version gotchas: `material3` must stay on an alpha (`libs.versions.toml`) —
+Expressive APIs are stripped from stable releases. The material-icons artifacts
+are frozen at 1.7.3 and no longer come in transitively; only
+`material-icons-core` icons are available.
+
 ## Backend contract
 
 Auth is a browser-based OAuth handoff, not a mobile-native SDK flow:
@@ -44,7 +77,9 @@ and `sessions_controller.rb` in the moonrose repo — check there first.
 
 - Android: `./gradlew :androidApp:assembleDebug`
 - Desktop: `./gradlew :desktopApp:run` (or `:desktopApp:hotRun --auto` for hot reload)
-- iOS: open [iosApp](iosApp) in Xcode and run from there
+- iOS: open [iosApp](iosApp) in Xcode and run from there (requires Xcode 26+;
+  deployment target is iOS 26.0). Headless:
+  `xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -destination 'generic/platform=iOS Simulator' build`
 - Web:
   ```
   npm run build:shared   # builds sharedLogic's Kotlin/JS library
@@ -64,3 +99,17 @@ and `sessions_controller.rb` in the moonrose repo — check there first.
 Run the ones relevant to what you touched; there's no single "test everything"
 task because platform toolchains (Xcode, Android SDK) aren't all guaranteed
 to be present.
+
+## Faking a signed-in state (manual/agent testing)
+
+The signed-in UI (tab shell) is behind the auth gate. To reach it without a
+real Google OAuth round-trip:
+
+- iOS simulator (token store is plain NSUserDefaults):
+  `xcrun simctl spawn <udid> defaults write dev.balaji.moonrose.logtrain.LogTrain "dev.balaji.moonrose.logtrain.auth.token" test-token`
+  then (re)launch the app.
+- Android (token store is encrypted, so inject via the deep-link flow instead):
+  `adb shell am start -a android.intent.action.VIEW -d "logtrain://auth?token=test-token" dev.balaji.moonrose.logtrain`
+
+Backend API calls will 401 with a fake token, but screens that don't hit the
+API render fine.
