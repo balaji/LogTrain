@@ -1,5 +1,42 @@
 package dev.balaji.moonrose.logtrain
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.uikit.OnFocusBehavior
 import androidx.compose.ui.window.ComposeUIViewController
+import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
+import dev.balaji.moonrose.logtrain.navigation.Route
+import dev.balaji.moonrose.logtrain.navigation.ScreenContent
+import dev.balaji.moonrose.logtrain.navigation.TopLevelRoute
+import dev.balaji.moonrose.logtrain.screens.AuthScreen
+import platform.UIKit.UIViewController
 
-fun MainViewController() = ComposeUIViewController { App() }
+/**
+ * Per-screen entry points for the SwiftUI shell. SwiftUI owns TabView and
+ * NavigationStack (iOS 26 Liquid Glass chrome); Compose renders content only.
+ */
+private fun composeScreen(content: @Composable () -> Unit): UIViewController =
+    ComposeUIViewController(configure = { onFocusBehavior = OnFocusBehavior.DoNothing }) {
+        PlatformTheme {
+            CompositionLocalProvider(LocalUseNativeNavigation provides true) {
+                content()
+            }
+        }
+    }
+
+fun AuthViewController(): UIViewController = composeScreen { AuthScreen() }
+
+fun MainViewController(
+    route: TopLevelRoute,
+    onNavigate: (Route) -> Unit,
+): UIViewController = composeScreen {
+    ScreenContent(route = route, onNavigate = onNavigate, onGoBack = {})
+}
+
+fun ScreenViewController(
+    route: Route,
+    onNavigate: (Route) -> Unit,
+    onGoBack: () -> Unit,
+): UIViewController = composeScreen {
+    ScreenContent(route = route, onNavigate = onNavigate, onGoBack = onGoBack)
+}
