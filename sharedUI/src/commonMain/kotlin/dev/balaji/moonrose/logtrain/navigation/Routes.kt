@@ -16,9 +16,18 @@ data object WorkoutsRoute : TopLevelRoute {
     override val title get() = "Workouts"
 }
 
+data object PlansRoute : TopLevelRoute {
+    override val title get() = "Plans"
+}
+
 data object ProfileRoute : TopLevelRoute {
     override val title get() = "Profile"
 }
+
+data class PlanDetailRoute(
+    val planId: Long,
+    override val title: String = "Plan",
+) : Route
 
 data class WorkoutDetailRoute(
     val workoutId: Long,
