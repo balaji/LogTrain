@@ -57,5 +57,6 @@ class LoginController(private val tokenStore: AuthTokenStore) {
 
 @JsExport
 object AppAuth {
-    val loginController = LoginController(createAuthTokenStore())
+    internal val tokenStore = createAuthTokenStore()
+    val loginController = LoginController(tokenStore)
 }

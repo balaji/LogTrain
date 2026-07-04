@@ -22,9 +22,10 @@ struct RouteWrapper: Hashable, Identifiable {
 }
 
 @Observable class AppNavigationCoordinator {
-    enum AppTab { case workouts, profile }
+    enum AppTab { case workouts, plans, profile }
     var selectedTab: AppTab = .workouts
     let workoutsCoordinator = TabNavigationCoordinator()
+    let plansCoordinator = TabNavigationCoordinator()
     let profileCoordinator = TabNavigationCoordinator()
 }
 
@@ -87,6 +88,17 @@ struct TabContentView: View {
             TabRootComposeView(route: route, coordinator: coordinator)
                 .ignoresSafeArea(.all)
                 .navigationTitle(title)
+                .toolbar {
+                    if route is PlansRoute {
+                        ToolbarItem(placement: .primaryAction) {
+                            Button {
+                                PlansCreateRequestNotifier.shared.requestCreate()
+                            } label: {
+                                Image(systemName: "plus")
+                            }
+                        }
+                    }
+                }
                 .navigationDestination(for: RouteWrapper.self) { wrapper in
                     DetailComposeView(route: wrapper.route, coordinator: coordinator)
                         .ignoresSafeArea(.all)
@@ -111,6 +123,14 @@ struct ContentView: View {
                         route: WorkoutsRoute.shared,
                         title: "Workouts",
                         coordinator: appCoordinator.workoutsCoordinator
+                    )
+                }
+                Tab("Plans", systemImage: "list.clipboard",
+                    value: AppNavigationCoordinator.AppTab.plans) {
+                    TabContentView(
+                        route: PlansRoute.shared,
+                        title: "Plans",
+                        coordinator: appCoordinator.plansCoordinator
                     )
                 }
                 Tab("Profile", systemImage: "person.crop.circle",

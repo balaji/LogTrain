@@ -11,6 +11,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -18,6 +19,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import dev.balaji.moonrose.logtrain.auth.rememberIsSignedIn
 import dev.balaji.moonrose.logtrain.navigation.NavStack
+import dev.balaji.moonrose.logtrain.navigation.PlansRoute
 import dev.balaji.moonrose.logtrain.navigation.PlatformBackHandler
 import dev.balaji.moonrose.logtrain.navigation.ProfileRoute
 import dev.balaji.moonrose.logtrain.navigation.ScreenContent
@@ -50,6 +52,7 @@ private fun MainTabs() {
     val tabs = remember {
         listOf(
             TabSpec(WorkoutsRoute, Icons.AutoMirrored.Filled.List),
+            TabSpec(PlansRoute, Icons.Filled.DateRange),
             TabSpec(ProfileRoute, Icons.Filled.Person),
         )
     }
