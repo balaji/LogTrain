@@ -16,7 +16,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         AndroidContextHolder.appContext = applicationContext
-        MoonroseConfig.baseUrl = "http://10.0.2.2:3000"
+        MoonroseConfig.baseUrl = BuildConfig.API_BASE_URL
 
         setContent {
             App()

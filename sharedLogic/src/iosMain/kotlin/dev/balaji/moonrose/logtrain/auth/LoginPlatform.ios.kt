@@ -5,7 +5,7 @@ import platform.UIKit.UIApplication
 
 actual fun openInSystemBrowser(url: String) {
     val nsUrl = NSURL.URLWithString(url) ?: return
-    UIApplication.sharedApplication.openURL(nsUrl)
+    UIApplication.sharedApplication.openURL(nsUrl, options = emptyMap<Any?, Any?>(), completionHandler = null)
 }
 
 actual fun prepareRedirectUri(onToken: (String) -> Unit): String = "logtrain://auth"
