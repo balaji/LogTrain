@@ -4,16 +4,18 @@ A gym workout logger that gets out of your way. Log your sets between sets —
 pick the exercise, punch in weight and reps, done — and let the app keep the
 long-term record: what you lifted, when, and how it's trending.
 
-LogTrain is the client side of a two-repo project: it talks to
-[moonrose](https://github.com/balaji/moonrose), a Rails backend that
-owns the data model (exercises, plans, routines, workout sessions and their
-sets) and handles Google sign-in. One account, every device.
+LogTrain is local-first: all data (profile, exercises, plans, routines,
+workout sessions and their sets) lives in an on-device Room database. No
+account, no sign-in — you create a profile on first launch and start logging.
+Syncing local data to a backend (to view progress on the web) is planned as a
+future premium feature.
 
 ## Where it runs
 
 - **iPhone** and **Android** — the primary experience: logging at the gym.
 - **Desktop** — reviewing history and planning routines with a keyboard.
-- **Web** — the same, from any browser.
+- **Web** — coming soon; local data isn't available in the browser yet, so
+  the web app currently shows a notice.
 
 ## Product principles
 
@@ -25,18 +27,19 @@ sets) and handles Google sign-in. One account, every device.
    an Android user a real Material You app that follows their wallpaper and
    dark mode. Sharing code (Kotlin Multiplatform) is an implementation
    strategy, not an excuse for a lowest-common-denominator UI.
-3. **Your data outlives the app.** Everything lives behind a plain JSON API
-   in moonrose; nothing is trapped in a proprietary store.
+3. **Your data outlives the app.** Everything lives in a plain SQLite
+   database on your device; nothing is trapped in a proprietary store or
+   locked behind someone else's server.
 
 ## Status
 
-Early. Sign-in works end to end, and the native app shells are in place
-(iOS 26 Liquid Glass tab navigation, Material 3 Expressive on Android).
-The actual workout screens are placeholders — plans, routines, session
-logging, and history are next.
+Early. Profile creation and plans/routines work end to end against the local
+database, and the native app shells are in place (iOS 26 Liquid Glass tab
+navigation, Material 3 Expressive on Android). Session logging and history
+are next.
 
 ## Contributing / hacking
 
 Architecture, build commands, tests, and conventions live in
 [AGENTS.md](AGENTS.md) — it's written for coding agents but it's the
-engineering README too. The backend contract is documented there as well.
+engineering README too. The local data model is documented there as well.

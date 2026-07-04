@@ -29,26 +29,19 @@ struct RouteWrapper: Hashable, Identifiable {
     let profileCoordinator = TabNavigationCoordinator()
 }
 
-@Observable class AuthState {
-    var isSignedIn: Bool
+/// nil until the database's first emission, then tracks whether a profile row exists.
+@Observable class ProfileState {
+    var hasProfile: Bool? = nil
+    private var observation: ProfileObservation?
 
     init() {
-        let controller = AppAuth.shared.loginController
-        isSignedIn = controller.isSignedIn()
-        controller.addListener { [weak self] in
-            self?.isSignedIn = controller.isSignedIn()
+        observation = ProfileStore.shared.observeHasProfile { [weak self] value in
+            self?.hasProfile = value.boolValue
         }
     }
 }
 
 // MARK: - Compose hosting
-
-struct AuthComposeView: UIViewControllerRepresentable {
-    func makeUIViewController(context: Context) -> UIViewController {
-        MainViewControllerKt.AuthViewController()
-    }
-    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
-}
 
 struct TabRootComposeView: UIViewControllerRepresentable {
     let route: TopLevelRoute
@@ -111,11 +104,11 @@ struct TabContentView: View {
 }
 
 struct ContentView: View {
-    @State private var authState = AuthState()
+    @State private var profileState = ProfileState()
     @State private var appCoordinator = AppNavigationCoordinator()
 
     var body: some View {
-        if authState.isSignedIn {
+        if profileState.hasProfile == true {
             TabView(selection: $appCoordinator.selectedTab) {
                 Tab("Workouts", systemImage: "figure.strengthtraining.traditional",
                     value: AppNavigationCoordinator.AppTab.workouts) {
@@ -135,17 +128,17 @@ struct ContentView: View {
                 }
                 Tab("Profile", systemImage: "person.crop.circle",
                     value: AppNavigationCoordinator.AppTab.profile) {
-                    TabContentView(
-                        route: ProfileRoute.shared,
-                        title: "Profile",
-                        coordinator: appCoordinator.profileCoordinator
-                    )
+                    NavigationStack {
+                        ProfileView()
+                            .navigationTitle("Profile")
+                    }
                 }
             }
             .tabBarMinimizeBehavior(.automatic)
+        } else if profileState.hasProfile == false {
+            ProfileSetupView()
         } else {
-            AuthComposeView()
-                .ignoresSafeArea(.all)
+            ProgressView()
         }
     }
 }

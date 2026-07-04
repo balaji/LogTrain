@@ -1,7 +1,6 @@
 package dev.balaji.moonrose.logtrain.screens
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -19,7 +18,6 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -29,13 +27,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -44,14 +40,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.unit.dp
-import dev.balaji.moonrose.logtrain.api.AppApi
-import dev.balaji.moonrose.logtrain.api.Plan
-import dev.balaji.moonrose.logtrain.api.Routine
+import dev.balaji.moonrose.logtrain.db.PlanRepository
+import dev.balaji.moonrose.logtrain.model.Plan
+import dev.balaji.moonrose.logtrain.model.Routine
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import dev.balaji.moonrose.logtrain.navigation.Route
 import dev.balaji.moonrose.logtrain.navigation.RoutineDetailRoute
-import dev.balaji.moonrose.logtrain.plans.PlansChangeNotifier
 import dev.balaji.moonrose.logtrain.plans.PlansCreateRequestNotifier
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 private sealed interface PlanDialog {
@@ -63,29 +59,18 @@ private sealed interface PlanDialog {
     data class DeleteRoutine(val routine: Routine) : PlanDialog
 }
 
-private sealed interface RoutinesState {
-    data object Loading : RoutinesState
-    data class Loaded(val routines: List<Routine>) : RoutinesState
-    data class Error(val message: String) : RoutinesState
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlansScreen(onNavigate: (Route) -> Unit) {
-    var plans by remember { mutableStateOf<List<Plan>?>(null) }
-    var loadError by remember { mutableStateOf<String?>(null) }
+    // null until the first database emission, so the loading state is distinct.
+    val plans by PlanRepository.plans.collectAsState(initial = null)
+    val routinesByPlan by remember {
+        PlanRepository.routines.map { routines -> routines.groupBy(Routine::planId) }
+    }.collectAsState(initial = emptyMap())
     var actionError by remember { mutableStateOf<String?>(null) }
-    var refreshKey by remember { mutableStateOf(0) }
     var dialog by remember { mutableStateOf<PlanDialog?>(null) }
     var expandedPlanIds by remember { mutableStateOf(emptySet<Long>()) }
-    val routinesByPlan = remember { mutableStateMapOf<Long, RoutinesState>() }
     val scope = rememberCoroutineScope()
-
-    DisposableEffect(Unit) {
-        val listener = { refreshKey += 1 }
-        PlansChangeNotifier.addListener(listener)
-        onDispose { PlansChangeNotifier.removeListener(listener) }
-    }
 
     DisposableEffect(Unit) {
         val listener = { dialog = PlanDialog.Create }
@@ -93,40 +78,11 @@ fun PlansScreen(onNavigate: (Route) -> Unit) {
         onDispose { PlansCreateRequestNotifier.removeListener(listener) }
     }
 
-    fun loadRoutines(planId: Long) {
-        scope.launch {
-            // Keep showing stale routines while refreshing to avoid flicker.
-            if (routinesByPlan[planId] !is RoutinesState.Loaded) {
-                routinesByPlan[planId] = RoutinesState.Loading
-            }
-            routinesByPlan[planId] = try {
-                RoutinesState.Loaded(AppApi.api.listRoutines(planId))
-            } catch (e: Exception) {
-                RoutinesState.Error(e.message ?: "Could not load routines")
-            }
-        }
-    }
-
-    LaunchedEffect(refreshKey) {
-        loadError = null
-        try {
-            val loaded = AppApi.api.listPlans()
-            plans = loaded
-            val planIds = loaded.mapTo(mutableSetOf()) { it.id }
-            expandedPlanIds = expandedPlanIds intersect planIds
-            routinesByPlan.keys.retainAll(planIds)
-            expandedPlanIds.forEach { loadRoutines(it) }
-        } catch (e: Exception) {
-            loadError = e.message ?: "Could not load plans"
-        }
-    }
-
     fun toggleExpanded(plan: Plan) {
-        if (plan.id in expandedPlanIds) {
-            expandedPlanIds = expandedPlanIds - plan.id
+        expandedPlanIds = if (plan.id in expandedPlanIds) {
+            expandedPlanIds - plan.id
         } else {
-            expandedPlanIds = expandedPlanIds + plan.id
-            if (routinesByPlan[plan.id] == null) loadRoutines(plan.id)
+            expandedPlanIds + plan.id
         }
     }
 
@@ -135,10 +91,9 @@ fun PlansScreen(onNavigate: (Route) -> Unit) {
             try {
                 block()
                 dialog = null
-                PlansChangeNotifier.notifyChanged()
             } catch (e: Exception) {
                 dialog = null
-                actionError = e.message ?: "Request failed"
+                actionError = e.message ?: "Could not save the change"
             }
         }
     }
@@ -146,11 +101,9 @@ fun PlansScreen(onNavigate: (Route) -> Unit) {
     val body: @Composable (PaddingValues) -> Unit = { contentPadding ->
         PlansBody(
             plans = plans,
-            loadError = loadError,
             expandedPlanIds = expandedPlanIds,
             routinesByPlan = routinesByPlan,
             contentPadding = contentPadding,
-            onRetry = { refreshKey += 1 },
             onToggle = ::toggleExpanded,
             onRename = { dialog = PlanDialog.Rename(it) },
             onDelete = { dialog = PlanDialog.Delete(it) },
@@ -160,7 +113,6 @@ fun PlansScreen(onNavigate: (Route) -> Unit) {
             },
             onRenameRoutine = { dialog = PlanDialog.RenameRoutine(it) },
             onDeleteRoutine = { dialog = PlanDialog.DeleteRoutine(it) },
-            onRetryRoutines = ::loadRoutines,
         )
     }
 
@@ -183,37 +135,37 @@ fun PlansScreen(onNavigate: (Route) -> Unit) {
         PlanDialog.Create -> NameEditDialog(
             title = "New plan",
             confirmLabel = "Create",
-            onConfirm = { name -> runMutation { AppApi.api.createPlan(name) } },
+            onConfirm = { name -> runMutation { PlanRepository.createPlan(name) } },
             onDismiss = { dialog = null },
         )
         is PlanDialog.Rename -> NameEditDialog(
             title = "Rename plan",
             initialValue = current.plan.name,
-            onConfirm = { name -> runMutation { AppApi.api.updatePlan(current.plan.id, name) } },
+            onConfirm = { name -> runMutation { PlanRepository.renamePlan(current.plan.id, name) } },
             onDismiss = { dialog = null },
         )
         is PlanDialog.Delete -> ConfirmDeleteDialog(
             title = "Delete plan?",
             text = "\"${current.plan.name}\" and all of its routines will be deleted.",
-            onConfirm = { runMutation { AppApi.api.deletePlan(current.plan.id) } },
+            onConfirm = { runMutation { PlanRepository.deletePlan(current.plan.id) } },
             onDismiss = { dialog = null },
         )
         is PlanDialog.CreateRoutine -> NameEditDialog(
             title = "New routine",
             confirmLabel = "Create",
-            onConfirm = { name -> runMutation { AppApi.api.createRoutine(current.plan.id, name) } },
+            onConfirm = { name -> runMutation { PlanRepository.createRoutine(current.plan.id, name) } },
             onDismiss = { dialog = null },
         )
         is PlanDialog.RenameRoutine -> NameEditDialog(
             title = "Rename routine",
             initialValue = current.routine.name,
-            onConfirm = { name -> runMutation { AppApi.api.updateRoutine(current.routine.id, name) } },
+            onConfirm = { name -> runMutation { PlanRepository.renameRoutine(current.routine.id, name) } },
             onDismiss = { dialog = null },
         )
         is PlanDialog.DeleteRoutine -> ConfirmDeleteDialog(
             title = "Delete routine?",
             text = "\"${current.routine.name}\" will be deleted.",
-            onConfirm = { runMutation { AppApi.api.deleteRoutine(current.routine.id) } },
+            onConfirm = { runMutation { PlanRepository.deleteRoutine(current.routine.id) } },
             onDismiss = { dialog = null },
         )
         null -> {}
@@ -227,11 +179,9 @@ fun PlansScreen(onNavigate: (Route) -> Unit) {
 @Composable
 private fun PlansBody(
     plans: List<Plan>?,
-    loadError: String?,
     expandedPlanIds: Set<Long>,
-    routinesByPlan: Map<Long, RoutinesState>,
+    routinesByPlan: Map<Long, List<Routine>>,
     contentPadding: PaddingValues,
-    onRetry: () -> Unit,
     onToggle: (Plan) -> Unit,
     onRename: (Plan) -> Unit,
     onDelete: (Plan) -> Unit,
@@ -239,13 +189,8 @@ private fun PlansBody(
     onOpenRoutine: (Routine) -> Unit,
     onRenameRoutine: (Routine) -> Unit,
     onDeleteRoutine: (Routine) -> Unit,
-    onRetryRoutines: (Long) -> Unit,
 ) {
     when {
-        plans == null && loadError != null -> CenteredMessage(contentPadding) {
-            Text(loadError)
-            Button(onClick = onRetry) { Text("Retry") }
-        }
         plans == null -> CenteredMessage(contentPadding) {
             CircularProgressIndicator()
         }
@@ -273,56 +218,31 @@ private fun PlansBody(
                             HorizontalDivider()
                         }
                     }
-                    when (val state = routinesByPlan[plan.id]) {
-                        null, RoutinesState.Loading -> item(key = "routines-loading-${plan.id}") {
-                            Box(
-                                modifier = Modifier.animateItem()
-                                    .fillMaxWidth()
-                                    .background(MaterialTheme.colorScheme.surfaceContainer)
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                CircularProgressIndicator()
+                    val routines = routinesByPlan[plan.id].orEmpty()
+                    if (routines.isEmpty()) {
+                        item(key = "routines-empty-${plan.id}") {
+                            Column(modifier = Modifier.animateItem()) {
+                                Text(
+                                    "No routines yet. Tap + to add one.",
+                                    modifier = Modifier.fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                                        .padding(16.dp),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                HorizontalDivider()
                             }
                         }
-                        is RoutinesState.Error -> item(key = "routines-error-${plan.id}") {
-                            Column(
-                                modifier = Modifier.animateItem()
-                                    .fillMaxWidth()
-                                    .background(MaterialTheme.colorScheme.surfaceContainer)
-                                    .padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Text(state.message)
-                                TextButton(onClick = { onRetryRoutines(plan.id) }) { Text("Retry") }
-                            }
-                        }
-                        is RoutinesState.Loaded -> if (state.routines.isEmpty()) {
-                            item(key = "routines-empty-${plan.id}") {
+                    } else {
+                        routines.forEach { routine ->
+                            item(key = "routine-${routine.id}") {
                                 Column(modifier = Modifier.animateItem()) {
-                                    Text(
-                                        "No routines yet. Tap + to add one.",
-                                        modifier = Modifier.fillMaxWidth()
-                                            .background(MaterialTheme.colorScheme.surfaceContainer)
-                                            .padding(16.dp),
-                                        style = MaterialTheme.typography.bodyMedium,
+                                    RoutineRow(
+                                        routine = routine,
+                                        onOpen = onOpenRoutine,
+                                        onRename = onRenameRoutine,
+                                        onDelete = onDeleteRoutine,
                                     )
                                     HorizontalDivider()
-                                }
-                            }
-                        } else {
-                            state.routines.forEach { routine ->
-                                item(key = "routine-${routine.id}") {
-                                    Column(modifier = Modifier.animateItem()) {
-                                        RoutineRow(
-                                            routine = routine,
-                                            onOpen = onOpenRoutine,
-                                            onRename = onRenameRoutine,
-                                            onDelete = onDeleteRoutine,
-                                        )
-                                        HorizontalDivider()
-                                    }
                                 }
                             }
                         }

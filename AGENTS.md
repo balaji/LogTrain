@@ -1,27 +1,27 @@
 # AGENTS.md
 
 Kotlin Multiplatform app (Android, iOS, Desktop, Web) for logging gym
-workouts. Its backend is `moonrose` (Rails, sibling repo), which in
-production is reachable at https://moonrose.balaji.dev. Locally it runs at
-`http://localhost:3000` via `docker compose up -d moonrose` from the moonrose
-repo — start that first if you need a live backend.
+workouts. It is local-first: all data lives in an on-device Room (KMP)
+database; there is no backend and no sign-in. The local schema mirrors the
+old `moonrose` Rails backend (sibling repo) so a future premium sync feature
+can map rows 1:1.
 
 ## Module layout
 
-- [sharedLogic](sharedLogic/src) — platform-agnostic Kotlin: networking (Ktor),
-  auth, models. `commonMain` is the bulk of it; `androidMain`/`iosMain`/`jvmMain`/`jsMain`
-  hold `expect`/`actual` platform implementations. Compiles to a JS library
-  (`sharedLogic`) consumed by `webApp`.
+- [sharedLogic](sharedLogic/src) — platform-agnostic Kotlin: domain models
+  (`commonMain/.../model/`) and the Room database layer (`dbMain/.../db/`).
+  `dbMain` is an intermediate source set shared by android + ios + jvm —
+  Room has no JS support, so `jsMain` never sees it. Platform `dbMain`
+  actuals (database file location) live in `androidMain`/`iosMain`/`jvmMain`.
+  Compiles to a JS library (`sharedLogic`) consumed by `webApp`.
 - [sharedUI](sharedUI/src) — Compose Multiplatform UI shared by Android,
-  Desktop, and iOS. Not used by `webApp` (that's plain React).
+  Desktop, and iOS. Not used by `webApp` (that's plain React). Its targets
+  are a subset of `dbMain`'s, so its `commonMain` can use the db layer
+  directly (screens consume repositories/Flows, never Room types).
 - [androidApp](androidApp), [desktopApp](desktopApp), [iosApp](iosApp) —
   thin per-platform entry points wiring up `sharedLogic` + `sharedUI`.
-- [webApp](webApp) — React + TypeScript, consumes the Kotlin/JS build of
-  `sharedLogic` as an npm dependency.
-
-`MoonroseConfig.baseUrl` (`sharedLogic/.../auth/LoginController.kt`) is the
-single point of configuration for which backend a build talks to — defaults
-to `http://localhost:3000`.
+- [webApp](webApp) — React + TypeScript. Currently a "not supported on web"
+  notice; DB-backed features need the future sync backend.
 
 ## UI architecture
 
@@ -32,12 +32,12 @@ Goal: native look-and-feel per platform, following JetBrains' hybrid pattern
   `TabView` + per-tab `NavigationStack` in `iosApp/iosApp/ContentView.swift`
   get real Liquid Glass styling. Compose renders screen *content* only, hosted
   per-screen via the entry points in `sharedUI/src/iosMain/.../MainViewController.kt`
-  (`AuthViewController`, `MainViewController(route:onNavigate:)`,
+  (`ProfileSetupViewController`, `MainViewController(route:onNavigate:)`,
   `ScreenViewController(route:onNavigate:onGoBack:)`). Navigation intents flow
   Kotlin → Swift through those callbacks; Swift coordinators push/pop the stack.
   The shared `App()` composable is **not** used on iOS.
 - **Android/Desktop**: pure Compose. `App()` (`sharedUI/.../App.kt`) renders
-  auth gate → `NavigationBar` tab scaffold, with a hand-rolled `NavStack`
+  profile gate → `NavigationBar` tab scaffold, with a hand-rolled `NavStack`
   (no navigation library — deliberate; SwiftUI owns the iOS stack, so a shared
   nav library would be dead weight). Android theming is `MaterialExpressiveTheme`
   + Material You dynamic color (`PlatformTheme.android.kt`); predictive back is
@@ -99,22 +99,28 @@ Expressive APIs are stripped from stable releases. The material-icons artifacts
 are frozen at 1.7.3 and no longer come in transitively; only
 `material-icons-core` icons are available.
 
-## Backend contract
+## Local database
 
-Auth is a browser-based OAuth handoff, not a mobile-native SDK flow:
+Room KMP (`androidx.room` + bundled SQLite driver, KSP codegen) in
+`sharedLogic/src/dbMain/.../db/`:
 
-- `LoginController.startLogin()` opens `{baseUrl}/mobile/login?redirect_uri=...`
-  in the system browser. Moonrose does Google OAuth, then redirects back to
-  `redirect_uri` with a `token` query param.
-- `LoginController.completeLogin(callbackUrl)` extracts that `token` and
-  hands it to `AuthTokenStore` (platform-specific: Keychain/EncryptedSharedPreferences/etc.).
-- Authenticated API calls send the token as a bearer token against
-  `/api/v1/...` (exercises, plans, routines, work_sets, work_set_details,
-  workout_sessions, workout_session_details — see moonrose's `config/routes.rb`).
-
-If you change anything about this flow (redirect_uri handling, token param
-name, deep link scheme), it must stay in sync with `mobile_auth_controller.rb`
-and `sessions_controller.rb` in the moonrose repo — check there first.
+- **Entities** (`Entities.kt`): `profile` (single row, id = 1: name, age,
+  gender, weight, height), `exercises` (reference catalog, seeded on first
+  create by `ExerciseSeed.kt`), `plans`, `routines`, `work_sets`,
+  `work_set_details`, `workout_sessions`, `workout_session_details`.
+  Snake_case table/column names mirror moonrose's schema for future sync
+  parity; timestamps are epoch millis. Containment FKs cascade (plan →
+  routines), history FKs null out (session → routine).
+- **Repositories** (`ProfileRepository`, `PlanRepository`): the only API the
+  UI layer uses — Flow-based reads of domain models
+  (`commonMain/.../model/Models.kt`), suspend writes. `ProfileStore` is a
+  callback bridge for the SwiftUI shell (it can't consume Flows).
+- **Database file**: `AppDb.db` lazy singleton; file lives at
+  `getDatabasePath("logtrain.db")` (Android, context via `DbContextHolder`,
+  set in `MainActivity`), app documents dir (iOS), `~/.logtrain/logtrain.db`
+  (desktop).
+- **Schema JSON** is exported to `sharedLogic/schemas/` (committed). Bump the
+  `@Database` version and write a migration for any schema change.
 
 ## Building and running
 
@@ -143,16 +149,16 @@ Run the ones relevant to what you touched; there's no single "test everything"
 task because platform toolchains (Xcode, Android SDK) aren't all guaranteed
 to be present.
 
-## Faking a signed-in state (manual/agent testing)
+## Resetting app state (manual/agent testing)
 
-The signed-in UI (tab shell) is behind the auth gate. To reach it without a
-real Google OAuth round-trip:
+The tab shell is behind the profile gate; creating a profile through the
+first-run form is the fast path. To get back to a fresh install:
 
-- iOS simulator (token store is plain NSUserDefaults):
-  `xcrun simctl spawn <udid> defaults write dev.balaji.moonrose.logtrain.LogTrain "dev.balaji.moonrose.logtrain.auth.token" test-token`
-  then (re)launch the app.
-- Android (token store is encrypted, so inject via the deep-link flow instead):
-  `adb shell am start -a android.intent.action.VIEW -d "logtrain://auth?token=test-token" dev.balaji.moonrose.logtrain`
+- Desktop: `rm -rf ~/.logtrain`
+- Android: `adb shell pm clear dev.balaji.moonrose.logtrain`
+- iOS simulator: delete the app (the database lives in the app's Documents
+  directory).
 
-Backend API calls will 401 with a fake token, but screens that don't hit the
-API render fine.
+Inspect the desktop database directly with
+`sqlite3 ~/.logtrain/logtrain.db` (e.g. `.tables`,
+`select * from exercises;`).

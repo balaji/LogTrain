@@ -3,10 +3,15 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
-    alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.room)
 }
 
 kotlin {
+    // The custom dbMain dependsOn edges below would otherwise disable the default
+    // hierarchy template, leaving iosMain disconnected from the iOS compilations.
+    applyDefaultHierarchyTemplate()
+
     iosArm64()
     iosSimulatorArm64()
 
@@ -40,35 +45,39 @@ kotlin {
     }
 
     sourceSets {
+        // Room-backed persistence for every target except js (Room has no JS support).
+        // sharedUI's targets are a subset of these, so its commonMain can use dbMain APIs.
+        val dbMain by creating {
+            dependsOn(commonMain.get())
+            dependencies {
+                api(libs.androidx.room.runtime)
+                implementation(libs.androidx.sqlite.bundled)
+            }
+        }
+        androidMain.get().dependsOn(dbMain)
+        iosMain.get().dependsOn(dbMain)
+        jvmMain.get().dependsOn(dbMain)
+
         commonMain.dependencies {
             implementation(libs.kotlinx.coroutinesCore)
-            implementation(libs.ktor.client.core)
-            implementation(libs.ktor.client.auth)
-            implementation(libs.ktor.client.contentNegotiation)
-            implementation(libs.ktor.serialization.kotlinxJson)
-            implementation(libs.kotlinx.serializationJson)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
-        androidMain.dependencies {
-            implementation(libs.ktor.client.okhttp)
-            implementation(libs.androidx.browser)
-            implementation(libs.androidx.securityCrypto)
-        }
-        iosMain.dependencies {
-            implementation(libs.ktor.client.darwin)
-        }
-        jvmMain.dependencies {
-            implementation(libs.ktor.client.cio)
-        }
         jvmTest.dependencies {
             implementation(libs.kotlin.testJunit)
         }
-        jsMain.dependencies {
-            implementation(libs.wrappers.browser)
-            implementation(libs.kotlinx.browser)
-            implementation(libs.ktor.client.js)
-        }
     }
+}
+
+room {
+    schemaDirectory("$projectDir/schemas")
+}
+
+dependencies {
+    add("kspAndroid", libs.androidx.room.compiler)
+    add("kspIosArm64", libs.androidx.room.compiler)
+    add("kspIosSimulatorArm64", libs.androidx.room.compiler)
+    add("kspJvm", libs.androidx.room.compiler)
+    // no kspJs: the js target has no Room code
 }
