@@ -5,10 +5,13 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import dev.balaji.moonrose.logtrain.navigation.LocalNativeAlertPresenter
+import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 
 @Composable
 internal fun NameEditDialog(
@@ -18,6 +21,20 @@ internal fun NameEditDialog(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val nativePresenter = LocalNativeAlertPresenter.current
+    if (LocalUseNativeNavigation.current && nativePresenter != null) {
+        LaunchedEffect(Unit) {
+            nativePresenter.presentTextInput(
+                title = title,
+                initialValue = initialValue,
+                confirmLabel = confirmLabel,
+                onConfirm = { name -> onConfirm(name.trim()) },
+                onCancel = onDismiss,
+            )
+        }
+        return
+    }
+
     var name by remember { mutableStateOf(initialValue) }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -48,6 +65,21 @@ internal fun ConfirmDeleteDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val nativePresenter = LocalNativeAlertPresenter.current
+    if (LocalUseNativeNavigation.current && nativePresenter != null) {
+        LaunchedEffect(Unit) {
+            nativePresenter.presentConfirm(
+                title = title,
+                message = text,
+                confirmLabel = "Delete",
+                destructive = true,
+                onConfirm = onConfirm,
+                onCancel = onDismiss,
+            )
+        }
+        return
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
@@ -63,6 +95,18 @@ internal fun ConfirmDeleteDialog(
 
 @Composable
 internal fun ErrorDialog(message: String, onDismiss: () -> Unit) {
+    val nativePresenter = LocalNativeAlertPresenter.current
+    if (LocalUseNativeNavigation.current && nativePresenter != null) {
+        LaunchedEffect(Unit) {
+            nativePresenter.presentInfo(
+                title = "Something went wrong",
+                message = message,
+                onDismiss = onDismiss,
+            )
+        }
+        return
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Something went wrong") },

@@ -88,6 +88,17 @@ struct TabContentView: View {
             TabRootComposeView(route: route, coordinator: coordinator)
                 .ignoresSafeArea(.all)
                 .navigationTitle(title)
+                .toolbar {
+                    if route is PlansRoute {
+                        ToolbarItem(placement: .primaryAction) {
+                            Button {
+                                PlansCreateRequestNotifier.shared.requestCreate()
+                            } label: {
+                                Image(systemName: "plus")
+                            }
+                        }
+                    }
+                }
                 .navigationDestination(for: RouteWrapper.self) { wrapper in
                     DetailComposeView(route: wrapper.route, coordinator: coordinator)
                         .ignoresSafeArea(.all)

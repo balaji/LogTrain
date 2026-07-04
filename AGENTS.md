@@ -51,6 +51,49 @@ draws the chrome) and use `WindowInsets.safeDrawing` padding *inside* scrollable
 so content flows behind translucent system bars. A new tab additionally needs a
 `Tab` + coordinator in `ContentView.swift` and a `TabSpec` in `App.kt`.
 
+### Don't let Material patterns leak onto iOS
+
+Compose's defaults are Material (Android) by design, so any control that isn't
+explicitly branched will render Android-style on iOS too. Before adding a new
+screen or interaction, check whether it falls into one of these categories —
+each has an established fix, don't reinvent it:
+
+- **Primary/floating actions** (a screen's main "+"/create button): never use
+  `FloatingActionButton` when `LocalUseNativeNavigation.current` is true — iOS
+  puts this in the native nav bar's trailing `ToolbarItem`, not a floating
+  circle. Since SwiftUI owns that toolbar and Compose only owns content, the
+  tap has to cross the boundary: add a small listener-object bridge (see
+  `PlansCreateRequestNotifier` in
+  `sharedUI/.../plans/`) that the Compose screen listens to via
+  `DisposableEffect`, and call `.shared.requestCreate()` from a `.toolbar` in
+  `ContentView.swift`.
+- **Alerts and confirmations** (rename/delete/error dialogs): never render a
+  bare Material `AlertDialog` unconditionally — on iOS it should present a
+  native `UIAlertController` instead. Use `LocalNativeAlertPresenter`
+  (`sharedUI/.../navigation/NativeAlerts.kt`, iOS impl in `NativeAlerts.ios.kt`)
+  from the dialog composable: if `LocalUseNativeNavigation.current` and the
+  presenter is non-null, call it from a `LaunchedEffect(Unit)` and return
+  early; otherwise fall back to the Material `AlertDialog`. See
+  `PlanDialogs.kt` for the pattern.
+- **Row/contextual actions** (rename/delete on a list row): never use a bare
+  `DropdownMenu` unconditionally — on iOS this should be a native action
+  sheet (`LocalNativeAlertPresenter.presentActionSheet(...)`) or a gesture
+  that reads natively on both platforms. The current convention is
+  swipe-to-reveal action buttons via `SwipeRevealRow`
+  (`sharedUI/.../screens/SwipeRevealRow.kt`; see `PlanRow`/`RoutineRow` in
+  `PlansScreen.kt`).
+- **Icons**: `material-icons-core` is a small, frozen set (see version gotcha
+  below) — don't reach for an "iOS-shaped" icon (e.g. a horizontal-ellipsis
+  glyph) that isn't in that set just to look native; the interaction pattern
+  (toolbar button, native alert, action sheet) is what actually matters, the
+  glyph is secondary.
+
+When in doubt: if a control's only job is to look right (a spinner, a list
+row), it's usually fine shared as-is. If a control is "chrome-adjacent" —
+something Android and iOS have genuinely different conventions for (primary
+actions, alerts/action sheets, menus, swipe gestures, tab/nav bars) — assume it
+needs platform branching from the start rather than discovering the gap later.
+
 Version gotchas: `material3` must stay on an alpha (`libs.versions.toml`) —
 Expressive APIs are stripped from stable releases. The material-icons artifacts
 are frozen at 1.7.3 and no longer come in transitively; only

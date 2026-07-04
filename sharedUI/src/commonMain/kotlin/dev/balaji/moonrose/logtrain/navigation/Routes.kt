@@ -24,9 +24,9 @@ data object ProfileRoute : TopLevelRoute {
     override val title get() = "Profile"
 }
 
-data class PlanDetailRoute(
-    val planId: Long,
-    override val title: String = "Plan",
+data class RoutineDetailRoute(
+    val routineId: Long,
+    override val title: String = "Routine",
 ) : Route
 
 data class WorkoutDetailRoute(
