@@ -17,7 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
-import dev.balaji.moonrose.logtrain.auth.rememberIsSignedIn
+import dev.balaji.moonrose.logtrain.db.ProfileRepository
 import dev.balaji.moonrose.logtrain.navigation.NavStack
 import dev.balaji.moonrose.logtrain.navigation.PlansRoute
 import dev.balaji.moonrose.logtrain.navigation.PlatformBackHandler
@@ -25,7 +25,7 @@ import dev.balaji.moonrose.logtrain.navigation.ProfileRoute
 import dev.balaji.moonrose.logtrain.navigation.ScreenContent
 import dev.balaji.moonrose.logtrain.navigation.TopLevelRoute
 import dev.balaji.moonrose.logtrain.navigation.WorkoutsRoute
-import dev.balaji.moonrose.logtrain.screens.AuthScreen
+import dev.balaji.moonrose.logtrain.screens.ProfileSetupFlow
 
 private data class TabSpec(val route: TopLevelRoute, val icon: ImageVector)
 
@@ -37,12 +37,14 @@ private data class TabSpec(val route: TopLevelRoute, val icon: ImageVector)
 @Preview
 fun App() {
     PlatformTheme {
-        val isSignedIn by rememberIsSignedIn()
+        val hasProfile by produceState<Boolean?>(initialValue = null) {
+            ProfileRepository.profile.collect { value = it != null }
+        }
 
-        if (!isSignedIn) {
-            AuthScreen()
-        } else {
-            MainTabs()
+        when (hasProfile) {
+            null -> Box(Modifier.fillMaxSize()) // first emission arrives near-instantly
+            false -> ProfileSetupFlow()
+            true -> MainTabs()
         }
     }
 }

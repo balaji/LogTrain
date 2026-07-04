@@ -10,7 +10,6 @@ import dev.balaji.moonrose.logtrain.navigation.Route
 import dev.balaji.moonrose.logtrain.navigation.ScreenContent
 import dev.balaji.moonrose.logtrain.navigation.TopLevelRoute
 import dev.balaji.moonrose.logtrain.navigation.UIKitNativeAlertPresenter
-import dev.balaji.moonrose.logtrain.screens.AuthScreen
 import platform.UIKit.UIViewController
 
 /**
@@ -32,8 +31,6 @@ private fun composeScreen(content: @Composable () -> Unit): UIViewController {
     }
     return controller
 }
-
-fun AuthViewController(): UIViewController = composeScreen { AuthScreen() }
 
 fun MainViewController(
     route: TopLevelRoute,
