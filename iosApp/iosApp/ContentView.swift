@@ -4,7 +4,7 @@ import SharedUI
 // MARK: - Coordinators
 
 @Observable class AppNavigationCoordinator {
-    enum AppTab { case exercises, plans, profile }
+    enum AppTab { case exercises, programs, profile }
     var selectedTab: AppTab = .exercises
 }
 
@@ -17,6 +17,22 @@ import SharedUI
         observation = ProfileStore.shared.observeHasProfile { [weak self] value in
             self?.hasProfile = value.boolValue
         }
+    }
+}
+
+// MARK: - Tab root style
+
+private struct TabRootStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .navigationBarTitleDisplayMode(.inline)
+            .scrollBounceBehavior(.basedOnSize)
+    }
+}
+
+private extension View {
+    func tabRootStyle() -> some View {
+        modifier(TabRootStyle())
     }
 }
 
@@ -34,20 +50,19 @@ struct ContentView: View {
                     NavigationStack {
                         ExercisesView()
                             .navigationTitle("Exercises")
+                            .tabRootStyle()
                     }
                 }
-                Tab("Plans", systemImage: "list.clipboard",
-                    value: AppNavigationCoordinator.AppTab.plans) {
-                    NavigationStack {
-                        PlansView()
-                            .navigationTitle("Plans")
-                    }
+                Tab("Workouts", systemImage: "list.clipboard",
+                    value: AppNavigationCoordinator.AppTab.programs) {
+                    ProgramsView()
                 }
                 Tab("Profile", systemImage: "person.crop.circle",
                     value: AppNavigationCoordinator.AppTab.profile) {
                     NavigationStack {
                         ProfileView()
                             .navigationTitle("Profile")
+                            .tabRootStyle()
                     }
                 }
             }

@@ -10,21 +10,21 @@ import androidx.room.TypeConverters
     entities = [
         ProfileEntity::class,
         ExerciseEntity::class,
-        PlanEntity::class,
+        ProgramEntity::class,
         RoutineEntity::class,
         WorkSetEntity::class,
         WorkSetDetailEntity::class,
         WorkoutSessionEntity::class,
         WorkoutSessionDetailEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
 @ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun profileDao(): ProfileDao
-    abstract fun planDao(): PlanDao
+    abstract fun programDao(): ProgramDao
     abstract fun routineDao(): RoutineDao
     abstract fun exerciseDao(): ExerciseDao
     abstract fun workSetDao(): WorkSetDao

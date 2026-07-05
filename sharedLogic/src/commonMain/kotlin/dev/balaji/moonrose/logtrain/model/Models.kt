@@ -16,7 +16,7 @@ data class Profile(
     val height: Double?,
 )
 
-data class Plan(
+data class Program(
     val id: Long,
     val name: String,
 )
@@ -24,7 +24,7 @@ data class Plan(
 data class Routine(
     val id: Long,
     val name: String,
-    val planId: Long,
+    val programId: Long,
     val position: Int,
 )
 

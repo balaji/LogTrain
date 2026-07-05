@@ -43,13 +43,13 @@ data class ExerciseEntity(
 )
 
 @Entity(
-    tableName = "plans",
+    tableName = "programs",
     foreignKeys = [
         ForeignKey(ProfileEntity::class, ["id"], ["profile_id"], onDelete = ForeignKey.CASCADE),
     ],
     indices = [Index("profile_id")],
 )
-data class PlanEntity(
+data class ProgramEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     @ColumnInfo(name = "profile_id") val profileId: Long,
     val name: String,
@@ -60,16 +60,16 @@ data class PlanEntity(
 @Entity(
     tableName = "routines",
     foreignKeys = [
-        ForeignKey(PlanEntity::class, ["id"], ["plan_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(ProgramEntity::class, ["id"], ["program_id"], onDelete = ForeignKey.CASCADE),
     ],
     indices = [
-        Index("plan_id"),
-        Index(value = ["plan_id", "position"], unique = true),
+        Index("program_id"),
+        Index(value = ["program_id", "position"], unique = true),
     ],
 )
 data class RoutineEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    @ColumnInfo(name = "plan_id") val planId: Long,
+    @ColumnInfo(name = "program_id") val programId: Long,
     val name: String,
     val position: Int,
     @ColumnInfo(name = "created_at") val createdAt: Long,

@@ -41,25 +41,25 @@ class AppDatabaseTest {
     }
 
     @Test
-    fun `deleting a plan cascades to its routines`() = runBlocking {
+    fun `deleting a program cascades to its routines`() = runBlocking {
         val now = nowMillis()
         db.profileDao().upsert(
             ProfileEntity(name = "Test", age = null, gender = null, weight = null, height = null, createdAt = now, updatedAt = now),
         )
-        val planId = db.planDao().insert(
-            PlanEntity(profileId = PROFILE_ID, name = "PPL", createdAt = now, updatedAt = now),
+        val programId = db.programDao().insert(
+            ProgramEntity(profileId = PROFILE_ID, name = "PPL", createdAt = now, updatedAt = now),
         )
         db.routineDao().insert(
-            RoutineEntity(planId = planId, name = "Push", position = 1, createdAt = now, updatedAt = now),
+            RoutineEntity(programId = programId, name = "Push", position = 1, createdAt = now, updatedAt = now),
         )
         db.routineDao().insert(
-            RoutineEntity(planId = planId, name = "Pull", position = 2, createdAt = now, updatedAt = now),
+            RoutineEntity(programId = programId, name = "Pull", position = 2, createdAt = now, updatedAt = now),
         )
         assertEquals(2, db.routineDao().observeAll().first().size)
-        assertEquals(3, db.routineDao().nextPosition(planId))
+        assertEquals(3, db.routineDao().nextPosition(programId))
 
-        db.planDao().delete(planId)
-        assertTrue(db.planDao().observeAll().first().isEmpty())
+        db.programDao().delete(programId)
+        assertTrue(db.programDao().observeAll().first().isEmpty())
         assertTrue(db.routineDao().observeAll().first().isEmpty(), "routines should cascade-delete")
     }
 
