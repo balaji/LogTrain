@@ -67,6 +67,6 @@ class AppDatabaseTest {
     fun `exercise catalog is seeded on create`() = runBlocking {
         val exercises = db.exerciseDao().observeAll().first()
         assertTrue(exercises.size >= 15, "expected seeded exercises, got ${exercises.size}")
-        assertTrue(exercises.any { it.name == "Bench Press" })
+        assertTrue(exercises.any { it.name == "Barbell Bench Press" })
     }
 }
