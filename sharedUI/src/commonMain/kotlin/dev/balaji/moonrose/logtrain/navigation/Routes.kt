@@ -12,8 +12,8 @@ sealed interface Route {
 
 sealed interface TopLevelRoute : Route
 
-data object WorkoutsRoute : TopLevelRoute {
-    override val title get() = "Workouts"
+data object ExercisesRoute : TopLevelRoute {
+    override val title get() = "Exercises"
 }
 
 data object PlansRoute : TopLevelRoute {
@@ -29,7 +29,3 @@ data class RoutineDetailRoute(
     override val title: String = "Routine",
 ) : Route
 
-data class WorkoutDetailRoute(
-    val workoutId: Long,
-    override val title: String = "Workout",
-) : Route

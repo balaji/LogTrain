@@ -4,6 +4,7 @@ import androidx.room.ConstructedBy
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.RoomDatabaseConstructor
+import androidx.room.TypeConverters
 
 @Database(
     entities = [
@@ -16,9 +17,10 @@ import androidx.room.RoomDatabaseConstructor
         WorkoutSessionEntity::class,
         WorkoutSessionDetailEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
+@TypeConverters(Converters::class)
 @ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun profileDao(): ProfileDao

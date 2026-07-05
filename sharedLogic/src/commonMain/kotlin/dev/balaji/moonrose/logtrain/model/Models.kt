@@ -24,3 +24,10 @@ data class Routine(
     val planId: Long,
     val position: Int,
 )
+
+data class Exercise(
+    val id: Long,
+    val name: String,
+    val bodyPart: String?,
+    val equipment: String?,
+)

@@ -33,10 +33,11 @@ data class ProfileEntity(
 data class ExerciseEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
+    val description: String?,
     @ColumnInfo(name = "exercise_type") val exerciseType: String?,
     @ColumnInfo(name = "body_part") val bodyPart: String?,
+    @ColumnInfo(name = "other_body_parts") val otherBodyParts: List<String>?,
     val equipment: String?,
-    @ColumnInfo(name = "target_muscle_group") val targetMuscleGroup: String?,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )

@@ -14,6 +14,8 @@ fun createDatabase(): AppDatabase =
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
         .addCallback(ExerciseSeedCallback)
+        // Pre-release: no shipped schema history to migrate yet.
+        .fallbackToDestructiveMigration(dropAllTables = true)
         .build()
 
 object AppDb {

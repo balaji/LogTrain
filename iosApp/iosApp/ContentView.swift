@@ -22,9 +22,9 @@ struct RouteWrapper: Hashable, Identifiable {
 }
 
 @Observable class AppNavigationCoordinator {
-    enum AppTab { case workouts, plans, profile }
-    var selectedTab: AppTab = .workouts
-    let workoutsCoordinator = TabNavigationCoordinator()
+    enum AppTab { case exercises, plans, profile }
+    var selectedTab: AppTab = .exercises
+    let exercisesCoordinator = TabNavigationCoordinator()
     let plansCoordinator = TabNavigationCoordinator()
     let profileCoordinator = TabNavigationCoordinator()
 }
@@ -110,12 +110,12 @@ struct ContentView: View {
     var body: some View {
         if profileState.hasProfile == true {
             TabView(selection: $appCoordinator.selectedTab) {
-                Tab("Workouts", systemImage: "figure.strengthtraining.traditional",
-                    value: AppNavigationCoordinator.AppTab.workouts) {
+                Tab("Exercises", systemImage: "figure.strengthtraining.traditional",
+                    value: AppNavigationCoordinator.AppTab.exercises) {
                     TabContentView(
-                        route: WorkoutsRoute.shared,
-                        title: "Workouts",
-                        coordinator: appCoordinator.workoutsCoordinator
+                        route: ExercisesRoute.shared,
+                        title: "Exercises",
+                        coordinator: appCoordinator.exercisesCoordinator
                     )
                 }
                 Tab("Plans", systemImage: "list.clipboard",
