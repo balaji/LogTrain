@@ -83,6 +83,12 @@ interface WorkSetDao {
     @Query("SELECT * FROM work_sets WHERE routine_id = :routineId ORDER BY position")
     fun observeForRoutine(routineId: Long): Flow<List<WorkSetEntity>>
 
+    @Query("SELECT * FROM work_sets WHERE routine_id = :routineId ORDER BY position")
+    suspend fun getForRoutine(routineId: Long): List<WorkSetEntity>
+
+    @Query("DELETE FROM work_sets WHERE routine_id = :routineId")
+    suspend fun deleteForRoutine(routineId: Long)
+
     @Insert
     suspend fun insert(workSet: WorkSetEntity): Long
 }
@@ -91,6 +97,9 @@ interface WorkSetDao {
 interface WorkSetDetailDao {
     @Query("SELECT * FROM work_set_details WHERE work_set_id = :workSetId ORDER BY position")
     fun observeForWorkSet(workSetId: Long): Flow<List<WorkSetDetailEntity>>
+
+    @Query("SELECT * FROM work_set_details WHERE work_set_id = :workSetId ORDER BY position")
+    suspend fun getForWorkSet(workSetId: Long): List<WorkSetDetailEntity>
 
     @Insert
     suspend fun insert(detail: WorkSetDetailEntity): Long
