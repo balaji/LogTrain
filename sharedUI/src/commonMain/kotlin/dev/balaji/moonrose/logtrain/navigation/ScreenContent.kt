@@ -1,6 +1,7 @@
 package dev.balaji.moonrose.logtrain.navigation
 
 import androidx.compose.runtime.Composable
+import dev.balaji.moonrose.logtrain.screens.ExerciseDetailScreen
 import dev.balaji.moonrose.logtrain.screens.ExercisesScreen
 import dev.balaji.moonrose.logtrain.screens.PlansScreen
 import dev.balaji.moonrose.logtrain.screens.ProfileScreen
@@ -18,9 +19,10 @@ fun ScreenContent(
     onGoBack: () -> Unit,
 ) {
     when (route) {
-        ExercisesRoute -> ExercisesScreen()
+        ExercisesRoute -> ExercisesScreen(onNavigate = onNavigate)
         PlansRoute -> PlansScreen(onNavigate = onNavigate)
         ProfileRoute -> ProfileScreen()
         is RoutineDetailRoute -> RoutineDetailScreen(route = route, onGoBack = onGoBack)
+        is ExerciseDetailRoute -> ExerciseDetailScreen(route = route, onGoBack = onGoBack)
     }
 }

@@ -1,5 +1,6 @@
 package dev.balaji.moonrose.logtrain.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -34,23 +35,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.balaji.moonrose.logtrain.db.ExerciseRepository
 import dev.balaji.moonrose.logtrain.model.Exercise
+import dev.balaji.moonrose.logtrain.navigation.ExerciseDetailRoute
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
+import dev.balaji.moonrose.logtrain.navigation.Route
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExercisesScreen() {
+fun ExercisesScreen(onNavigate: (Route) -> Unit) {
+    val onOpen: (Exercise) -> Unit = { exercise ->
+        onNavigate(ExerciseDetailRoute(exerciseId = exercise.id, title = exercise.name))
+    }
     if (LocalUseNativeNavigation.current) {
-        ExercisesBody(contentPadding = WindowInsets.safeDrawing.asPaddingValues())
+        ExercisesBody(contentPadding = WindowInsets.safeDrawing.asPaddingValues(), onOpen = onOpen)
     } else {
         Scaffold(topBar = { TopAppBar(title = { Text("Exercises") }) }) { padding ->
-            ExercisesBody(contentPadding = padding)
+            ExercisesBody(contentPadding = padding, onOpen = onOpen)
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ExercisesBody(contentPadding: PaddingValues) {
+private fun ExercisesBody(contentPadding: PaddingValues, onOpen: (Exercise) -> Unit) {
     val exercises by ExerciseRepository.exercises.collectAsState(initial = null)
     var query by remember { mutableStateOf("") }
     var selectedBodyPart by remember { mutableStateOf<String?>(null) }
@@ -117,7 +123,7 @@ private fun ExercisesBody(contentPadding: PaddingValues) {
                             val details = listOfNotNull(exercise.bodyPart, exercise.equipment)
                             if (details.isNotEmpty()) Text(details.joinToString(" • "))
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().clickable { onOpen(exercise) },
                     )
                     HorizontalDivider()
                 }

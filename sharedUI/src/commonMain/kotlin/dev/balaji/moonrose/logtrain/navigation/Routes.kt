@@ -29,3 +29,8 @@ data class RoutineDetailRoute(
     override val title: String = "Routine",
 ) : Route
 
+data class ExerciseDetailRoute(
+    val exerciseId: Long,
+    override val title: String = "Exercise",
+) : Route
+

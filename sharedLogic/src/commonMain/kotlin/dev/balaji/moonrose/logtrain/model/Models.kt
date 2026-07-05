@@ -1,5 +1,8 @@
 package dev.balaji.moonrose.logtrain.model
 
+import kotlin.experimental.ExperimentalObjCName
+import kotlin.native.ObjCName
+
 /**
  * Domain models exposed to the UI layer. These are plain data classes (no Room
  * types) so they remain usable from the js target, which has no database.
@@ -25,9 +28,15 @@ data class Routine(
     val position: Int,
 )
 
+@OptIn(ExperimentalObjCName::class)
 data class Exercise(
     val id: Long,
     val name: String,
+    // "description" collides with NSObject's auto-generated `description` (toString())
+    // on the Swift side; see ExerciseFormUiState for the same fix.
+    @ObjCName("descriptionText")
+    val description: String?,
+    val exerciseType: String?,
     val bodyPart: String?,
     val equipment: String?,
 )

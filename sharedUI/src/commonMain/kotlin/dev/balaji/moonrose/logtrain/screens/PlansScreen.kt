@@ -29,7 +29,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,7 +45,6 @@ import dev.balaji.moonrose.logtrain.model.Routine
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import dev.balaji.moonrose.logtrain.navigation.Route
 import dev.balaji.moonrose.logtrain.navigation.RoutineDetailRoute
-import dev.balaji.moonrose.logtrain.plans.PlansCreateRequestNotifier
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -71,12 +69,6 @@ fun PlansScreen(onNavigate: (Route) -> Unit) {
     var dialog by remember { mutableStateOf<PlanDialog?>(null) }
     var expandedPlanIds by remember { mutableStateOf(emptySet<Long>()) }
     val scope = rememberCoroutineScope()
-
-    DisposableEffect(Unit) {
-        val listener = { dialog = PlanDialog.Create }
-        PlansCreateRequestNotifier.addListener(listener)
-        onDispose { PlansCreateRequestNotifier.removeListener(listener) }
-    }
 
     fun toggleExpanded(plan: Plan) {
         expandedPlanIds = if (plan.id in expandedPlanIds) {
