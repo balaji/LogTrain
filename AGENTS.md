@@ -25,8 +25,27 @@ can map rows 1:1.
 
 ## UI architecture
 
-Goal: native look-and-feel per platform, following JetBrains' hybrid pattern
-(https://kotlinlang.org/docs/multiplatform/ios-liquid-glass.html).
+**Policy: every iOS page is native SwiftUI. Every Android page is native
+Compose with Material Design.** No screen should render Compose Material
+widgets on iOS. Shared Kotlin code's job is domain models, the Room DB layer,
+and plain `StateFlow`-based form/state holders in `sharedLogic`'s `dbMain`
+source set (see `ProfileFormState.kt`, `ExerciseFormState.kt`) that both a
+Compose screen (Android/Desktop) and a native SwiftUI view (iOS) can bind to
+— never shared Compose UI as the iOS rendering path.
+
+This supersedes the original hybrid pattern (JetBrains' "Compose renders
+content, SwiftUI owns chrome" —
+https://kotlinlang.org/docs/multiplatform/ios-liquid-glass.html), which is
+**legacy** and being migrated off screen-by-screen, oldest offender first.
+Profile was the pilot migration (see "Migrating a screen to native SwiftUI"
+below); Plans/Workouts/Exercises are still Compose-hosted on iOS and are next
+in line. Do not build *new* iOS screens against the legacy hybrid pattern —
+build them native from the start, extracting shared state into `dbMain` as
+needed.
+
+### Legacy Compose-hosted screens (not yet migrated)
+
+Until a screen is migrated, it still follows the old hybrid pattern:
 
 - **iOS (26.0+ only, no fallback)**: SwiftUI owns all navigation chrome —
   `TabView` + per-tab `NavigationStack` in `iosApp/iosApp/ContentView.swift`
@@ -98,6 +117,31 @@ Version gotchas: `material3` must stay on an alpha (`libs.versions.toml`) —
 Expressive APIs are stripped from stable releases. The material-icons artifacts
 are frozen at 1.7.3 and no longer come in transitively; only
 `material-icons-core` icons are available.
+
+### Migrating a screen to native SwiftUI
+
+Profile was the pilot (see `iosApp/iosApp/ProfileView.swift`,
+`ProfileFormView.swift`, `ProfileSetupView.swift`); follow the same pattern
+for every other screen:
+
+1. Extract the screen's state into a plain `StateFlow`-based class in
+   `sharedLogic/src/dbMain/.../db/` (e.g. `ProfileFormState.kt`,
+   `ExerciseFormState.kt`) — a `MutableStateFlow<UiState>` plus action methods
+   and a `save(...)`. No Compose types; this is what both the Compose form
+   and the native SwiftUI view bind to.
+2. SKIE (`co.touchlab.skie`, applied in `sharedUI/build.gradle.kts`) exposes
+   that `StateFlow` to Swift as a `SkieSwiftStateFlow`, which conforms to
+   `AsyncSequence` — bind with `for await state in formState.uiState { ... }`.
+3. Write the SwiftUI view(s) in `iosApp/iosApp/`, using native components
+   (`Form`, `List`, `Picker`, `NavigationStack` toolbar items, native
+   alerts/action sheets) — no Compose hosting, no `UIViewControllerRepresentable`
+   for this screen.
+4. Wire it into `ContentView.swift`'s tab/`NavigationStack` coordinators in
+   place of the old `TabRootComposeView`/`DetailComposeView` route dispatch
+   for that route.
+5. The Compose version of the screen (still used by Android/Desktop) keeps
+   binding to the same shared state class — don't fork the state/business
+   logic, only the view layer forks per platform.
 
 ## Local database
 

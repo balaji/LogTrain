@@ -56,8 +56,26 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercises ORDER BY name")
     fun observeAll(): Flow<List<ExerciseEntity>>
 
+    @Query("SELECT * FROM exercises WHERE id = :id")
+    suspend fun findById(id: Long): ExerciseEntity?
+
     @Insert
     suspend fun insertAll(exercises: List<ExerciseEntity>)
+
+    @Query(
+        "UPDATE exercises SET name = :name, description = :description, " +
+            "exercise_type = :exerciseType, body_part = :bodyPart, equipment = :equipment, " +
+            "updated_at = :now WHERE id = :id",
+    )
+    suspend fun update(
+        id: Long,
+        name: String,
+        description: String?,
+        exerciseType: String?,
+        bodyPart: String?,
+        equipment: String?,
+        now: Long,
+    )
 }
 
 @Dao

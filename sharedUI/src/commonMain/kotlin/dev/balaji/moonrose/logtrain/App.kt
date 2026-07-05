@@ -18,13 +18,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import dev.balaji.moonrose.logtrain.db.ProfileRepository
+import dev.balaji.moonrose.logtrain.navigation.ExercisesRoute
 import dev.balaji.moonrose.logtrain.navigation.NavStack
 import dev.balaji.moonrose.logtrain.navigation.PlansRoute
 import dev.balaji.moonrose.logtrain.navigation.PlatformBackHandler
 import dev.balaji.moonrose.logtrain.navigation.ProfileRoute
 import dev.balaji.moonrose.logtrain.navigation.ScreenContent
 import dev.balaji.moonrose.logtrain.navigation.TopLevelRoute
-import dev.balaji.moonrose.logtrain.navigation.WorkoutsRoute
 import dev.balaji.moonrose.logtrain.screens.ProfileSetupFlow
 
 private data class TabSpec(val route: TopLevelRoute, val icon: ImageVector)
@@ -53,12 +53,12 @@ fun App() {
 private fun MainTabs() {
     val tabs = remember {
         listOf(
-            TabSpec(WorkoutsRoute, Icons.AutoMirrored.Filled.List),
+            TabSpec(ExercisesRoute, Icons.AutoMirrored.Filled.List),
             TabSpec(PlansRoute, Icons.Filled.DateRange),
             TabSpec(ProfileRoute, Icons.Filled.Person),
         )
     }
-    var currentTab by remember { mutableStateOf<TopLevelRoute>(WorkoutsRoute) }
+    var currentTab by remember { mutableStateOf<TopLevelRoute>(ExercisesRoute) }
     val stacks = remember { tabs.associate { it.route to NavStack(it.route) } }
     val stack = stacks.getValue(currentTab)
 
