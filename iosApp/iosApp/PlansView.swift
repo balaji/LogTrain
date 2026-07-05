@@ -69,7 +69,8 @@ private enum DeleteTarget: Identifiable {
 struct PlansView: View {
     @State private var plans: [Plan]?
     @State private var routines: [Routine]?
-    @State private var expandedPlanIds: Set<Int64> = []
+    // Accordion behavior: at most one plan is expanded at a time.
+    @State private var expandedPlanId: Int64?
     @State private var prompt: TextPrompt?
     @State private var promptText = ""
     @State private var deleteTarget: DeleteTarget?
@@ -157,7 +158,7 @@ struct PlansView: View {
                 Spacer()
                 Image(systemName: "chevron.right")
                     .foregroundStyle(.secondary)
-                    .rotationEffect(.degrees(expandedPlanIds.contains(plan.id) ? 90 : 0))
+                    .rotationEffect(.degrees(expandedPlanId == plan.id ? 90 : 0))
             }
             .contentShape(Rectangle())
         }
@@ -173,7 +174,7 @@ struct PlansView: View {
             }.tint(.blue)
         }
 
-        if expandedPlanIds.contains(plan.id) {
+        if expandedPlanId == plan.id {
             let planRoutines = routinesByPlan[plan.id] ?? []
             if planRoutines.isEmpty {
                 Text("No routines yet. Tap + to add one.")
@@ -207,10 +208,8 @@ struct PlansView: View {
     }
 
     private func toggle(_ plan: Plan) {
-        if expandedPlanIds.contains(plan.id) {
-            expandedPlanIds.remove(plan.id)
-        } else {
-            expandedPlanIds.insert(plan.id)
+        withAnimation {
+            expandedPlanId = expandedPlanId == plan.id ? nil : plan.id
         }
     }
 

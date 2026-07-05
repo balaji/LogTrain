@@ -4,6 +4,8 @@ import SharedUI
 /// Native SwiftUI replacement for the Compose `ExercisesScreen`, bound to
 /// `ExerciseRepository`'s shared `Flow<List<Exercise>>` via SKIE.
 struct ExercisesView: View {
+    var onExerciseSelected: ((Exercise) -> Void)? = nil
+
     @State private var exercises: [Exercise]?
     @State private var searchText = ""
     @State private var selectedBodyPart: String?
@@ -32,15 +34,16 @@ struct ExercisesView: View {
                     ContentUnavailableView("No exercises match your filters.", systemImage: "magnifyingglass")
                 } else {
                     List(filtered, id: \.id) { exercise in
-                        NavigationLink(value: exercise.id) {
-                            VStack(alignment: .leading) {
-                                Text(exercise.name)
-                                let details = [exercise.bodyPart, exercise.equipment].compactMap { $0 }
-                                if !details.isEmpty {
-                                    Text(details.joined(separator: " • "))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
+                        if let onSelect = onExerciseSelected {
+                            Button {
+                                onSelect(exercise)
+                            } label: {
+                                ExerciseRowLabel(exercise: exercise)
+                            }
+                            .foregroundStyle(.primary)
+                        } else {
+                            NavigationLink(value: exercise.id) {
+                                ExerciseRowLabel(exercise: exercise)
                             }
                         }
                     }
@@ -92,6 +95,22 @@ struct ExercisesView: View {
         .task {
             for await list in ExerciseRepository.shared.exercises {
                 exercises = list
+            }
+        }
+    }
+}
+
+private struct ExerciseRowLabel: View {
+    let exercise: Exercise
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text(exercise.name)
+            let details = [exercise.bodyPart, exercise.equipment].compactMap { $0 }
+            if !details.isEmpty {
+                Text(details.joined(separator: " • "))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }

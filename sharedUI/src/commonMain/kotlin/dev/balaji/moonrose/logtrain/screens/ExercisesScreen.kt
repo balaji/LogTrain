@@ -41,14 +41,21 @@ import dev.balaji.moonrose.logtrain.navigation.Route
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExercisesScreen(onNavigate: (Route) -> Unit) {
+fun ExercisesScreen(
+    onNavigate: (Route) -> Unit,
+    onExerciseSelected: ((Exercise) -> Unit)? = null,
+) {
     val onOpen: (Exercise) -> Unit = { exercise ->
-        onNavigate(ExerciseDetailRoute(exerciseId = exercise.id, title = exercise.name))
+        if (onExerciseSelected != null) {
+            onExerciseSelected(exercise)
+        } else {
+            onNavigate(ExerciseDetailRoute(exerciseId = exercise.id, title = exercise.name))
+        }
     }
-    if (LocalUseNativeNavigation.current) {
-        ExercisesBody(contentPadding = WindowInsets.safeDrawing.asPaddingValues(), onOpen = onOpen)
-    } else {
-        Scaffold(topBar = { TopAppBar(title = { Text("Exercises") }) }) { padding ->
+    when {
+        onExerciseSelected != null -> ExercisesBody(contentPadding = PaddingValues(0.dp), onOpen = onOpen)
+        LocalUseNativeNavigation.current -> ExercisesBody(contentPadding = WindowInsets.safeDrawing.asPaddingValues(), onOpen = onOpen)
+        else -> Scaffold(topBar = { TopAppBar(title = { Text("Exercises") }) }) { padding ->
             ExercisesBody(contentPadding = padding, onOpen = onOpen)
         }
     }

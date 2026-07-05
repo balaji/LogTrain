@@ -67,15 +67,12 @@ fun PlansScreen(onNavigate: (Route) -> Unit) {
     }.collectAsState(initial = emptyMap())
     var actionError by remember { mutableStateOf<String?>(null) }
     var dialog by remember { mutableStateOf<PlanDialog?>(null) }
-    var expandedPlanIds by remember { mutableStateOf(emptySet<Long>()) }
+    // Accordion behavior: at most one plan is expanded at a time.
+    var expandedPlanId by remember { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
 
     fun toggleExpanded(plan: Plan) {
-        expandedPlanIds = if (plan.id in expandedPlanIds) {
-            expandedPlanIds - plan.id
-        } else {
-            expandedPlanIds + plan.id
-        }
+        expandedPlanId = if (expandedPlanId == plan.id) null else plan.id
     }
 
     fun runMutation(block: suspend () -> Unit) {
@@ -93,7 +90,7 @@ fun PlansScreen(onNavigate: (Route) -> Unit) {
     val body: @Composable (PaddingValues) -> Unit = { contentPadding ->
         PlansBody(
             plans = plans,
-            expandedPlanIds = expandedPlanIds,
+            expandedPlanId = expandedPlanId,
             routinesByPlan = routinesByPlan,
             contentPadding = contentPadding,
             onToggle = ::toggleExpanded,
@@ -171,7 +168,7 @@ fun PlansScreen(onNavigate: (Route) -> Unit) {
 @Composable
 private fun PlansBody(
     plans: List<Plan>?,
-    expandedPlanIds: Set<Long>,
+    expandedPlanId: Long?,
     routinesByPlan: Map<Long, List<Routine>>,
     contentPadding: PaddingValues,
     onToggle: (Plan) -> Unit,
@@ -195,7 +192,7 @@ private fun PlansBody(
                     Column(modifier = Modifier.animateItem()) {
                         PlanRow(
                             plan = plan,
-                            expanded = plan.id in expandedPlanIds,
+                            expanded = plan.id == expandedPlanId,
                             onToggle = onToggle,
                             onRename = onRename,
                             onDelete = onDelete,
@@ -203,7 +200,7 @@ private fun PlansBody(
                         HorizontalDivider()
                     }
                 }
-                if (plan.id in expandedPlanIds) {
+                if (plan.id == expandedPlanId) {
                     item(key = "actions-${plan.id}") {
                         Column(modifier = Modifier.animateItem()) {
                             PlanExpandedActions(onAddRoutine = { onAddRoutine(plan) })
