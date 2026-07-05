@@ -3,33 +3,33 @@ import SharedUI
 
 struct RoutineDetailView: View {
     @Environment(\.dismiss) private var dismiss
+    let routineId: Int64
+    let isNew: Bool
+    @State private var isEditing: Bool
     @State private var formState: RoutineFormState
     @State private var uiState: RoutineDetailUiState
+    @State private var formVersion = 0
+    @State private var nameBeforeEdit = ""
     @State private var showExercisePicker = false
 
-    // Continuous long-press reorder: the overlay is a ZStack layer (not a
-    // sheet) so the gesture that started on the exercise name keeps streaming
-    // drag events into it without the finger lifting.
     @State private var reorderActiveIndex: Int?
     @State private var fingerY: CGFloat = 0
     @State private var startFingerY: CGFloat = 0
     @State private var overlayListTop: CGFloat = 0
     @State private var overlayBottom: CGFloat = 0
-    // Keeps the anchor stable while the overlay fades out after
-    // reorderActiveIndex is cleared.
     @State private var lastActiveIndex = 0
 
     private let reorderRowHeight: CGFloat = 56
 
-    init(routineId: Int64, title: String) {
+    init(routineId: Int64, title: String, isNew: Bool = false) {
+        self.routineId = routineId
+        self.isNew = isNew
         let state = RoutineFormState(routineId: routineId, initialName: title)
         _formState = State(initialValue: state)
         _uiState = State(initialValue: state.uiState.value)
+        _isEditing = State(initialValue: isNew)
     }
 
-    /// Top of the compact list, positioned so the pressed exercise's slot sits
-    /// directly under the finger at activation, clamped so the whole list stays
-    /// between the overlay title and the bottom of the screen.
     private var anchoredListTop: CGFloat {
         let active = reorderActiveIndex ?? lastActiveIndex
         let count = uiState.workSets.count
@@ -46,14 +46,14 @@ struct RoutineDetailView: View {
 
     var body: some View {
         ZStack {
-            Group {
-                if uiState.loading {
-                    ProgressView()
-                } else {
-                    routineForm
-                }
+            if uiState.loading {
+                ProgressView()
+            } else if isEditing {
+                routineForm
+            } else {
+                routineReadOnly
             }
-            if reorderActiveIndex != nil {
+            if isEditing && reorderActiveIndex != nil {
                 reorderOverlay
                     .transition(.opacity)
                     .zIndex(1)
@@ -61,13 +61,38 @@ struct RoutineDetailView: View {
         }
         .navigationTitle(uiState.name.isEmpty ? "Routine" : uiState.name)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(isEditing && !isNew)
         .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                if uiState.saving {
-                    ProgressView()
-                } else {
-                    Button("Save") {
-                        formState.save { dismiss() }
+            if isEditing {
+                if !isNew {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            formState = RoutineFormState(routineId: routineId, initialName: nameBeforeEdit)
+                            formVersion += 1
+                            isEditing = false
+                        }
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if uiState.saving {
+                        ProgressView()
+                    } else {
+                        Button("Save") {
+                            let trimmed = uiState.name.trimmingCharacters(in: .whitespaces)
+                            let savedName = trimmed.isEmpty ? "Routine" : trimmed
+                            formState.save {
+                                formState = RoutineFormState(routineId: routineId, initialName: savedName)
+                                formVersion += 1
+                                isEditing = false
+                            }
+                        }
+                    }
+                }
+            } else {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Edit") {
+                        nameBeforeEdit = uiState.name
+                        isEditing = true
                     }
                 }
             }
@@ -87,25 +112,52 @@ struct RoutineDetailView: View {
                 }
             }
         }
-        .task {
+        .task(id: formVersion) {
             for await state in formState.uiState {
                 uiState = state
             }
         }
     }
 
+    // MARK: - Read-only view
+
+    private var routineReadOnly: some View {
+        ZStack(alignment: .bottomTrailing) {
+            List {
+                if uiState.workSets.isEmpty {
+                    Text("No exercises yet. Tap Edit to add exercises.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(Array(uiState.workSets.enumerated()), id: \.element.id) { _, workSet in
+                        Text("\(workSet.sets.count) x \(workSet.exercise.name)")
+                    }
+                }
+            }
+
+            if !uiState.workSets.isEmpty {
+                NavigationLink {
+                    WorkoutSessionView(
+                        routineId: routineId,
+                        title: uiState.name.isEmpty ? "Workout" : uiState.name
+                    )
+                } label: {
+                    Image(systemName: "play.fill")
+                        .font(.title2)
+                        .foregroundStyle(.white)
+                        .frame(width: 56, height: 56)
+                        .background(Color.blue)
+                        .clipShape(Circle())
+                        .shadow(color: .blue.opacity(0.3), radius: 8, y: 4)
+                }
+                .padding(24)
+            }
+        }
+    }
+
+    // MARK: - Editable form
+
     private var routineForm: some View {
         List {
-            // Editable routine name
-            TextField(
-                "Routine name",
-                text: Binding(
-                    get: { uiState.name },
-                    set: { formState.updateName(value: $0) }
-                )
-            )
-            .font(.title2.bold())
-
             ForEach(Array(uiState.workSets.enumerated()), id: \.element.id) { wsIndex, workSet in
                 ExerciseCardView(
                     wsIndex: wsIndex,
@@ -169,8 +221,6 @@ struct RoutineDetailView: View {
                 }
                 .offset(y: columnShift)
 
-                // Floating copy of the dragged row, riding under the finger but
-                // clamped to the list bounds so the rows always read as one group.
                 if let active = reorderActiveIndex {
                     let maxY = CGFloat(uiState.workSets.count - 1) * reorderRowHeight
                     let floatY = min(max(fingerY - anchoredListTop - reorderRowHeight / 2, 0), maxY)
@@ -221,6 +271,8 @@ struct RoutineDetailView: View {
     }
 }
 
+// MARK: - Editable exercise card
+
 private struct ExerciseCardView: View {
     let wsIndex: Int
     let workSet: DraftWorkSet
@@ -234,7 +286,6 @@ private struct ExerciseCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Exercise name: long-press and keep holding to reorder
             Text(workSet.exercise.name)
                 .font(.headline)
                 .foregroundStyle(Color.accentColor)
@@ -246,7 +297,6 @@ private struct ExerciseCardView: View {
                 }
                 .gesture(reorderGesture)
 
-            // Column headers
             HStack {
                 Text("SET")
                     .frame(width: 28)
@@ -260,7 +310,6 @@ private struct ExerciseCardView: View {
             .foregroundStyle(.secondary)
             .padding(.bottom, 4)
 
-            // Set rows
             ForEach(Array(workSet.sets.enumerated()), id: \.offset) { setIdx, set in
                 HStack(spacing: 8) {
                     Text("\(setIdx + 1)")
@@ -325,7 +374,6 @@ private struct ExerciseCardView: View {
                 .padding(.vertical, 4)
             }
 
-            // Add set
             Button {
                 formState.addSet(workSetIndex: Int32(wsIndex))
             } label: {
@@ -348,8 +396,6 @@ private struct ExerciseCardView: View {
                 case .second(true, let drag):
                     if !reorderStarted {
                         reorderStarted = true
-                        // The drag has no location until the finger moves, so
-                        // start from the header's own global position.
                         onReorderStart(drag?.location.y ?? headerMidY)
                     }
                     if let drag {

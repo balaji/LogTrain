@@ -106,7 +106,7 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
         _uiState.value = state.copy(saving = true)
         CoroutineScope(Dispatchers.Main).launch {
             val now = nowMillis()
-            PlanRepository.renameRoutine(routineId, state.name.trim().ifBlank { "Routine" })
+            ProgramRepository.renameRoutine(routineId, state.name.trim().ifBlank { "Routine" })
             AppDb.db.workSetDao().deleteForRoutine(routineId)
             state.workSets.forEachIndexed { wsIdx, draft ->
                 val wsId = AppDb.db.workSetDao().insert(

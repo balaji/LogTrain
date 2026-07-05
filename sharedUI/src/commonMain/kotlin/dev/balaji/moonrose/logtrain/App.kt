@@ -10,8 +10,8 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -20,7 +20,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import dev.balaji.moonrose.logtrain.db.ProfileRepository
 import dev.balaji.moonrose.logtrain.navigation.ExercisesRoute
 import dev.balaji.moonrose.logtrain.navigation.NavStack
-import dev.balaji.moonrose.logtrain.navigation.PlansRoute
+import dev.balaji.moonrose.logtrain.navigation.WorkoutsRoute
 import dev.balaji.moonrose.logtrain.navigation.PlatformBackHandler
 import dev.balaji.moonrose.logtrain.navigation.ProfileRoute
 import dev.balaji.moonrose.logtrain.navigation.ScreenContent
@@ -53,8 +53,8 @@ fun App() {
 private fun MainTabs() {
     val tabs = remember {
         listOf(
-            TabSpec(ExercisesRoute, Icons.AutoMirrored.Filled.List),
-            TabSpec(PlansRoute, Icons.Filled.DateRange),
+            TabSpec(ExercisesRoute, Icons.Filled.FitnessCenter),
+            TabSpec(WorkoutsRoute, Icons.AutoMirrored.Filled.Assignment),
             TabSpec(ProfileRoute, Icons.Filled.Person),
         )
     }

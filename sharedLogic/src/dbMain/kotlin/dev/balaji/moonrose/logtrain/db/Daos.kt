@@ -16,30 +16,30 @@ interface ProfileDao {
 }
 
 @Dao
-interface PlanDao {
-    @Query("SELECT * FROM plans ORDER BY id")
-    fun observeAll(): Flow<List<PlanEntity>>
+interface ProgramDao {
+    @Query("SELECT * FROM programs ORDER BY id")
+    fun observeAll(): Flow<List<ProgramEntity>>
 
-    @Query("SELECT * FROM plans WHERE id = :id")
-    suspend fun findById(id: Long): PlanEntity?
+    @Query("SELECT * FROM programs WHERE id = :id")
+    suspend fun findById(id: Long): ProgramEntity?
 
     @Insert
-    suspend fun insert(plan: PlanEntity): Long
+    suspend fun insert(program: ProgramEntity): Long
 
-    @Query("UPDATE plans SET name = :name, updated_at = :now WHERE id = :id")
+    @Query("UPDATE programs SET name = :name, updated_at = :now WHERE id = :id")
     suspend fun rename(id: Long, name: String, now: Long)
 
-    @Query("DELETE FROM plans WHERE id = :id")
+    @Query("DELETE FROM programs WHERE id = :id")
     suspend fun delete(id: Long)
 }
 
 @Dao
 interface RoutineDao {
-    @Query("SELECT * FROM routines ORDER BY plan_id, position")
+    @Query("SELECT * FROM routines ORDER BY program_id, position")
     fun observeAll(): Flow<List<RoutineEntity>>
 
-    @Query("SELECT COALESCE(MAX(position), 0) + 1 FROM routines WHERE plan_id = :planId")
-    suspend fun nextPosition(planId: Long): Int
+    @Query("SELECT COALESCE(MAX(position), 0) + 1 FROM routines WHERE program_id = :programId")
+    suspend fun nextPosition(programId: Long): Int
 
     @Insert
     suspend fun insert(routine: RoutineEntity): Long

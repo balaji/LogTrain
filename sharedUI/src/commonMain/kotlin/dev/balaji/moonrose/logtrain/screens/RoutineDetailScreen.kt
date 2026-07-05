@@ -38,9 +38,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,6 +59,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -82,22 +86,33 @@ import dev.balaji.moonrose.logtrain.db.DraftWorkSet
 import dev.balaji.moonrose.logtrain.db.RoutineDetailUiState
 import dev.balaji.moonrose.logtrain.db.RoutineFormState
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
+import dev.balaji.moonrose.logtrain.navigation.Route
 import dev.balaji.moonrose.logtrain.navigation.RoutineDetailRoute
+import dev.balaji.moonrose.logtrain.navigation.WorkoutSessionRoute
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RoutineDetailScreen(route: RoutineDetailRoute, onGoBack: () -> Unit) {
-    val formState = remember { RoutineFormState(route.routineId, route.title) }
+fun RoutineDetailScreen(route: RoutineDetailRoute, onNavigate: (Route) -> Unit, onGoBack: () -> Unit) {
+    var isEditing by remember { mutableStateOf(route.isNew) }
+    var formStateKey by remember { mutableIntStateOf(0) }
+    val formState = remember(formStateKey) { RoutineFormState(route.routineId, route.title) }
     val uiState by formState.uiState.collectAsState()
 
     if (LocalUseNativeNavigation.current) {
-        RoutineDetailBody(
-            formState = formState,
-            uiState = uiState,
-            modifier = Modifier.padding(WindowInsets.safeDrawing.asPaddingValues()),
-        )
+        if (isEditing) {
+            RoutineDetailBody(
+                formState = formState,
+                uiState = uiState,
+                modifier = Modifier.padding(WindowInsets.safeDrawing.asPaddingValues()),
+            )
+        } else {
+            RoutineReadOnlyBody(
+                uiState = uiState,
+                modifier = Modifier.padding(WindowInsets.safeDrawing.asPaddingValues()),
+            )
+        }
     } else {
         Scaffold(
             topBar = {
@@ -109,29 +124,61 @@ fun RoutineDetailScreen(route: RoutineDetailRoute, onGoBack: () -> Unit) {
                         }
                     },
                     actions = {
-                        IconButton(
-                            onClick = { formState.save { onGoBack() } },
-                            enabled = !uiState.saving && !uiState.loading,
-                        ) {
-                            if (uiState.saving) {
-                                CircularProgressIndicator(modifier = Modifier.size(18.dp))
-                            } else {
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = "Save",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
+                        if (isEditing) {
+                            IconButton(
+                                onClick = {
+                                    formState.save {
+                                        formStateKey++
+                                        isEditing = false
+                                    }
+                                },
+                                enabled = !uiState.saving && !uiState.loading,
+                            ) {
+                                if (uiState.saving) {
+                                    CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                                } else {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = "Save",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            }
+                        } else {
+                            IconButton(onClick = { isEditing = true }) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit")
                             }
                         }
                     },
                 )
             },
+            floatingActionButton = {
+                if (!isEditing && uiState.workSets.isNotEmpty()) {
+                    FloatingActionButton(
+                        onClick = {
+                            onNavigate(WorkoutSessionRoute(
+                                routineId = route.routineId,
+                                title = uiState.name.ifBlank { route.title },
+                            ))
+                        },
+                    ) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = "Start Workout")
+                    }
+                }
+            },
         ) { padding ->
-            RoutineDetailBody(
-                formState = formState,
-                uiState = uiState,
-                modifier = Modifier.padding(padding),
-            )
+            if (isEditing) {
+                RoutineDetailBody(
+                    formState = formState,
+                    uiState = uiState,
+                    modifier = Modifier.padding(padding),
+                )
+            } else {
+                RoutineReadOnlyBody(
+                    uiState = uiState,
+                    modifier = Modifier.padding(padding),
+                )
+            }
         }
     }
 }
@@ -263,6 +310,40 @@ private fun RoutineDetailBody(
                     scope.launch { pickerSheetState.hide() }.invokeOnCompletion { showPicker = false }
                 },
             )
+        }
+    }
+}
+
+@Composable
+private fun RoutineReadOnlyBody(
+    uiState: RoutineDetailUiState,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier.fillMaxSize()) {
+        when {
+            uiState.loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            uiState.workSets.isEmpty() -> Text(
+                "No exercises yet. Tap Edit to add exercises.",
+                modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            else -> LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 88.dp),
+            ) {
+                uiState.workSets.forEach { workSet ->
+                    item(key = workSet.id) {
+                        Text(
+                            text = "${workSet.sets.size} x ${workSet.exercise.name}",
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                        )
+                    }
+                }
+            }
         }
     }
 }

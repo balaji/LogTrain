@@ -55,7 +55,7 @@ struct ExercisesView: View {
         .navigationDestination(for: Int64.self) { id in
             ExerciseDetailView(exerciseId: id)
         }
-        .searchable(text: $searchText, prompt: "Search exercises")
+        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search exercises")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
