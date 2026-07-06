@@ -4,7 +4,7 @@ import SharedUI
 // MARK: - Coordinators
 
 @Observable class AppNavigationCoordinator {
-    enum AppTab { case exercises, programs, profile }
+    enum AppTab { case exercises, programs, calendar, profile }
     var selectedTab: AppTab = .exercises
 }
 
@@ -56,6 +56,14 @@ struct ContentView: View {
                 Tab("Workouts", systemImage: "list.clipboard",
                     value: AppNavigationCoordinator.AppTab.programs) {
                     ProgramsView()
+                }
+                Tab("Calendar", systemImage: "calendar",
+                    value: AppNavigationCoordinator.AppTab.calendar) {
+                    NavigationStack {
+                        CalendarView()
+                            .navigationTitle("Calendar")
+                            .tabRootStyle()
+                    }
                 }
                 Tab("Profile", systemImage: "person.crop.circle",
                     value: AppNavigationCoordinator.AppTab.profile) {

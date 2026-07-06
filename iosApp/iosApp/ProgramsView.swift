@@ -83,10 +83,20 @@ struct ProgramsView: View {
         NavigationStack(path: $path) {
             Group {
                 if let programs {
-                    if programs.isEmpty {
-                        ContentUnavailableView("No programs yet. Tap + to create one.", systemImage: "list.clipboard")
-                    } else {
-                        List {
+                    List {
+                        Section {
+                            NavigationLink {
+                                WorkoutSessionView(routineId: 0, title: "Empty workout")
+                            } label: {
+                                Text("Start Empty Workout")
+                            }
+                        }
+                        if programs.isEmpty {
+                            Section {
+                                Text("No programs yet. Tap + to create one.")
+                                    .foregroundStyle(.secondary)
+                            }
+                        } else {
                             ForEach(programs, id: \.id) { program in
                                 programRows(program)
                             }

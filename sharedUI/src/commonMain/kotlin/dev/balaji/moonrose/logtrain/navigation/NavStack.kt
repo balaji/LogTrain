@@ -19,4 +19,8 @@ class NavStack(start: TopLevelRoute) {
     fun pop() {
         if (canGoBack) backStack.removeAt(backStack.lastIndex)
     }
+
+    fun popToRoot() {
+        if (backStack.size > 1) backStack.removeRange(1, backStack.size)
+    }
 }

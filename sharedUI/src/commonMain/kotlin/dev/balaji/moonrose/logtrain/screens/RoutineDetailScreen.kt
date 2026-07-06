@@ -75,7 +75,6 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -205,40 +204,6 @@ private fun RoutineDetailBody(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 16.dp),
             ) {
-                // Editable routine name
-                item {
-                    BasicTextField(
-                        value = uiState.name,
-                        onValueChange = { formState.updateName(it) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        textStyle = TextStyle(
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        ),
-                        singleLine = true,
-                        decorationBox = { innerTextField ->
-                            Box {
-                                if (uiState.name.isEmpty()) {
-                                    Text(
-                                        "Routine name",
-                                        style = TextStyle(
-                                            fontSize = 22.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        ),
-                                    )
-                                }
-                                innerTextField()
-                            }
-                        },
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                    Spacer(Modifier.height(8.dp))
-                }
-
                 itemsIndexed(uiState.workSets, key = { _, ws -> ws.id }) { wsIndex, workSet ->
                     ExerciseCard(
                         workSet = workSet,
