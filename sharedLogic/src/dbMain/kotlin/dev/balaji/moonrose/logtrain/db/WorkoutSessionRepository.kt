@@ -1,6 +1,51 @@
 package dev.balaji.moonrose.logtrain.db
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+
+/** Minimal snapshot of the in-progress session, for chrome that lives outside the session screen itself. */
+data class ActiveWorkoutSession(
+    val sessionId: Long,
+    val routineId: Long,
+    val title: String,
+    val startedAt: Long,
+)
+
 object WorkoutSessionRepository {
+    private val repositoryScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    /**
+     * Tracks whichever session is currently in progress, so a persistent mini
+     * bar (bottom overlay on Android/Desktop, safe-area inset on iOS) can be
+     * shown while the user navigates away from the session screen. Backed by
+     * Room's `observeInProgress` query, so it updates automatically on
+     * start/finish/discard without any manual bookkeeping here.
+     */
+    val activeSession: StateFlow<ActiveWorkoutSession?> =
+        AppDb.db.workoutSessionDao().observeInProgress(PROFILE_ID)
+            .map { entity ->
+                entity?.let {
+                    val routineId = it.routineId ?: 0L
+                    val title = if (routineId > 0L) {
+                        AppDb.db.routineDao().findById(routineId)?.name ?: "Workout"
+                    } else {
+                        "Empty workout"
+                    }
+                    ActiveWorkoutSession(
+                        sessionId = it.id,
+                        routineId = routineId,
+                        title = title,
+                        startedAt = it.performedAt,
+                    )
+                }
+            }
+            .stateIn(repositoryScope, SharingStarted.Eagerly, null)
+
     /**
      * Creates a new session snapshotting every set target from the routine. The
      * flat `position` ordering matches moonrose: sets belonging to the same
