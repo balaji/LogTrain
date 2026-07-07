@@ -54,10 +54,12 @@ struct ContentView: View {
                             .navigationTitle("Exercises")
                             .tabRootStyle()
                     }
+                    .modifier(sessionBarInset)
                 }
                 Tab("Workouts", systemImage: "list.clipboard",
                     value: AppNavigationCoordinator.AppTab.programs) {
                     ProgramsView()
+                        .modifier(sessionBarInset)
                 }
                 Tab("Calendar", systemImage: "calendar",
                     value: AppNavigationCoordinator.AppTab.calendar) {
@@ -66,6 +68,7 @@ struct ContentView: View {
                             .navigationTitle("Calendar")
                             .tabRootStyle()
                     }
+                    .modifier(sessionBarInset)
                 }
                 Tab("Profile", systemImage: "person.crop.circle",
                     value: AppNavigationCoordinator.AppTab.profile) {
@@ -74,27 +77,10 @@ struct ContentView: View {
                             .navigationTitle("Profile")
                             .tabRootStyle()
                     }
+                    .modifier(sessionBarInset)
                 }
             }
             .tabBarMinimizeBehavior(.automatic)
-            .tabViewBottomAccessory {
-                if let session = activeSession, !WorkoutSessionPresentation.shared.isSessionScreenVisible {
-                    ActiveSessionBar(
-                        session: session,
-                        onOpen: {
-                            appCoordinator.selectedTab = .programs
-                            WorkoutSessionPresentation.shared.requestOpen(
-                                routineId: session.routineId,
-                                title: session.title
-                            )
-                        },
-                        onComplete: {
-                            Task { try? await WorkoutSessionRepository.shared.finish(sessionId: session.sessionId) }
-                        },
-                        onDiscard: { showDiscardConfirm = true }
-                    )
-                }
-            }
             .task {
                 for await session in WorkoutSessionRepository.shared.activeSession {
                     activeSession = session
@@ -116,15 +102,56 @@ struct ContentView: View {
             ProgressView()
         }
     }
+
+    private var sessionBarInset: ActiveSessionBarInset {
+        ActiveSessionBarInset(
+            session: activeSession,
+            onOpen: { session in
+                appCoordinator.selectedTab = .programs
+                WorkoutSessionPresentation.shared.requestOpen(
+                    routineId: session.routineId,
+                    title: session.title
+                )
+            },
+            onComplete: { session in
+                Task { try? await WorkoutSessionRepository.shared.finish(sessionId: session.sessionId) }
+            },
+            onDiscard: { showDiscardConfirm = true }
+        )
+    }
 }
 
 // MARK: - Active session mini bar
 
-/// Rendered inside the TabView's bottom accessory slot — the system
-/// "mini player" placement above the tab bar, which also supplies the
-/// glass background — while a workout is running but its own screen
-/// isn't the one visible. Tapping the label re-opens the session; the
-/// trailing actions mirror the ones in `WorkoutSessionView`'s toolbar.
+/// Inserts the mini bar into a tab's bottom safe area. Applied to each
+/// tab's content rather than the TabView: inside a tab the bottom safe
+/// area ends above the tab bar, whereas an inset (or bottom accessory)
+/// on the TabView itself either covers the floating tab bar or leaves
+/// an empty capsule behind when there is no bar to show.
+private struct ActiveSessionBarInset: ViewModifier {
+    let session: ActiveWorkoutSession?
+    let onOpen: (ActiveWorkoutSession) -> Void
+    let onComplete: (ActiveWorkoutSession) -> Void
+    let onDiscard: () -> Void
+
+    func body(content: Content) -> some View {
+        content.safeAreaInset(edge: .bottom, spacing: 0) {
+            if let session, !WorkoutSessionPresentation.shared.isSessionScreenVisible {
+                ActiveSessionBar(
+                    session: session,
+                    onOpen: { onOpen(session) },
+                    onComplete: { onComplete(session) },
+                    onDiscard: onDiscard
+                )
+            }
+        }
+    }
+}
+
+/// Floats above the tab bar in a glass capsule — the "mini player" look —
+/// while a workout is running but its own screen isn't the one visible.
+/// Tapping the label re-opens the session; the trailing actions mirror
+/// the ones in `WorkoutSessionView`'s toolbar.
 private struct ActiveSessionBar: View {
     let session: ActiveWorkoutSession
     let onOpen: () -> Void
@@ -163,5 +190,9 @@ private struct ActiveSessionBar: View {
         }
         .font(.title3)
         .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .glassEffect()
+        .padding(.horizontal, 12)
+        .padding(.bottom, 6)
     }
 }
