@@ -41,6 +41,8 @@ private extension View {
 struct ContentView: View {
     @State private var profileState = ProfileState()
     @State private var appCoordinator = AppNavigationCoordinator()
+    @State private var activeSession: ActiveWorkoutSession?
+    @State private var showDiscardConfirm = false
 
     var body: some View {
         if profileState.hasProfile == true {
@@ -75,10 +77,92 @@ struct ContentView: View {
                 }
             }
             .tabBarMinimizeBehavior(.automatic)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if let session = activeSession, !WorkoutSessionPresentation.shared.isVisible {
+                    ActiveSessionBar(
+                        session: session,
+                        onOpen: {
+                            appCoordinator.selectedTab = .programs
+                            WorkoutSessionPresentation.shared.requestOpen(
+                                routineId: session.routineId,
+                                title: session.title
+                            )
+                        },
+                        onComplete: {
+                            Task { try? await WorkoutSessionRepository.shared.finish(sessionId: session.sessionId) }
+                        },
+                        onDiscard: { showDiscardConfirm = true }
+                    )
+                }
+            }
+            .task {
+                for await session in WorkoutSessionRepository.shared.activeSession {
+                    activeSession = session
+                }
+            }
+            .alert("Discard workout?", isPresented: $showDiscardConfirm) {
+                Button("Discard", role: .destructive) {
+                    if let session = activeSession {
+                        Task { try? await WorkoutSessionRepository.shared.discard(sessionId: session.sessionId) }
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This workout and all logged sets will be deleted.")
+            }
         } else if profileState.hasProfile == false {
             ProfileSetupView()
         } else {
             ProgressView()
         }
+    }
+}
+
+// MARK: - Active session mini bar
+
+/// Sits directly above the tab bar via `safeAreaInset` — the standard
+/// "mini player" placement — while a workout is running but its own screen
+/// isn't the one visible. Tapping the label re-opens the session; the
+/// trailing actions mirror the ones in `WorkoutSessionView`'s toolbar.
+private struct ActiveSessionBar: View {
+    let session: ActiveWorkoutSession
+    let onOpen: () -> Void
+    let onComplete: () -> Void
+    let onDiscard: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: "figure.strengthtraining.traditional")
+                    .foregroundStyle(Color.accentColor)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(session.title)
+                        .font(.subheadline.weight(.semibold))
+                    Text(Date(timeIntervalSince1970: Double(session.startedAt) / 1000), style: .timer)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onOpen)
+
+            Button(action: onDiscard) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.red)
+            }
+            .buttonStyle(.plain)
+
+            Button(action: onComplete) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(Color.accentColor)
+            }
+            .buttonStyle(.plain)
+        }
+        .font(.title3)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.bar)
     }
 }

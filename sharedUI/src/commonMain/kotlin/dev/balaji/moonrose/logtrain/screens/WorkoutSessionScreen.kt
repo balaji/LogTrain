@@ -117,9 +117,11 @@ fun WorkoutSessionScreen(route: WorkoutSessionRoute, onGoBack: () -> Unit) {
     }
 
     var showDiscardConfirm by remember { mutableStateOf(false) }
+    val elapsedSeconds = rememberElapsedSeconds(uiState.startedAt)
 
     WorkoutSessionShell(
         title = route.title,
+        elapsedSeconds = elapsedSeconds.takeIf { uiState.startedAt > 0 },
         onGoBack = onGoBack,
         onDiscard = { showDiscardConfirm = true },
         onFinish = { formState.finish() },
@@ -158,6 +160,7 @@ fun WorkoutSessionScreen(route: WorkoutSessionRoute, onGoBack: () -> Unit) {
 @Composable
 private fun WorkoutSessionShell(
     title: String,
+    elapsedSeconds: Long? = null,
     onGoBack: () -> Unit,
     onDiscard: (() -> Unit)? = null,
     onFinish: (() -> Unit)? = null,
@@ -170,7 +173,18 @@ private fun WorkoutSessionShell(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text(title) },
+                    title = {
+                        Column {
+                            Text(title)
+                            if (elapsedSeconds != null) {
+                                Text(
+                                    formatElapsed(elapsedSeconds),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                    },
                     navigationIcon = {
                         IconButton(onClick = onGoBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
