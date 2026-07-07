@@ -85,9 +85,7 @@ struct ProgramsView: View {
                 if let programs {
                     List {
                         Section {
-                            NavigationLink {
-                                WorkoutSessionView(routineId: 0, title: "Empty workout")
-                            } label: {
+                            NavigationLink(value: WorkoutSessionTarget(routineId: 0, title: "Empty workout")) {
                                 Text("Start Empty Workout")
                             }
                         }
@@ -111,6 +109,16 @@ struct ProgramsView: View {
             .scrollBounceBehavior(.basedOnSize)
             .navigationDestination(for: RoutineTarget.self) { target in
                 RoutineDetailView(routineId: target.routineId, title: target.title, isNew: target.isNew)
+            }
+            .navigationDestination(for: WorkoutSessionTarget.self) { target in
+                WorkoutSessionView(routineId: target.routineId, title: target.title)
+            }
+            .onChange(of: WorkoutSessionPresentation.shared.openRequestID) {
+                // Replace the whole stack rather than appending: a stale
+                // session screen may still be pushed here from an earlier
+                // visit, and stacking a second one on top of it is what
+                // used to break the mini bar's visibility tracking.
+                path = NavigationPath([WorkoutSessionPresentation.shared.pendingTarget])
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {

@@ -29,6 +29,8 @@ data class WorkoutSessionUiState(
     val saving: Boolean = false,
     val finished: Boolean = false,
     val discarded: Boolean = false,
+    // Epoch millis the session was started; 0 while still loading.
+    val startedAt: Long = 0L,
 )
 
 class WorkoutSessionFormState(private val sessionId: Long) {
@@ -38,6 +40,7 @@ class WorkoutSessionFormState(private val sessionId: Long) {
 
     init {
         CoroutineScope(Dispatchers.Main).launch {
+            val session = AppDb.db.workoutSessionDao().findById(sessionId)
             val details = AppDb.db.workoutSessionDetailDao().getForSession(sessionId)
             // Details arrive in flat position order with sets of the same
             // exercise adjacent (invariant maintained by the creator + saver).
@@ -73,7 +76,11 @@ class WorkoutSessionFormState(private val sessionId: Long) {
                 )
             }
             flush()
-            _uiState.value = _uiState.value.copy(loading = false, exercises = grouped)
+            _uiState.value = _uiState.value.copy(
+                loading = false,
+                exercises = grouped,
+                startedAt = session?.performedAt ?: 0L,
+            )
         }
     }
 

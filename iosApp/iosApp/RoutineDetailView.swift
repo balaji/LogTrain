@@ -135,12 +135,10 @@ struct RoutineDetailView: View {
             }
 
             if !uiState.workSets.isEmpty {
-                NavigationLink {
-                    WorkoutSessionView(
-                        routineId: routineId,
-                        title: uiState.name.isEmpty ? "Workout" : uiState.name
-                    )
-                } label: {
+                NavigationLink(value: WorkoutSessionTarget(
+                    routineId: routineId,
+                    title: uiState.name.isEmpty ? "Workout" : uiState.name
+                )) {
                     Image(systemName: "play.fill")
                         .font(.title2)
                         .foregroundStyle(.white)

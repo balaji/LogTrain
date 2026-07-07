@@ -15,10 +15,17 @@ struct WorkoutSessionView: View {
         exercises: [],
         saving: false,
         finished: false,
-        discarded: false
+        discarded: false,
+        startedAt: 0
     )
     @State private var showExercisePicker = false
     @State private var showDiscardConfirm = false
+    @State private var ownSessionObserved = false
+
+    private var sessionStartDate: Date? {
+        guard uiState.startedAt > 0 else { return nil }
+        return Date(timeIntervalSince1970: Double(uiState.startedAt) / 1000)
+    }
 
     var body: some View {
         Group {
@@ -29,9 +36,24 @@ struct WorkoutSessionView: View {
             }
         }
         .task { await bootstrap() }
+        .task { await followActiveSession() }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { WorkoutSessionPresentation.shared.sessionScreenDidAppear() }
+        .onDisappear { WorkoutSessionPresentation.shared.sessionScreenDidDisappear() }
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 0) {
+                    Text(title)
+                        .font(.headline)
+                    if let sessionStartDate {
+                        Text(sessionStartDate, style: .timer)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                }
+            }
             if formState != nil {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .destructive) {
@@ -43,7 +65,9 @@ struct WorkoutSessionView: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        formState?.finish { dismiss() }
+                        // Dismissal happens via followActiveSession() once the
+                        // session leaves the in-progress state.
+                        formState?.finish { }
                     } label: {
                         if uiState.saving {
                             ProgressView()
@@ -72,7 +96,9 @@ struct WorkoutSessionView: View {
         }
         .alert("Discard workout?", isPresented: $showDiscardConfirm) {
             Button("Discard", role: .destructive) {
-                formState?.discard { dismiss() }
+                // Dismissal happens via followActiveSession() once the
+                // session row is deleted.
+                formState?.discard { }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -81,18 +107,43 @@ struct WorkoutSessionView: View {
     }
 
     private func bootstrap() async {
-        do {
-            let id = try await WorkoutSessionRepository.shared.resumeOrStart(routineId: routineId)
-            let state = WorkoutSessionFormState(sessionId: id.int64Value)
-            sessionId = id.int64Value
-            formState = state
-            for await value in state.uiState {
-                uiState = value
+        // `.task` restarts on every appearance (tab switches included); only
+        // the first run may create/resume a session. Re-running resumeOrStart
+        // after the session was discarded elsewhere would silently start a
+        // brand-new session from a screen the user is trying to leave.
+        if formState == nil {
+            do {
+                let id = try await WorkoutSessionRepository.shared.resumeOrStart(routineId: routineId)
+                sessionId = id.int64Value
+                formState = WorkoutSessionFormState(sessionId: id.int64Value)
+            } catch {
+                // Bootstrap failure is fatal for this screen; falling back to
+                // dismiss is friendlier than showing a broken state.
+                dismiss()
+                return
             }
-        } catch {
-            // Bootstrap failure is fatal for this screen; falling back to dismiss
-            // is friendlier than showing a broken state.
-            dismiss()
+        }
+        guard let formState else { return }
+        for await value in formState.uiState {
+            uiState = value
+        }
+    }
+
+    /// Pops this screen as soon as its session stops being the in-progress
+    /// one — whether it was finished or discarded here, from the mini bar on
+    /// another screen, or while this instance sat off-screen in the
+    /// navigation stack. Sole dismissal path for finish/discard, so the
+    /// screen and the mini bar both follow the same repository state.
+    /// Only acts once it has seen its own session, so an emission for an
+    /// unrelated older session can't pop a screen that's still bootstrapping.
+    private func followActiveSession() async {
+        for await session in WorkoutSessionRepository.shared.activeSession {
+            guard let sessionId else { continue }
+            if session?.sessionId == sessionId {
+                ownSessionObserved = true
+            } else if ownSessionObserved {
+                dismiss()
+            }
         }
     }
 
