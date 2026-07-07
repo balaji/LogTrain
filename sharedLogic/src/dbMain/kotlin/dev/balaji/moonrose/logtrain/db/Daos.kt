@@ -38,6 +38,9 @@ interface RoutineDao {
     @Query("SELECT * FROM routines ORDER BY program_id, position")
     fun observeAll(): Flow<List<RoutineEntity>>
 
+    @Query("SELECT * FROM routines WHERE id = :id")
+    suspend fun findById(id: Long): RoutineEntity?
+
     @Query("SELECT COALESCE(MAX(position), 0) + 1 FROM routines WHERE program_id = :programId")
     suspend fun nextPosition(programId: Long): Int
 
@@ -132,6 +135,14 @@ interface WorkoutSessionDao {
             "WHERE profile_id = :profileId AND completed_at IS NOT NULL",
     )
     fun observeCompletedPerformedAt(profileId: Long): Flow<List<Long>>
+
+    @Query(
+        "SELECT * FROM workout_sessions " +
+            "WHERE profile_id = :profileId AND completed_at IS NOT NULL " +
+            "AND performed_at >= :startMillis AND performed_at < :endMillis " +
+            "ORDER BY performed_at",
+    )
+    suspend fun getCompletedInRange(profileId: Long, startMillis: Long, endMillis: Long): List<WorkoutSessionEntity>
 
     @Insert
     suspend fun insert(session: WorkoutSessionEntity): Long
