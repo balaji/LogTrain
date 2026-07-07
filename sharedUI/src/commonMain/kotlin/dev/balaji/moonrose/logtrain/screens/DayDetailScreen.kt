@@ -31,17 +31,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import dev.balaji.moonrose.logtrain.calendar.WeekMath
 import dev.balaji.moonrose.logtrain.db.DayDetailState
 import dev.balaji.moonrose.logtrain.db.DaySession
 import dev.balaji.moonrose.logtrain.db.DaySessionExercise
 import dev.balaji.moonrose.logtrain.navigation.DayDetailRoute
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
-import kotlinx.datetime.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DayDetailScreen(route: DayDetailRoute, onGoBack: () -> Unit) {
-    val title = remember(route.epochDay) { formatDayTitle(route.epochDay) }
+    val title = remember(route.epochDay) { WeekMath.formatDayTitle(route.epochDay) }
     if (LocalUseNativeNavigation.current) {
         DayDetailContent(
             route = route,
@@ -132,10 +132,4 @@ private fun ExerciseSummaryRow(exercise: DaySessionExercise) {
             }
         }
     }
-}
-
-private fun formatDayTitle(epochDay: Long): String {
-    val date = LocalDate.fromEpochDays(epochDay)
-    val month = date.month.name.take(3).lowercase().replaceFirstChar { it.uppercaseChar() }
-    return "$month ${date.day}, ${date.year}"
 }
