@@ -38,9 +38,6 @@ interface RoutineDao {
     @Query("SELECT * FROM routines ORDER BY program_id, position")
     fun observeAll(): Flow<List<RoutineEntity>>
 
-    @Query("SELECT * FROM routines WHERE id = :id")
-    suspend fun findById(id: Long): RoutineEntity?
-
     @Query("SELECT COALESCE(MAX(position), 0) + 1 FROM routines WHERE program_id = :programId")
     suspend fun nextPosition(programId: Long): Int
 

@@ -15,16 +15,10 @@ struct WorkoutSessionView: View {
         exercises: [],
         saving: false,
         finished: false,
-        discarded: false,
-        startedAt: 0
+        discarded: false
     )
     @State private var showExercisePicker = false
     @State private var showDiscardConfirm = false
-
-    private var sessionStartDate: Date? {
-        guard uiState.startedAt > 0 else { return nil }
-        return Date(timeIntervalSince1970: Double(uiState.startedAt) / 1000)
-    }
 
     var body: some View {
         Group {
@@ -37,21 +31,7 @@ struct WorkoutSessionView: View {
         .task { await bootstrap() }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { WorkoutSessionPresentation.shared.isVisible = true }
-        .onDisappear { WorkoutSessionPresentation.shared.isVisible = false }
         .toolbar {
-            ToolbarItem(placement: .principal) {
-                VStack(spacing: 0) {
-                    Text(title)
-                        .font(.headline)
-                    if let sessionStartDate {
-                        Text(sessionStartDate, style: .timer)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                }
-            }
             if formState != nil {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .destructive) {

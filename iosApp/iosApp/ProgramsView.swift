@@ -7,11 +7,6 @@ private struct RoutineTarget: Hashable {
     var isNew: Bool = false
 }
 
-private struct WorkoutSessionTarget: Hashable {
-    let routineId: Int64
-    let title: String
-}
-
 private enum TextPrompt: Identifiable {
     case newProgram
     case renameProgram(Program)
@@ -116,17 +111,6 @@ struct ProgramsView: View {
             .scrollBounceBehavior(.basedOnSize)
             .navigationDestination(for: RoutineTarget.self) { target in
                 RoutineDetailView(routineId: target.routineId, title: target.title, isNew: target.isNew)
-            }
-            .navigationDestination(for: WorkoutSessionTarget.self) { target in
-                WorkoutSessionView(routineId: target.routineId, title: target.title)
-            }
-            .onChange(of: WorkoutSessionPresentation.shared.openRequestID) {
-                path.append(
-                    WorkoutSessionTarget(
-                        routineId: WorkoutSessionPresentation.shared.pendingRoutineId,
-                        title: WorkoutSessionPresentation.shared.pendingTitle
-                    )
-                )
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
