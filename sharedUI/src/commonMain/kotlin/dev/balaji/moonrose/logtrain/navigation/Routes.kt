@@ -44,3 +44,7 @@ data class WorkoutSessionRoute(
     override val title: String = "Workout",
 ) : Route
 
+data class DayDetailRoute(
+    val epochDay: Long,
+    override val title: String = "Workout",
+) : Route
