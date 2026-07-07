@@ -136,14 +136,6 @@ interface WorkoutSessionDao {
     )
     fun observeCompletedPerformedAt(profileId: Long): Flow<List<Long>>
 
-    @Query(
-        "SELECT * FROM workout_sessions " +
-            "WHERE profile_id = :profileId AND completed_at IS NOT NULL " +
-            "AND performed_at >= :startMillis AND performed_at < :endMillis " +
-            "ORDER BY performed_at",
-    )
-    suspend fun getCompletedInRange(profileId: Long, startMillis: Long, endMillis: Long): List<WorkoutSessionEntity>
-
     @Insert
     suspend fun insert(session: WorkoutSessionEntity): Long
 

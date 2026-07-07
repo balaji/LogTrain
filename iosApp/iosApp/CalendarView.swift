@@ -21,8 +21,10 @@ struct CalendarView: View {
                         ScrollView {
                             LazyVStack(spacing: 0) {
                                 ForEach(model.weeks, id: \.weekStartEpochDay) { week in
-                                    WeekRowView(week: week)
-                                        .id(week.weekStartEpochDay)
+                                    WeekRowView(week: week) { _ in
+                                        // Day detail comes later.
+                                    }
+                                    .id(week.weekStartEpochDay)
                                 }
                             }
                         }
@@ -40,9 +42,6 @@ struct CalendarView: View {
             } else {
                 ProgressView()
             }
-        }
-        .navigationDestination(for: Int64.self) { epochDay in
-            DayDetailView(epochDay: epochDay)
         }
         .task {
             for await m in CalendarRepository.shared.calendar {
@@ -75,6 +74,7 @@ struct CalendarView: View {
 
 private struct WeekRowView: View {
     let week: CalendarWeek
+    let onDayTap: (Int64) -> Void
 
     var body: some View {
         HStack(spacing: 0) {
@@ -83,7 +83,7 @@ private struct WeekRowView: View {
                 .foregroundStyle(.secondary)
                 .frame(width: weekNumberWidth)
             ForEach(week.days, id: \.epochDay) { day in
-                DayCellView(day: day)
+                DayCellView(day: day, onTap: onDayTap)
                     .frame(maxWidth: .infinity)
             }
         }
@@ -93,41 +93,35 @@ private struct WeekRowView: View {
 
 private struct DayCellView: View {
     let day: CalendarDay
+    let onTap: (Int64) -> Void
 
     var body: some View {
-        Group {
-            if day.hasCompletedWorkout {
-                NavigationLink(value: day.epochDay) {
-                    dayContent
-                }
-                .buttonStyle(.plain)
-            } else {
-                dayContent
+        Button {
+            onTap(day.epochDay)
+        } label: {
+            VStack(spacing: 2) {
+                // Blank placeholder keeps row heights uniform.
+                Text(day.monthLabel ?? " ")
+                    .font(.caption2)
+                    .foregroundStyle(.tint)
+                Text("\(day.dayOfMonth)")
+                    .font(.body)
+                    .foregroundStyle(day.isFuture ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
+                    .frame(width: 28, height: 28)
+                    .background(
+                        day.isToday ? AnyShapeStyle(.tint.opacity(0.2)) : AnyShapeStyle(.clear),
+                        in: Circle(),
+                    )
+                Circle()
+                    .fill(day.hasCompletedWorkout ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear))
+                    .frame(width: 5, height: 5)
             }
+            .padding(.vertical, 4)
         }
+        .buttonStyle(.plain)
+        .disabled(!day.hasCompletedWorkout)
         .frame(maxWidth: .infinity)
         .background(day.isWeekend ? Color(.secondarySystemBackground) : Color.clear)
-    }
-
-    private var dayContent: some View {
-        VStack(spacing: 2) {
-            // Blank placeholder keeps row heights uniform.
-            Text(day.monthLabel ?? " ")
-                .font(.caption2)
-                .foregroundStyle(.tint)
-            Text("\(day.dayOfMonth)")
-                .font(.body)
-                .foregroundStyle(day.isFuture ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
-                .frame(width: 28, height: 28)
-                .background(
-                    day.isToday ? AnyShapeStyle(.tint.opacity(0.2)) : AnyShapeStyle(.clear),
-                    in: Circle(),
-                )
-            Circle()
-                .fill(day.hasCompletedWorkout ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear))
-                .frame(width: 5, height: 5)
-        }
-        .padding(.vertical, 4)
     }
 }
 

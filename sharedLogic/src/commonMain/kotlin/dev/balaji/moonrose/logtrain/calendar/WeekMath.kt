@@ -104,10 +104,4 @@ object WeekMath {
 
     private fun monthAbbreviation(date: LocalDate): String =
         date.month.name.take(3).lowercase().replaceFirstChar { it.uppercaseChar() }
-
-    /** e.g. "Jul 7, 2026" — for screens that only need a display string, no kotlinx-datetime dependency. */
-    fun formatDayTitle(epochDay: Long): String {
-        val date = LocalDate.fromEpochDays(epochDay)
-        return "${monthAbbreviation(date)} ${date.day}, ${date.year}"
-    }
 }

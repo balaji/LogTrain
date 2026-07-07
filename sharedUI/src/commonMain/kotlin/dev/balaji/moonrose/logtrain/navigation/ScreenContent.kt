@@ -2,7 +2,6 @@ package dev.balaji.moonrose.logtrain.navigation
 
 import androidx.compose.runtime.Composable
 import dev.balaji.moonrose.logtrain.screens.CalendarScreen
-import dev.balaji.moonrose.logtrain.screens.DayDetailScreen
 import dev.balaji.moonrose.logtrain.screens.ExerciseDetailScreen
 import dev.balaji.moonrose.logtrain.screens.ExercisesScreen
 import dev.balaji.moonrose.logtrain.screens.ProgramsScreen
@@ -24,11 +23,10 @@ fun ScreenContent(
     when (route) {
         ExercisesRoute -> ExercisesScreen(onNavigate = onNavigate)
         WorkoutsRoute -> ProgramsScreen(onNavigate = onNavigate)
-        CalendarRoute -> CalendarScreen(onDayClick = { epochDay -> onNavigate(DayDetailRoute(epochDay)) })
+        CalendarRoute -> CalendarScreen()
         ProfileRoute -> ProfileScreen()
         is RoutineDetailRoute -> RoutineDetailScreen(route = route, onNavigate = onNavigate, onGoBack = onGoBack)
         is ExerciseDetailRoute -> ExerciseDetailScreen(route = route, onGoBack = onGoBack)
         is WorkoutSessionRoute -> WorkoutSessionScreen(route = route, onGoBack = onGoBack)
-        is DayDetailRoute -> DayDetailScreen(route = route, onGoBack = onGoBack)
     }
 }
