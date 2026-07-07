@@ -110,14 +110,49 @@ interface WorkoutSessionDao {
     @Query("SELECT * FROM workout_sessions ORDER BY performed_at DESC")
     fun observeAll(): Flow<List<WorkoutSessionEntity>>
 
+    @Query("SELECT * FROM workout_sessions WHERE id = :id")
+    suspend fun findById(id: Long): WorkoutSessionEntity?
+
+    @Query(
+        "SELECT * FROM workout_sessions " +
+            "WHERE profile_id = :profileId AND completed_at IS NULL " +
+            "ORDER BY performed_at DESC LIMIT 1",
+    )
+    fun observeInProgress(profileId: Long): Flow<WorkoutSessionEntity?>
+
+    @Query(
+        "SELECT * FROM workout_sessions " +
+            "WHERE profile_id = :profileId AND completed_at IS NULL " +
+            "ORDER BY performed_at DESC LIMIT 1",
+    )
+    suspend fun findInProgress(profileId: Long): WorkoutSessionEntity?
+
+    @Query(
+        "SELECT performed_at FROM workout_sessions " +
+            "WHERE profile_id = :profileId AND completed_at IS NOT NULL",
+    )
+    fun observeCompletedPerformedAt(profileId: Long): Flow<List<Long>>
+
     @Insert
     suspend fun insert(session: WorkoutSessionEntity): Long
+
+    @Query("UPDATE workout_sessions SET completed_at = :completedAt, updated_at = :now WHERE id = :id")
+    suspend fun setCompletedAt(id: Long, completedAt: Long, now: Long)
+
+    @Query("DELETE FROM workout_sessions WHERE id = :id")
+    suspend fun delete(id: Long)
 }
 
 @Dao
 interface WorkoutSessionDetailDao {
     @Query("SELECT * FROM workout_session_details WHERE workout_session_id = :sessionId ORDER BY position")
     fun observeForSession(sessionId: Long): Flow<List<WorkoutSessionDetailEntity>>
+
+    @Query("SELECT * FROM workout_session_details WHERE workout_session_id = :sessionId ORDER BY position")
+    suspend fun getForSession(sessionId: Long): List<WorkoutSessionDetailEntity>
+
+    @Query("DELETE FROM workout_session_details WHERE workout_session_id = :sessionId")
+    suspend fun deleteForSession(sessionId: Long)
 
     @Insert
     suspend fun insert(detail: WorkoutSessionDetailEntity): Long

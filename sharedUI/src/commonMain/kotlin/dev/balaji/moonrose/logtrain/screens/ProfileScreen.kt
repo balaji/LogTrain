@@ -73,6 +73,8 @@ private fun ProfileDetails(profile: Profile, onEdit: () -> Unit) {
         HorizontalDivider()
         ProfileField("Height", profile.height?.let { "$it cm" })
         HorizontalDivider()
+        ProfileField("Week starts on", if (profile.weekStartsMonday) "Monday" else "Sunday")
+        HorizontalDivider()
         TextButton(onClick = onEdit, modifier = Modifier.align(Alignment.End)) {
             Text("Edit")
         }

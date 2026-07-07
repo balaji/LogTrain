@@ -12,7 +12,14 @@ object ProfileRepository {
     val profile: Flow<Profile?> =
         AppDb.db.profileDao().observe().map { it?.toDomain() }
 
-    suspend fun save(name: String, age: Int?, gender: String?, weight: Double?, height: Double?) {
+    suspend fun save(
+        name: String,
+        age: Int?,
+        gender: String?,
+        weight: Double?,
+        height: Double?,
+        weekStartsMonday: Boolean,
+    ) {
         val now = nowMillis()
         val existing = AppDb.db.profileDao().observe().first()
         AppDb.db.profileDao().upsert(
@@ -23,6 +30,7 @@ object ProfileRepository {
                 gender = gender,
                 weight = weight,
                 height = height,
+                weekStartsMonday = weekStartsMonday,
                 createdAt = existing?.createdAt ?: now,
                 updatedAt = now,
             ),
@@ -31,4 +39,12 @@ object ProfileRepository {
 }
 
 private fun ProfileEntity.toDomain() =
-    Profile(id = id, name = name, age = age, gender = gender, weight = weight, height = height)
+    Profile(
+        id = id,
+        name = name,
+        age = age,
+        gender = gender,
+        weight = weight,
+        height = height,
+        weekStartsMonday = weekStartsMonday,
+    )

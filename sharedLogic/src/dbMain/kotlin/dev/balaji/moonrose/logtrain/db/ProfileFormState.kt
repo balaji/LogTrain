@@ -14,6 +14,7 @@ data class ProfileFormUiState(
     val gender: String? = null,
     val weight: String = "",
     val height: String = "",
+    val weekStartsMonday: Boolean = false,
     val nameError: Boolean = false,
     val saving: Boolean = false,
 )
@@ -30,6 +31,7 @@ class ProfileFormState(initial: Profile? = null) {
             gender = initial?.gender,
             weight = initial?.weight?.toString() ?: "",
             height = initial?.height?.toString() ?: "",
+            weekStartsMonday = initial?.weekStartsMonday ?: false,
         ),
     )
     val uiState: StateFlow<ProfileFormUiState> = _uiState.asStateFlow()
@@ -54,6 +56,10 @@ class ProfileFormState(initial: Profile? = null) {
         _uiState.value = _uiState.value.copy(height = value.filterDecimal())
     }
 
+    fun updateWeekStartsMonday(value: Boolean) {
+        _uiState.value = _uiState.value.copy(weekStartsMonday = value)
+    }
+
     fun save(onSaved: () -> Unit) {
         val state = _uiState.value
         if (state.name.isBlank()) {
@@ -68,6 +74,7 @@ class ProfileFormState(initial: Profile? = null) {
                 gender = state.gender,
                 weight = state.weight.toDoubleOrNull(),
                 height = state.height.toDoubleOrNull(),
+                weekStartsMonday = state.weekStartsMonday,
             )
             _uiState.value = _uiState.value.copy(saving = false)
             onSaved()

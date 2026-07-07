@@ -2,10 +2,12 @@ package dev.balaji.moonrose.logtrain.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -83,7 +85,7 @@ private fun ExercisesBody(contentPadding: PaddingValues, onOpen: (Exercise) -> U
         }
     }
 
-    Column(modifier = Modifier.padding(contentPadding)) {
+    Column(modifier = Modifier.fillMaxHeight().padding(contentPadding)) {
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
@@ -119,10 +121,12 @@ private fun ExercisesBody(contentPadding: PaddingValues, onOpen: (Exercise) -> U
 
         when {
             exercises == null -> {}
-            filtered.isEmpty() -> CenteredMessage(PaddingValues(0.dp)) {
-                Text("No exercises match your filters.")
+            filtered.isEmpty() -> Box(modifier = Modifier.weight(1f)) {
+                CenteredMessage(PaddingValues(0.dp)) {
+                    Text("No exercises match your filters.")
+                }
             }
-            else -> LazyColumn {
+            else -> LazyColumn(modifier = Modifier.weight(1f)) {
                 items(filtered, key = Exercise::id) { exercise ->
                     ListItem(
                         headlineContent = { Text(exercise.name) },

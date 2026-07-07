@@ -22,6 +22,7 @@ data class ProfileEntity(
     val gender: String?,
     val weight: Double?,
     val height: Double?,
+    @ColumnInfo(name = "week_starts_monday", defaultValue = "0") val weekStartsMonday: Boolean = false,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )
@@ -136,6 +137,8 @@ data class WorkoutSessionEntity(
     @ColumnInfo(name = "profile_id") val profileId: Long,
     @ColumnInfo(name = "routine_id") val routineId: Long?,
     @ColumnInfo(name = "performed_at") val performedAt: Long,
+    // Null while the session is in progress; set when the user taps Finish.
+    @ColumnInfo(name = "completed_at") val completedAt: Long?,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )
@@ -159,6 +162,12 @@ data class WorkoutSessionDetailEntity(
     @ColumnInfo(name = "work_set_detail_id") val workSetDetailId: Long?,
     @ColumnInfo(name = "exercise_id") val exerciseId: Long,
     val position: Int,
+    // Snapshotted from the source WorkSetDetail at session start so the session
+    // stays intact even if the routine is later edited or deleted. Null for
+    // exercises added ad-hoc during the session and for empty workouts.
+    @ColumnInfo(name = "target_weight") val targetWeight: Double?,
+    @ColumnInfo(name = "target_reps") val targetReps: Int?,
+    @ColumnInfo(name = "target_duration") val targetDuration: Int?,
     @ColumnInfo(name = "actual_weight") val actualWeight: Double?,
     @ColumnInfo(name = "actual_reps") val actualReps: Int?,
     @ColumnInfo(name = "actual_duration") val actualDuration: Int?,

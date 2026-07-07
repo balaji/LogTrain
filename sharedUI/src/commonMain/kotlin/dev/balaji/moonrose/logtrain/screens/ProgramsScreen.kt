@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,12 +14,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -45,6 +49,7 @@ import dev.balaji.moonrose.logtrain.model.Routine
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import dev.balaji.moonrose.logtrain.navigation.Route
 import dev.balaji.moonrose.logtrain.navigation.RoutineDetailRoute
+import dev.balaji.moonrose.logtrain.navigation.WorkoutSessionRoute
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -91,6 +96,9 @@ fun ProgramsScreen(onNavigate: (Route) -> Unit) {
             expandedProgramId = expandedProgramId,
             routinesByProgram = routinesByProgram,
             contentPadding = contentPadding,
+            onStartEmptyWorkout = {
+                onNavigate(WorkoutSessionRoute(routineId = 0L, title = "Empty workout"))
+            },
             onToggle = ::toggleExpanded,
             onRename = { dialog = ProgramDialog.Rename(it) },
             onDelete = { dialog = ProgramDialog.Delete(it) },
@@ -180,6 +188,7 @@ private fun ProgramsBody(
     expandedProgramId: Long?,
     routinesByProgram: Map<Long, List<Routine>>,
     contentPadding: PaddingValues,
+    onStartEmptyWorkout: () -> Unit,
     onToggle: (Program) -> Unit,
     onRename: (Program) -> Unit,
     onDelete: (Program) -> Unit,
@@ -188,14 +197,25 @@ private fun ProgramsBody(
     onRenameRoutine: (Routine) -> Unit,
     onDeleteRoutine: (Routine) -> Unit,
 ) {
-    when {
-        programs == null -> CenteredMessage(contentPadding) {
-            CircularProgressIndicator()
+    if (programs == null) {
+        CenteredMessage(contentPadding) { CircularProgressIndicator() }
+        return
+    }
+    LazyColumn(contentPadding = contentPadding) {
+        item(key = "start-empty-workout") {
+            StartEmptyWorkoutRow(onClick = onStartEmptyWorkout)
+            HorizontalDivider()
+            Spacer(Modifier.height(24.dp))
         }
-        programs.isEmpty() -> CenteredMessage(contentPadding) {
-            Text("No programs yet. Tap + to create one.")
-        }
-        else -> LazyColumn(contentPadding = contentPadding) {
+        if (programs.isEmpty()) {
+            item(key = "empty-programs") {
+                Text(
+                    "No programs yet. Tap + to create one.",
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        } else {
             programs.forEach { program ->
                 item(key = "program-${program.id}") {
                     Column(modifier = Modifier.animateItem()) {
@@ -248,6 +268,24 @@ private fun ProgramsBody(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun StartEmptyWorkoutRow(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "Start Empty Workout",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
     }
 }
 

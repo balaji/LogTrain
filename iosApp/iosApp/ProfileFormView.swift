@@ -70,6 +70,11 @@ struct ProfileFormView: View {
                 ))
                 .keyboardType(.decimalPad)
                 .focused($focusedField, equals: .height)
+
+                Toggle("Week starts on Monday", isOn: Binding(
+                    get: { uiState.weekStartsMonday },
+                    set: { formState.updateWeekStartsMonday(value: $0) }
+                ))
             }
 
             Section {

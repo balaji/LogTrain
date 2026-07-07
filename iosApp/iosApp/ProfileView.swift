@@ -19,6 +19,7 @@ struct ProfileView: View {
                         LabeledContent("Gender", value: profile.gender ?? "—")
                         LabeledContent("Weight", value: profile.weight.map { "\($0) kg" } ?? "—")
                         LabeledContent("Height", value: profile.height.map { "\($0) cm" } ?? "—")
+                        LabeledContent("Week starts on", value: profile.weekStartsMonday ? "Monday" : "Sunday")
                     }
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {

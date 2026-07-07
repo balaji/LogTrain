@@ -11,6 +11,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.*
@@ -18,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import dev.balaji.moonrose.logtrain.db.ProfileRepository
+import dev.balaji.moonrose.logtrain.navigation.CalendarRoute
 import dev.balaji.moonrose.logtrain.navigation.ExercisesRoute
 import dev.balaji.moonrose.logtrain.navigation.NavStack
 import dev.balaji.moonrose.logtrain.navigation.WorkoutsRoute
@@ -55,6 +57,7 @@ private fun MainTabs() {
         listOf(
             TabSpec(ExercisesRoute, Icons.Filled.FitnessCenter),
             TabSpec(WorkoutsRoute, Icons.AutoMirrored.Filled.Assignment),
+            TabSpec(CalendarRoute, Icons.Filled.CalendarMonth),
             TabSpec(ProfileRoute, Icons.Filled.Person),
         )
     }
@@ -70,7 +73,13 @@ private fun MainTabs() {
                 tabs.forEach { tab ->
                     NavigationBarItem(
                         selected = currentTab == tab.route,
-                        onClick = { currentTab = tab.route },
+                        onClick = {
+                            if (currentTab == tab.route) {
+                                stacks.getValue(tab.route).popToRoot()
+                            } else {
+                                currentTab = tab.route
+                            }
+                        },
                         icon = { Icon(tab.icon, contentDescription = tab.route.title) },
                         label = { Text(tab.route.title) },
                     )

@@ -20,6 +20,10 @@ data object WorkoutsRoute : TopLevelRoute {
     override val title get() = "Workouts"
 }
 
+data object CalendarRoute : TopLevelRoute {
+    override val title get() = "Calendar"
+}
+
 data object ProfileRoute : TopLevelRoute {
     override val title get() = "Profile"
 }
