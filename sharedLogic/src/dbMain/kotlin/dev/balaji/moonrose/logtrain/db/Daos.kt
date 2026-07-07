@@ -1,10 +1,18 @@
 package dev.balaji.moonrose.logtrain.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
+
+/** Projection for the workout-history list: one row per completed session. */
+data class CompletedSessionRow(
+    @ColumnInfo(name = "performed_at") val performedAt: Long,
+    /** Null when the session had no routine or the routine was deleted. */
+    @ColumnInfo(name = "routine_name") val routineName: String?,
+)
 
 @Dao
 interface ProfileDao {
@@ -135,6 +143,14 @@ interface WorkoutSessionDao {
             "WHERE profile_id = :profileId AND completed_at IS NOT NULL",
     )
     fun observeCompletedPerformedAt(profileId: Long): Flow<List<Long>>
+
+    @Query(
+        "SELECT s.performed_at AS performed_at, r.name AS routine_name " +
+            "FROM workout_sessions s LEFT JOIN routines r ON r.id = s.routine_id " +
+            "WHERE s.profile_id = :profileId AND s.completed_at IS NOT NULL " +
+            "ORDER BY s.performed_at DESC",
+    )
+    fun observeCompletedWithRoutineName(profileId: Long): Flow<List<CompletedSessionRow>>
 
     @Query(
         "SELECT * FROM workout_sessions " +

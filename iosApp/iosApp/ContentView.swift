@@ -64,8 +64,9 @@ struct ContentView: View {
                 Tab("Calendar", systemImage: "calendar",
                     value: AppNavigationCoordinator.AppTab.calendar) {
                     NavigationStack {
+                        // Title comes from CalendarView: it swaps between the
+                        // grid and the workout-history list.
                         CalendarView()
-                            .navigationTitle("Calendar")
                             .tabRootStyle()
                     }
                     .modifier(sessionBarInset)

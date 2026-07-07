@@ -7,8 +7,19 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+
+/**
+ * One calendar day with at least one completed session, for the workout
+ * history list. Primitive-typed for the SKIE bridge, like the calendar models.
+ */
+data class CompletedWorkoutDay(
+    val epochDay: Long,
+    /** Routine names in session order; "Workout" for sessions without a routine. */
+    val routineNames: List<String>,
+)
 
 object CalendarRepository {
     /**
@@ -40,5 +51,27 @@ object CalendarRepository {
                 weeks = weeks,
                 currentWeekIndex = weeks.indexOfFirst { it.weekStartEpochDay == currentWeekStart },
             )
+        }
+
+    /**
+     * Days with completed sessions, most recent first, keyed on performed_at
+     * in the device timezone like [calendar]. The query returns sessions
+     * newest-first and groupBy preserves encounter order, so no re-sort is
+     * needed; names within a day are flipped back to chronological order.
+     */
+    @OptIn(ExperimentalTime::class)
+    val completedWorkoutDays: Flow<List<CompletedWorkoutDay>> =
+        AppDb.db.workoutSessionDao().observeCompletedWithRoutineName(PROFILE_ID).map { rows ->
+            val zone = TimeZone.currentSystemDefault()
+            rows
+                .groupBy { row ->
+                    Instant.fromEpochMilliseconds(row.performedAt).toLocalDateTime(zone).date.toEpochDays()
+                }
+                .map { (epochDay, sessions) ->
+                    CompletedWorkoutDay(
+                        epochDay = epochDay,
+                        routineNames = sessions.asReversed().map { it.routineName ?: "Workout" },
+                    )
+                }
         }
 }

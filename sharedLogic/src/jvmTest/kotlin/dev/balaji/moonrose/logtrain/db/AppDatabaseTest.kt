@@ -64,6 +64,34 @@ class AppDatabaseTest {
     }
 
     @Test
+    fun `completed sessions join routine names and order newest first`() = runBlocking {
+        val now = nowMillis()
+        db.profileDao().upsert(
+            ProfileEntity(name = "Test", age = null, gender = null, weight = null, height = null, createdAt = now, updatedAt = now),
+        )
+        val programId = db.programDao().insert(
+            ProgramEntity(profileId = PROFILE_ID, name = "PPL", createdAt = now, updatedAt = now),
+        )
+        val routineId = db.routineDao().insert(
+            RoutineEntity(programId = programId, name = "Push", position = 1, createdAt = now, updatedAt = now),
+        )
+        db.workoutSessionDao().insert(
+            WorkoutSessionEntity(profileId = PROFILE_ID, routineId = routineId, performedAt = 1000, completedAt = 2000, createdAt = now, updatedAt = now),
+        )
+        db.workoutSessionDao().insert(
+            WorkoutSessionEntity(profileId = PROFILE_ID, routineId = null, performedAt = 3000, completedAt = 4000, createdAt = now, updatedAt = now),
+        )
+        // In progress: must not appear.
+        db.workoutSessionDao().insert(
+            WorkoutSessionEntity(profileId = PROFILE_ID, routineId = routineId, performedAt = 5000, completedAt = null, createdAt = now, updatedAt = now),
+        )
+
+        val rows = db.workoutSessionDao().observeCompletedWithRoutineName(PROFILE_ID).first()
+        assertEquals(listOf(3000L, 1000L), rows.map { it.performedAt })
+        assertEquals(listOf(null, "Push"), rows.map { it.routineName })
+    }
+
+    @Test
     fun `exercise catalog is seeded on create`() = runBlocking {
         val exercises = db.exerciseDao().observeAll().first()
         assertTrue(exercises.size >= 15, "expected seeded exercises, got ${exercises.size}")
