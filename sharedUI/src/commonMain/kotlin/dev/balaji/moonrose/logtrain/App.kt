@@ -92,6 +92,14 @@ private fun MainTabs() {
     val sessionScreenVisible = stack.current is WorkoutSessionRoute
     val scope = rememberCoroutineScope()
     var showDiscardConfirm by remember { mutableStateOf(false) }
+    var showNothingToSave by remember { mutableStateOf(false) }
+
+    // Once a session ends from the overlay, any WorkoutSessionRoute still
+    // sitting on a tab stack is stale — revisiting it would immediately
+    // resume-or-start a brand new session.
+    fun clearSessionRoutes() {
+        stacks.values.forEach { s -> s.removeAll { it is WorkoutSessionRoute } }
+    }
 
     Scaffold(
         bottomBar = {
@@ -113,7 +121,14 @@ private fun MainTabs() {
                         },
                         onComplete = {
                             val sessionId = activeSession!!.sessionId
-                            scope.launch { WorkoutSessionRepository.finish(sessionId) }
+                            scope.launch {
+                                if (WorkoutSessionRepository.hasCompletedSets(sessionId)) {
+                                    clearSessionRoutes()
+                                    WorkoutSessionRepository.finish(sessionId)
+                                } else {
+                                    showNothingToSave = true
+                                }
+                            }
                         },
                         onDiscard = { showDiscardConfirm = true },
                     )
@@ -161,6 +176,7 @@ private fun MainTabs() {
                 TextButton(onClick = {
                     showDiscardConfirm = false
                     if (session != null) {
+                        clearSessionRoutes()
                         scope.launch { WorkoutSessionRepository.discard(session.sessionId) }
                     }
                 }) {
@@ -170,6 +186,31 @@ private fun MainTabs() {
             dismissButton = {
                 TextButton(onClick = { showDiscardConfirm = false }) {
                     Text("Cancel")
+                }
+            },
+        )
+    }
+
+    if (showNothingToSave) {
+        val session = activeSession
+        AlertDialog(
+            onDismissRequest = { showNothingToSave = false },
+            title = { Text("Nothing to save") },
+            text = { Text("There are no completed sets to save. Discard?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showNothingToSave = false
+                    if (session != null) {
+                        clearSessionRoutes()
+                        scope.launch { WorkoutSessionRepository.discard(session.sessionId) }
+                    }
+                }) {
+                    Text("Yes", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNothingToSave = false }) {
+                    Text("No")
                 }
             },
         )

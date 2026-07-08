@@ -3,17 +3,17 @@ import SharedUI
 
 /// Read-only summary of the completed workout session(s) performed on a given
 /// calendar day, bound to the shared `DayDetailState` via SKIE's Swift
-/// `StateFlow` bridge.
+/// `Flow` bridge. The flow is cold and collected in `.task`, so the page
+/// observes the database while visible and refreshes when it reappears —
+/// e.g. after a session is finished from the mini bar on another tab.
 struct DayDetailView: View {
     let epochDay: Int64
     @State private var state: DayDetailState
-    @State private var uiState: DayDetailUiState
+    @State private var uiState = DayDetailUiState(loading: true, sessions: [])
 
     init(epochDay: Int64) {
         self.epochDay = epochDay
-        let state = DayDetailState(epochDay: epochDay)
-        _state = State(initialValue: state)
-        _uiState = State(initialValue: state.uiState.value)
+        _state = State(initialValue: DayDetailState(epochDay: epochDay))
     }
 
     var body: some View {

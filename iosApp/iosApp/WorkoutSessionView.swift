@@ -20,6 +20,7 @@ struct WorkoutSessionView: View {
     )
     @State private var showExercisePicker = false
     @State private var showDiscardConfirm = false
+    @State private var showNothingToSave = false
     @State private var ownSessionObserved = false
 
     private var sessionStartDate: Date? {
@@ -65,9 +66,13 @@ struct WorkoutSessionView: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        // Dismissal happens via followActiveSession() once the
-                        // session leaves the in-progress state.
-                        formState?.finish { }
+                        if uiState.hasCompletedSets {
+                            // Dismissal happens via followActiveSession() once
+                            // the session leaves the in-progress state.
+                            formState?.finish { }
+                        } else {
+                            showNothingToSave = true
+                        }
                     } label: {
                         if uiState.saving {
                             ProgressView()
@@ -103,6 +108,14 @@ struct WorkoutSessionView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This workout and all logged sets will be deleted.")
+        }
+        .alert("Nothing to save", isPresented: $showNothingToSave) {
+            Button("Yes", role: .destructive) {
+                formState?.discard { }
+            }
+            Button("No", role: .cancel) {}
+        } message: {
+            Text("There are no completed sets to save. Discard?")
         }
     }
 
@@ -253,6 +266,9 @@ private struct SessionExerciseSection: View {
                     .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 6))
 
+                    // A set needs at least one rep before it can be completed;
+                    // stays enabled while checked so stale rows can be unchecked.
+                    let canComplete = set.completed || (Int(set.actualReps) ?? 0) > 0
                     Button {
                         formState.toggleCompleted(
                             exerciseIndex: Int32(exIndex),
@@ -260,9 +276,14 @@ private struct SessionExerciseSection: View {
                         )
                     } label: {
                         Image(systemName: set.completed ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(set.completed ? Color.accentColor : Color.secondary)
+                            .foregroundStyle(
+                                set.completed
+                                    ? Color.accentColor
+                                    : Color.secondary.opacity(canComplete ? 1 : 0.3)
+                            )
                     }
                     .buttonStyle(.borderless)
+                    .disabled(!canComplete)
                     .frame(width: 24)
 
                     Button {

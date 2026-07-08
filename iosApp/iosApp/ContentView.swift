@@ -43,6 +43,7 @@ struct ContentView: View {
     @State private var appCoordinator = AppNavigationCoordinator()
     @State private var activeSession: ActiveWorkoutSession?
     @State private var showDiscardConfirm = false
+    @State private var showNothingToSave = false
 
     var body: some View {
         if profileState.hasProfile == true {
@@ -97,6 +98,16 @@ struct ContentView: View {
             } message: {
                 Text("This workout and all logged sets will be deleted.")
             }
+            .alert("Nothing to save", isPresented: $showNothingToSave) {
+                Button("Yes", role: .destructive) {
+                    if let session = activeSession {
+                        Task { try? await WorkoutSessionRepository.shared.discard(sessionId: session.sessionId) }
+                    }
+                }
+                Button("No", role: .cancel) {}
+            } message: {
+                Text("There are no completed sets to save. Discard?")
+            }
         } else if profileState.hasProfile == false {
             ProfileSetupView()
         } else {
@@ -115,7 +126,16 @@ struct ContentView: View {
                 )
             },
             onComplete: { session in
-                Task { try? await WorkoutSessionRepository.shared.finish(sessionId: session.sessionId) }
+                Task {
+                    let hasSets = try? await WorkoutSessionRepository.shared.hasCompletedSets(
+                        sessionId: session.sessionId
+                    )
+                    if hasSets?.boolValue == true {
+                        try? await WorkoutSessionRepository.shared.finish(sessionId: session.sessionId)
+                    } else {
+                        showNothingToSave = true
+                    }
+                }
             },
             onDiscard: { showDiscardConfirm = true }
         )

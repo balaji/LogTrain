@@ -3,10 +3,16 @@ package dev.balaji.moonrose.logtrain.db
 import dev.balaji.moonrose.logtrain.model.Exercise
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 data class DraftSessionSet(
     // Snapshots shown as placeholder to the user (never mutated by the UI).
@@ -31,15 +37,29 @@ data class WorkoutSessionUiState(
     val discarded: Boolean = false,
     // Epoch millis the session was started; 0 while still loading.
     val startedAt: Long = 0L,
-)
+) {
+    /** Finishing is only allowed once at least one set is checked off. */
+    val hasCompletedSets: Boolean
+        get() = exercises.any { ex -> ex.sets.any { it.completed } }
+}
 
 class WorkoutSessionFormState(private val sessionId: Long) {
     private val _uiState = MutableStateFlow(WorkoutSessionUiState())
     val uiState: StateFlow<WorkoutSessionUiState> = _uiState.asStateFlow()
     private var nextId = 0L
+    private val scope = CoroutineScope(Dispatchers.Main)
+
+    // Serializes persist() runs so a debounced autosave and an explicit
+    // save/finish can never interleave their delete+insert rewrites.
+    private val persistMutex = Mutex()
+    private var autosaveJob: Job? = null
+
+    // Set once the session is finished or discarded; stops any still-pending
+    // autosave from resurrecting rows for a session that no longer exists.
+    private var closed = false
 
     init {
-        CoroutineScope(Dispatchers.Main).launch {
+        scope.launch {
             val session = AppDb.db.workoutSessionDao().findById(sessionId)
             val details = AppDb.db.workoutSessionDetailDao().getForSession(sessionId)
             // Details arrive in flat position order with sets of the same
@@ -89,6 +109,7 @@ class WorkoutSessionFormState(private val sessionId: Long) {
         _uiState.value = current.copy(
             exercises = current.exercises + DraftSessionExercise(id = nextId++, exercise = exercise),
         )
+        scheduleAutosave()
     }
 
     fun addSet(exerciseIndex: Int) {
@@ -106,6 +127,7 @@ class WorkoutSessionFormState(private val sessionId: Long) {
         _uiState.value = current.copy(
             exercises = current.exercises.filterIndexed { i, _ -> i != exerciseIndex },
         )
+        scheduleAutosave()
     }
 
     fun moveExercise(from: Int, to: Int) {
@@ -114,6 +136,7 @@ class WorkoutSessionFormState(private val sessionId: Long) {
         val item = list.removeAt(from)
         list.add(to.coerceIn(0, list.size), item)
         _uiState.value = current.copy(exercises = list)
+        scheduleAutosave()
     }
 
     fun updateActualWeight(exerciseIndex: Int, setIndex: Int, value: String) {
@@ -121,19 +144,26 @@ class WorkoutSessionFormState(private val sessionId: Long) {
     }
 
     fun updateActualReps(exerciseIndex: Int, setIndex: Int, value: String) {
-        updateSet(exerciseIndex, setIndex) { it.copy(actualReps = value) }
+        val reps = value.filter { it.isDigit() }
+        updateSet(exerciseIndex, setIndex) {
+            // A set only counts as completed while it has at least one rep.
+            it.copy(actualReps = reps, completed = it.completed && reps.hasReps())
+        }
     }
 
     fun toggleCompleted(exerciseIndex: Int, setIndex: Int) {
-        updateSet(exerciseIndex, setIndex) { it.copy(completed = !it.completed) }
+        updateSet(exerciseIndex, setIndex) {
+            it.copy(completed = !it.completed && it.actualReps.hasReps())
+        }
     }
 
     /** Rewrite-on-save mirroring RoutineFormState — simpler than diffing. */
     fun save(onSaved: () -> Unit = {}) {
         val state = _uiState.value
         _uiState.value = state.copy(saving = true)
-        CoroutineScope(Dispatchers.Main).launch {
-            persist(state)
+        autosaveJob?.cancel()
+        scope.launch {
+            persistMutex.withLock { persist(state) }
             _uiState.value = _uiState.value.copy(saving = false)
             onSaved()
         }
@@ -142,9 +172,13 @@ class WorkoutSessionFormState(private val sessionId: Long) {
     fun finish(onDone: () -> Unit = {}) {
         val state = _uiState.value
         _uiState.value = state.copy(saving = true)
-        CoroutineScope(Dispatchers.Main).launch {
-            persist(state)
-            WorkoutSessionRepository.finish(sessionId)
+        closed = true
+        autosaveJob?.cancel()
+        scope.launch {
+            persistMutex.withLock {
+                persist(state)
+                WorkoutSessionRepository.finish(sessionId)
+            }
             _uiState.value = _uiState.value.copy(saving = false, finished = true)
             onDone()
         }
@@ -152,10 +186,34 @@ class WorkoutSessionFormState(private val sessionId: Long) {
 
     fun discard(onDone: () -> Unit = {}) {
         _uiState.value = _uiState.value.copy(saving = true)
-        CoroutineScope(Dispatchers.Main).launch {
-            WorkoutSessionRepository.discard(sessionId)
+        closed = true
+        autosaveJob?.cancel()
+        scope.launch {
+            persistMutex.withLock { WorkoutSessionRepository.discard(sessionId) }
             _uiState.value = _uiState.value.copy(saving = false, discarded = true)
             onDone()
+        }
+    }
+
+    /**
+     * Edits are flushed to the database shortly after every mutation so they
+     * survive navigating away (the screen's remembered state is lost once it
+     * leaves composition) and so the mini bar's finish action operates on
+     * current data. Debounced to avoid a full rewrite per keystroke; the
+     * persist itself is NonCancellable so a newer autosave can only supersede
+     * an older one during the delay, never mid-rewrite.
+     */
+    private fun scheduleAutosave() {
+        if (closed || _uiState.value.loading) return
+        autosaveJob?.cancel()
+        autosaveJob = scope.launch {
+            delay(AUTOSAVE_DEBOUNCE_MS)
+            val state = _uiState.value
+            withContext(NonCancellable) {
+                persistMutex.withLock {
+                    if (!closed) persist(state)
+                }
+            }
         }
     }
 
@@ -192,6 +250,7 @@ class WorkoutSessionFormState(private val sessionId: Long) {
         _uiState.value = current.copy(
             exercises = current.exercises.mapIndexed { i, ex -> if (i == index) transform(ex) else ex },
         )
+        scheduleAutosave()
     }
 
     private fun updateSet(
@@ -204,6 +263,10 @@ class WorkoutSessionFormState(private val sessionId: Long) {
         }
     }
 }
+
+private const val AUTOSAVE_DEBOUNCE_MS = 500L
+
+private fun String.hasReps(): Boolean = (toIntOrNull() ?: 0) > 0
 
 private fun Double.formatWeight(): String =
     if (this == toLong().toDouble()) toLong().toString() else toString()

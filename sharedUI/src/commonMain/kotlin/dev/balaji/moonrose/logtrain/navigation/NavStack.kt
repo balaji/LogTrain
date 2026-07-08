@@ -23,4 +23,11 @@ class NavStack(start: TopLevelRoute) {
     fun popToRoot() {
         if (backStack.size > 1) backStack.removeRange(1, backStack.size)
     }
+
+    /** Removes every matching entry; the root is never removed. */
+    fun removeAll(predicate: (Route) -> Boolean) {
+        for (i in backStack.lastIndex downTo 1) {
+            if (predicate(backStack[i])) backStack.removeAt(i)
+        }
+    }
 }

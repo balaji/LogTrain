@@ -117,6 +117,7 @@ fun WorkoutSessionScreen(route: WorkoutSessionRoute, onGoBack: () -> Unit) {
     }
 
     var showDiscardConfirm by remember { mutableStateOf(false) }
+    var showNothingToSave by remember { mutableStateOf(false) }
     val elapsedSeconds = rememberElapsedSeconds(uiState.startedAt)
 
     WorkoutSessionShell(
@@ -124,7 +125,9 @@ fun WorkoutSessionScreen(route: WorkoutSessionRoute, onGoBack: () -> Unit) {
         elapsedSeconds = elapsedSeconds.takeIf { uiState.startedAt > 0 },
         onGoBack = onGoBack,
         onDiscard = { showDiscardConfirm = true },
-        onFinish = { formState.finish() },
+        onFinish = {
+            if (uiState.hasCompletedSets) formState.finish() else showNothingToSave = true
+        },
         finishEnabled = !uiState.saving && !uiState.loading,
     ) { padding ->
         WorkoutSessionBody(
@@ -150,6 +153,27 @@ fun WorkoutSessionScreen(route: WorkoutSessionRoute, onGoBack: () -> Unit) {
             dismissButton = {
                 TextButton(onClick = { showDiscardConfirm = false }) {
                     Text("Cancel")
+                }
+            },
+        )
+    }
+
+    if (showNothingToSave) {
+        AlertDialog(
+            onDismissRequest = { showNothingToSave = false },
+            title = { Text("Nothing to save") },
+            text = { Text("There are no completed sets to save. Discard?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showNothingToSave = false
+                    formState.discard()
+                }) {
+                    Text("Yes", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNothingToSave = false }) {
+                    Text("No")
                 }
             },
         )
@@ -569,6 +593,10 @@ private fun SessionExerciseCard(
                     Checkbox(
                         checked = set.completed,
                         onCheckedChange = { onToggleCompleted(setIdx) },
+                        // A set needs at least one rep before it can be
+                        // completed; completed stays enabled so stale rows can
+                        // still be unchecked.
+                        enabled = set.completed || (set.actualReps.toIntOrNull() ?: 0) > 0,
                         modifier = Modifier.size(40.dp),
                     )
                     IconButton(
