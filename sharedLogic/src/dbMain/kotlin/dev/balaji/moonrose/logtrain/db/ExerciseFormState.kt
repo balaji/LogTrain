@@ -28,22 +28,29 @@ data class ExerciseFormUiState(
 /**
  * Exercise edit form state, shared by the Compose form and (in the future) a
  * native form so validation and save logic live in one place.
+ *
+ * A null [exerciseId] means the form creates a new exercise on save.
  */
-class ExerciseFormState(private val exerciseId: Long) {
-    private val _uiState = MutableStateFlow(ExerciseFormUiState())
+class ExerciseFormState private constructor(private val exerciseId: Long?) {
+    constructor(exerciseId: Long) : this(exerciseId as Long?)
+    constructor() : this(null)
+
+    private val _uiState = MutableStateFlow(ExerciseFormUiState(loading = exerciseId != null))
     val uiState: StateFlow<ExerciseFormUiState> = _uiState.asStateFlow()
 
     init {
-        CoroutineScope(Dispatchers.Main).launch {
-            val exercise = ExerciseRepository.findById(exerciseId)
-            _uiState.value = _uiState.value.copy(
-                loading = false,
-                name = exercise?.name ?: "",
-                description = exercise?.description ?: "",
-                exerciseType = exercise?.exerciseType,
-                bodyPart = exercise?.bodyPart,
-                equipment = exercise?.equipment,
-            )
+        if (exerciseId != null) {
+            CoroutineScope(Dispatchers.Main).launch {
+                val exercise = ExerciseRepository.findById(exerciseId)
+                _uiState.value = _uiState.value.copy(
+                    loading = false,
+                    name = exercise?.name ?: "",
+                    description = exercise?.description ?: "",
+                    exerciseType = exercise?.exerciseType,
+                    bodyPart = exercise?.bodyPart,
+                    equipment = exercise?.equipment,
+                )
+            }
         }
     }
 
@@ -75,14 +82,24 @@ class ExerciseFormState(private val exerciseId: Long) {
         }
         _uiState.value = state.copy(saving = true)
         CoroutineScope(Dispatchers.Main).launch {
-            val error = ExerciseRepository.update(
-                id = exerciseId,
-                name = state.name.trim(),
-                description = state.description.trim().ifBlank { null },
-                exerciseType = state.exerciseType,
-                bodyPart = state.bodyPart,
-                equipment = state.equipment,
-            )
+            val error = if (exerciseId == null) {
+                ExerciseRepository.create(
+                    name = state.name.trim(),
+                    description = state.description.trim().ifBlank { null },
+                    exerciseType = state.exerciseType,
+                    bodyPart = state.bodyPart,
+                    equipment = state.equipment,
+                )
+            } else {
+                ExerciseRepository.update(
+                    id = exerciseId,
+                    name = state.name.trim(),
+                    description = state.description.trim().ifBlank { null },
+                    exerciseType = state.exerciseType,
+                    bodyPart = state.bodyPart,
+                    equipment = state.equipment,
+                )
+            }
             if (error == ExerciseUpdateError.DuplicateName) {
                 _uiState.value = _uiState.value.copy(saving = false, duplicateNameError = true)
             } else {

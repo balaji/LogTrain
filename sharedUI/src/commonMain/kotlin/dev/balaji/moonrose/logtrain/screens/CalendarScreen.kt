@@ -55,7 +55,10 @@ private val WeekdayLabelsMondayFirst = listOf("Mon", "Tue", "Wed", "Thu", "Fri",
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CalendarScreen(onDayClick: (epochDay: Long) -> Unit = {}) {
+fun CalendarScreen(
+    onDayClick: (epochDay: Long) -> Unit = {},
+    onOpenProfile: () -> Unit = {},
+) {
     // Local state, not a route: toggling between the calendar grid and the
     // session list must not grow the navigation back stack.
     var showSessionList by rememberSaveable { mutableStateOf(false) }
@@ -67,7 +70,8 @@ fun CalendarScreen(onDayClick: (epochDay: Long) -> Unit = {}) {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text(if (showSessionList) "Workout History" else "Calendar") },
+                    title = { Text("History") },
+                    navigationIcon = { ProfileTopBarButton(onClick = onOpenProfile) },
                     actions = {
                         IconButton(onClick = { showSessionList = !showSessionList }) {
                             Icon(

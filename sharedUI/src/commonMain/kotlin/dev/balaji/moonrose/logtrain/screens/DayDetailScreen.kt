@@ -111,10 +111,12 @@ private fun SessionSummaryCard(session: DaySession) {
 private fun ExerciseSummaryRow(exercise: DaySessionExercise) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(exercise.name, style = MaterialTheme.typography.bodyLarge)
-        exercise.sets.forEachIndexed { index, set ->
+        var workingSetNumber = 0
+        exercise.sets.forEach { set ->
+            if (!set.warmup) workingSetNumber++
             Row(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    "Set ${index + 1}",
+                    if (set.warmup) "Warm-up" else "Set $workingSetNumber",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),

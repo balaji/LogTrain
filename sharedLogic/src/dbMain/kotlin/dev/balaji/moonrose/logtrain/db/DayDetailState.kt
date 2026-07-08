@@ -12,6 +12,7 @@ data class DaySessionSet(
     val targetReps: String,
     val actualWeight: String,
     val actualReps: String,
+    val warmup: Boolean,
     val completed: Boolean,
 )
 
@@ -81,6 +82,7 @@ class DayDetailState(private val epochDay: Long) {
                     targetReps = detail.targetReps?.toString().orEmpty(),
                     actualWeight = detail.actualWeight?.formatDayDetailNumber().orEmpty(),
                     actualReps = detail.actualReps?.toString().orEmpty(),
+                    warmup = detail.warmup,
                     completed = detail.completed,
                 ),
             )

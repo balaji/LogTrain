@@ -15,6 +15,37 @@ object ExerciseRepository {
 
     suspend fun findById(id: Long): Exercise? = AppDb.db.exerciseDao().findById(id)?.toDomain()
 
+    suspend fun create(
+        name: String,
+        description: String?,
+        exerciseType: String?,
+        bodyPart: String?,
+        equipment: String?,
+    ): ExerciseUpdateError? {
+        return try {
+            val now = nowMillis()
+            AppDb.db.exerciseDao().insert(
+                ExerciseEntity(
+                    name = name,
+                    description = description,
+                    exerciseType = exerciseType,
+                    bodyPart = bodyPart,
+                    otherBodyParts = null,
+                    equipment = equipment,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+            null
+        } catch (e: SQLiteException) {
+            if (e.message?.contains("UNIQUE", ignoreCase = true) == true) {
+                ExerciseUpdateError.DuplicateName
+            } else {
+                throw e
+            }
+        }
+    }
+
     suspend fun update(
         id: Long,
         name: String,

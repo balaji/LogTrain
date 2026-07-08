@@ -23,18 +23,6 @@ struct ExerciseDetailView: View {
                 ExerciseEditForm(uiState: uiState, formState: formState, onDone: { editing = false })
             } else {
                 List {
-                    Section {
-                        HStack {
-                            Spacer()
-                            Image(systemName: "dumbbell")
-                                .font(.system(size: 48))
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                        }
-                        .frame(height: 160)
-                        .listRowBackground(Color(.secondarySystemBackground))
-                    }
-
                     if !uiState.descriptionText.isEmpty {
                         Section {
                             Text(uiState.descriptionText)

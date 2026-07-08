@@ -10,6 +10,7 @@ struct ExercisesView: View {
     @State private var searchText = ""
     @State private var selectedBodyPart: String?
     @State private var selectedEquipment: String?
+    @State private var showingCreateSheet = false
 
     private var bodyParts: [String] {
         Array(Set((exercises ?? []).compactMap(\.bodyPart))).sorted()
@@ -57,6 +58,16 @@ struct ExercisesView: View {
         }
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search exercises")
         .toolbar {
+            if onExerciseSelected == nil {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showingCreateSheet = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel("Add Exercise")
+                }
+            }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Menu("Body part") {
@@ -92,9 +103,44 @@ struct ExercisesView: View {
                 }
             }
         }
+        .sheet(isPresented: $showingCreateSheet) {
+            ExerciseCreateView()
+        }
         .task {
             for await list in ExerciseRepository.shared.exercises {
                 exercises = list
+            }
+        }
+    }
+}
+
+/// Modal creation form presented from the "+" toolbar button, backed by a
+/// shared `ExerciseFormState` in create mode (no exercise id).
+private struct ExerciseCreateView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var formState: ExerciseFormState
+    @State private var uiState: ExerciseFormUiState
+
+    init() {
+        let state = ExerciseFormState()
+        _formState = State(initialValue: state)
+        _uiState = State(initialValue: state.uiState.value)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ExerciseEditForm(uiState: uiState, formState: formState, onDone: { dismiss() })
+                .navigationTitle("New Exercise")
+                .toolbarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { dismiss() }
+                    }
+                }
+        }
+        .task {
+            for await state in formState.uiState {
+                uiState = state
             }
         }
     }

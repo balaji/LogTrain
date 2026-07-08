@@ -1,8 +1,6 @@
 package dev.balaji.moonrose.logtrain.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -10,14 +8,12 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -43,10 +39,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.balaji.moonrose.logtrain.db.ExerciseFormState
 import dev.balaji.moonrose.logtrain.db.ExerciseFormUiState
+import dev.balaji.moonrose.logtrain.model.ExerciseType
 import dev.balaji.moonrose.logtrain.navigation.ExerciseDetailRoute
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 
-private val EXERCISE_TYPE_OPTIONS = listOf("strength", "cardio")
+private val EXERCISE_TYPE_OPTIONS = ExerciseType.entries.map { it.value }
 
 private val BODY_PART_OPTIONS = listOf(
     "back", "biceps", "calves", "chest", "core", "forearms",
@@ -84,6 +81,47 @@ fun ExerciseDetailScreen(route: ExerciseDetailRoute, onGoBack: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExerciseCreateScreen(onGoBack: () -> Unit) {
+    if (LocalUseNativeNavigation.current) {
+        ExerciseCreateContent(
+            onSaved = onGoBack,
+            modifier = Modifier.padding(WindowInsets.safeDrawing.asPaddingValues()),
+        )
+    } else {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("New Exercise") },
+                    navigationIcon = {
+                        IconButton(onClick = onGoBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                )
+            },
+        ) { padding ->
+            ExerciseCreateContent(onSaved = onGoBack, modifier = Modifier.padding(padding))
+        }
+    }
+}
+
+@Composable
+private fun ExerciseCreateContent(onSaved: () -> Unit, modifier: Modifier = Modifier) {
+    val formState = remember { ExerciseFormState() }
+    val uiState by formState.uiState.collectAsState()
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+    ) {
+        ExerciseEditForm(uiState = uiState, formState = formState, onDone = onSaved)
+    }
+}
+
 @Composable
 private fun ExerciseDetailContent(route: ExerciseDetailRoute, modifier: Modifier = Modifier) {
     val formState = remember(route.exerciseId) { ExerciseFormState(route.exerciseId) }
@@ -103,31 +141,11 @@ private fun ExerciseDetailContent(route: ExerciseDetailRoute, modifier: Modifier
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        PlaceholderImage()
-
         if (editing) {
             ExerciseEditForm(uiState = uiState, formState = formState, onDone = { editing = false })
         } else {
             ExerciseReadOnlyDetails(uiState = uiState, onEdit = { editing = true })
         }
-    }
-}
-
-@Composable
-private fun PlaceholderImage() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(200.dp)
-            .background(MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            Icons.Filled.Info,
-            contentDescription = null,
-            modifier = Modifier.height(64.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 

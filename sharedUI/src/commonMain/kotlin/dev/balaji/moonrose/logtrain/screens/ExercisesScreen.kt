@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,6 +26,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
@@ -37,8 +39,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.balaji.moonrose.logtrain.db.ExerciseRepository
 import dev.balaji.moonrose.logtrain.model.Exercise
+import dev.balaji.moonrose.logtrain.navigation.ExerciseCreateRoute
 import dev.balaji.moonrose.logtrain.navigation.ExerciseDetailRoute
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
+import dev.balaji.moonrose.logtrain.navigation.ProfileRoute
 import dev.balaji.moonrose.logtrain.navigation.Route
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,7 +61,19 @@ fun ExercisesScreen(
     when {
         onExerciseSelected != null -> ExercisesBody(contentPadding = PaddingValues(0.dp), onOpen = onOpen)
         LocalUseNativeNavigation.current -> ExercisesBody(contentPadding = WindowInsets.safeDrawing.asPaddingValues(), onOpen = onOpen)
-        else -> Scaffold(topBar = { TopAppBar(title = { Text("Exercises") }) }) { padding ->
+        else -> Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Exercises") },
+                    navigationIcon = { ProfileTopBarButton(onClick = { onNavigate(ProfileRoute) }) },
+                )
+            },
+            floatingActionButton = {
+                FloatingActionButton(onClick = { onNavigate(ExerciseCreateRoute) }) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add Exercise")
+                }
+            },
+        ) { padding ->
             ExercisesBody(contentPadding = padding, onOpen = onOpen)
         }
     }

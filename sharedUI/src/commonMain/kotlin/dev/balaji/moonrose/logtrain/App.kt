@@ -22,11 +22,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,7 +42,7 @@ import dev.balaji.moonrose.logtrain.navigation.NavStack
 import dev.balaji.moonrose.logtrain.navigation.WorkoutSessionRoute
 import dev.balaji.moonrose.logtrain.navigation.WorkoutsRoute
 import dev.balaji.moonrose.logtrain.navigation.PlatformBackHandler
-import dev.balaji.moonrose.logtrain.navigation.ProfileRoute
+import dev.balaji.moonrose.logtrain.navigation.ProgressRoute
 import dev.balaji.moonrose.logtrain.navigation.ScreenContent
 import dev.balaji.moonrose.logtrain.navigation.TopLevelRoute
 import dev.balaji.moonrose.logtrain.screens.ProfileSetupFlow
@@ -79,7 +79,7 @@ private fun MainTabs() {
             TabSpec(ExercisesRoute, Icons.Filled.FitnessCenter),
             TabSpec(WorkoutsRoute, Icons.AutoMirrored.Filled.Assignment),
             TabSpec(CalendarRoute, Icons.Filled.CalendarMonth),
-            TabSpec(ProfileRoute, Icons.Filled.Person),
+            TabSpec(ProgressRoute, Icons.AutoMirrored.Filled.TrendingUp),
         )
     }
     var currentTab by remember { mutableStateOf<TopLevelRoute>(ExercisesRoute) }

@@ -20,6 +20,7 @@ data class DraftSessionSet(
     val targetReps: String = "",
     val actualWeight: String = "",
     val actualReps: String = "",
+    val warmup: Boolean = false,
     val completed: Boolean = false,
 )
 
@@ -91,6 +92,7 @@ class WorkoutSessionFormState(private val sessionId: Long) {
                         targetReps = detail.targetReps?.toString().orEmpty(),
                         actualWeight = detail.actualWeight?.formatWeight().orEmpty(),
                         actualReps = detail.actualReps?.toString().orEmpty(),
+                        warmup = detail.warmup,
                         completed = detail.completed,
                     ),
                 )
@@ -149,6 +151,10 @@ class WorkoutSessionFormState(private val sessionId: Long) {
             // A set only counts as completed while it has at least one rep.
             it.copy(actualReps = reps, completed = it.completed && reps.hasReps())
         }
+    }
+
+    fun toggleWarmup(exerciseIndex: Int, setIndex: Int) {
+        updateSet(exerciseIndex, setIndex) { it.copy(warmup = !it.warmup) }
     }
 
     fun toggleCompleted(exerciseIndex: Int, setIndex: Int) {
@@ -236,6 +242,7 @@ class WorkoutSessionFormState(private val sessionId: Long) {
                         actualWeight = set.actualWeight.toDoubleOrNull(),
                         actualReps = set.actualReps.toIntOrNull(),
                         actualDuration = null,
+                        warmup = set.warmup,
                         completed = set.completed,
                         createdAt = now,
                         updatedAt = now,

@@ -21,10 +21,15 @@ data object WorkoutsRoute : TopLevelRoute {
 }
 
 data object CalendarRoute : TopLevelRoute {
-    override val title get() = "Calendar"
+    override val title get() = "History"
 }
 
-data object ProfileRoute : TopLevelRoute {
+data object ProgressRoute : TopLevelRoute {
+    override val title get() = "Progress"
+}
+
+// Not a tab: reached from the profile button on each tab root's top bar.
+data object ProfileRoute : Route {
     override val title get() = "Profile"
 }
 
@@ -33,6 +38,10 @@ data class RoutineDetailRoute(
     override val title: String = "Routine",
     val isNew: Boolean = false,
 ) : Route
+
+data object ExerciseCreateRoute : Route {
+    override val title get() = "New Exercise"
+}
 
 data class ExerciseDetailRoute(
     val exerciseId: Long,

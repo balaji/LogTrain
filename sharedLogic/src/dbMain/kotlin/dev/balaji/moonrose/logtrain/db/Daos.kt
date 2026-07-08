@@ -73,6 +73,9 @@ interface ExerciseDao {
     @Insert
     suspend fun insertAll(exercises: List<ExerciseEntity>)
 
+    @Insert
+    suspend fun insert(exercise: ExerciseEntity): Long
+
     @Query(
         "UPDATE exercises SET name = :name, description = :description, " +
             "exercise_type = :exerciseType, body_part = :bodyPart, equipment = :equipment, " +

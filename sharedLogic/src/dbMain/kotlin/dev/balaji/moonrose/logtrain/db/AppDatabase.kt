@@ -17,7 +17,9 @@ import androidx.room.TypeConverters
         WorkoutSessionEntity::class,
         WorkoutSessionDetailEntity::class,
     ],
-    version = 5,
+    // v6: seed exercises reclassified into the new exercise types.
+    // v7: warmup flag on work_set_details and workout_session_details.
+    version = 7,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

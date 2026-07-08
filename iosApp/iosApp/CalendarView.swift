@@ -22,7 +22,7 @@ struct CalendarView: View {
                 ProgressView()
             }
         }
-        .navigationTitle(showingSessionList ? "Workout History" : "Calendar")
+        .navigationTitle("History")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
