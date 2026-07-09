@@ -2,7 +2,6 @@ package dev.balaji.moonrose.logtrain.db
 
 import dev.balaji.moonrose.logtrain.calendar.CalendarModel
 import dev.balaji.moonrose.logtrain.calendar.WeekMath
-import dev.balaji.moonrose.logtrain.calendar.WeekStart
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.Flow
@@ -24,7 +23,7 @@ data class CompletedWorkoutDay(
 object CalendarRepository {
     /**
      * Weekly calendar of completed workout sessions: continuous weeks (start
-     * day per the profile's week-start setting) from min(earliest completed
+     * day per the user_settings week-start) from min(earliest completed
      * session, one year ago) through four weeks from now. Days are keyed on
      * performed_at (session start), in the device timezone at emission time.
      */
@@ -32,9 +31,9 @@ object CalendarRepository {
     val calendar: Flow<CalendarModel> =
         combine(
             AppDb.db.workoutSessionDao().observeCompletedPerformedAt(PROFILE_ID),
-            ProfileRepository.profile,
-        ) { performedAt, profile ->
-            val weekStart = if (profile?.weekStartsMonday == true) WeekStart.MONDAY else WeekStart.SUNDAY
+            UserSettingsRepository.settings,
+        ) { performedAt, settings ->
+            val weekStart = settings.weekStart
             val zone = TimeZone.currentSystemDefault()
             val completedDays = performedAt.mapTo(mutableSetOf()) { millis ->
                 Instant.fromEpochMilliseconds(millis).toLocalDateTime(zone).date.toEpochDays()

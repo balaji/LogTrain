@@ -14,8 +14,6 @@ data class Profile(
     val gender: String?,
     val weight: Double?,
     val height: Double?,
-    /** true = weeks start on Monday in the calendar view, false = Sunday. */
-    val weekStartsMonday: Boolean,
 )
 
 data class Program(

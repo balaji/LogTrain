@@ -6,6 +6,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import dev.balaji.moonrose.logtrain.model.Appearance
 
 // M3's default neutral tokens (Surface, OutlineVariant, etc.) are derived from
 // a purple seed color, not true grays — left alone they tint ListItem rows,
@@ -38,9 +39,9 @@ private val iosDarkColorScheme = darkColorScheme(
 )
 
 @Composable
-actual fun PlatformTheme(content: @Composable () -> Unit) {
+actual fun PlatformTheme(appearance: Appearance, content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) iosDarkColorScheme else iosLightColorScheme,
+        colorScheme = if (appearance.isDark(isSystemInDarkTheme())) iosDarkColorScheme else iosLightColorScheme,
         content = content,
     )
 }

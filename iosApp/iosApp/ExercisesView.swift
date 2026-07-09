@@ -11,6 +11,8 @@ struct ExercisesView: View {
     @State private var selectedBodyPart: String?
     @State private var selectedEquipment: String?
     @State private var showingCreateSheet = false
+    @State private var deleteTarget: Exercise?
+    @State private var deleteErrorMessage: String?
 
     private var bodyParts: [String] {
         Array(Set((exercises ?? []).compactMap(\.bodyPart))).sorted()
@@ -28,23 +30,35 @@ struct ExercisesView: View {
         }
     }
 
+    private var customFiltered: [Exercise] {
+        filtered.filter { !$0.builtin }
+    }
+
+    private var builtinFiltered: [Exercise] {
+        filtered.filter(\.builtin)
+    }
+
+    private var hasActiveFilters: Bool {
+        selectedBodyPart != nil || selectedEquipment != nil
+    }
+
     var body: some View {
         Group {
             if exercises != nil {
                 if filtered.isEmpty {
                     ContentUnavailableView("No exercises match your filters.", systemImage: "magnifyingglass")
                 } else {
-                    List(filtered, id: \.id) { exercise in
-                        if let onSelect = onExerciseSelected {
-                            Button {
-                                onSelect(exercise)
-                            } label: {
-                                ExerciseRowLabel(exercise: exercise)
-                            }
-                            .foregroundStyle(.primary)
+                    List {
+                        if customFiltered.isEmpty {
+                            exerciseRows(filtered)
                         } else {
-                            NavigationLink(value: exercise.id) {
-                                ExerciseRowLabel(exercise: exercise)
+                            Section("My Exercises") {
+                                exerciseRows(customFiltered)
+                            }
+                            if !builtinFiltered.isEmpty {
+                                Section("All Exercises") {
+                                    exerciseRows(builtinFiltered)
+                                }
                             }
                         }
                     }
@@ -60,13 +74,12 @@ struct ExercisesView: View {
         .toolbar {
             if onExerciseSelected == nil {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
+                    Button("Add") {
                         showingCreateSheet = true
-                    } label: {
-                        Image(systemName: "plus")
                     }
                     .accessibilityLabel("Add Exercise")
                 }
+                ToolbarSpacer(.fixed, placement: .primaryAction)
             }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -99,16 +112,79 @@ struct ExercisesView: View {
                         }
                     }
                 } label: {
-                    Image(systemName: "line.3.horizontal.decrease.circle")
+                    Image(systemName: hasActiveFilters
+                        ? "line.3.horizontal.decrease.circle.fill"
+                        : "line.3.horizontal.decrease.circle")
                 }
+                .tint(hasActiveFilters ? .accentColor : nil)
             }
         }
         .sheet(isPresented: $showingCreateSheet) {
             ExerciseCreateView()
         }
+        .alert("Delete exercise?", isPresented: Binding(
+            get: { deleteTarget != nil },
+            set: { if !$0 { deleteTarget = nil } }
+        ), presenting: deleteTarget) { exercise in
+            Button("Delete", role: .destructive) { delete(exercise) }
+            Button("Cancel", role: .cancel) {}
+        } message: { exercise in
+            Text("\"\(exercise.name)\" will be permanently deleted.")
+        }
+        .alert("Can't delete", isPresented: Binding(
+            get: { deleteErrorMessage != nil },
+            set: { if !$0 { deleteErrorMessage = nil } }
+        )) {
+            Button("OK") { deleteErrorMessage = nil }
+        } message: {
+            Text(deleteErrorMessage ?? "")
+        }
         .task {
             for await list in ExerciseRepository.shared.exercises {
                 exercises = list
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func exerciseRows(_ exercises: [Exercise]) -> some View {
+        ForEach(exercises, id: \.id) { exercise in
+            Group {
+                if let onSelect = onExerciseSelected {
+                    Button {
+                        onSelect(exercise)
+                    } label: {
+                        ExerciseRowLabel(exercise: exercise)
+                    }
+                    .foregroundStyle(.primary)
+                } else {
+                    NavigationLink(value: exercise.id) {
+                        ExerciseRowLabel(exercise: exercise)
+                    }
+                }
+            }
+            .swipeActions(edge: .trailing) {
+                // Only user-created exercises are deletable, and only when
+                // browsing (not while picking an exercise for a workout).
+                if !exercise.builtin && onExerciseSelected == nil {
+                    Button(role: .destructive) { deleteTarget = exercise } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
+            }
+        }
+    }
+
+    private func delete(_ exercise: Exercise) {
+        Task {
+            do {
+                let error = try await ExerciseRepository.shared.delete(id: exercise.id)
+                if error == .inUse {
+                    deleteErrorMessage =
+                        "\"\(exercise.name)\" is used by a routine or workout history and can't be deleted."
+                }
+            } catch {
+                deleteErrorMessage = error.localizedDescription
             }
         }
     }

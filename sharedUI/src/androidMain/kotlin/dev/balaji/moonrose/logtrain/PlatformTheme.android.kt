@@ -12,6 +12,7 @@ import androidx.compose.material3.expressiveLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import dev.balaji.moonrose.logtrain.model.Appearance
 
 // Wallpaper-derived dynamic palettes often produce a muted primary that makes
 // link-style text hard to spot, so pin primary to a vivid blue in both modes.
@@ -20,8 +21,8 @@ private val DarkLinkBlue = Color(0xFF0A84FF)
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-actual fun PlatformTheme(content: @Composable () -> Unit) {
-    val dark = isSystemInDarkTheme()
+actual fun PlatformTheme(appearance: Appearance, content: @Composable () -> Unit) {
+    val dark = appearance.isDark(isSystemInDarkTheme())
     val context = LocalContext.current
     val colorScheme = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->

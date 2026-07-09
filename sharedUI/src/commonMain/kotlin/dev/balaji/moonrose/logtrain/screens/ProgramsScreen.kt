@@ -459,7 +459,7 @@ private fun RoutineRow(
 }
 
 @Composable
-private fun SectionHeader(title: String) {
+internal fun SectionHeader(title: String) {
     Text(
         title,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),

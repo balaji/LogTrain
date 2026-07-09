@@ -1,7 +1,7 @@
 import SwiftUI
 import SharedUI
 
-private let exerciseTypeOptions = ["strength", "cardio"]
+private let exerciseTypeOptions = ExerciseType.allCases.map(\.value)
 
 /// Display-only capitalization for catalog values (body part, equipment,
 /// type), which are stored lowercase and matched exactly by the filters.

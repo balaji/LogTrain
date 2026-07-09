@@ -12,14 +12,7 @@ struct RoutineDetailView: View {
     @State private var nameBeforeEdit = ""
     @State private var showExercisePicker = false
 
-    @State private var reorderActiveIndex: Int?
-    @State private var fingerY: CGFloat = 0
-    @State private var startFingerY: CGFloat = 0
-    @State private var overlayListTop: CGFloat = 0
-    @State private var overlayBottom: CGFloat = 0
-    @State private var lastActiveIndex = 0
-
-    private let reorderRowHeight: CGFloat = 56
+    @State private var reorder = ExerciseReorderModel()
 
     init(routineId: Int64, title: String, isNew: Bool = false) {
         self.routineId = routineId
@@ -28,20 +21,6 @@ struct RoutineDetailView: View {
         _formState = State(initialValue: state)
         _uiState = State(initialValue: state.uiState.value)
         _isEditing = State(initialValue: isNew)
-    }
-
-    private var anchoredListTop: CGFloat {
-        let active = reorderActiveIndex ?? lastActiveIndex
-        let count = uiState.workSets.count
-        let maxTop = max(overlayListTop, overlayBottom - CGFloat(count) * reorderRowHeight)
-        let ideal = startFingerY - (CGFloat(active) + 0.5) * reorderRowHeight
-        return min(max(ideal, overlayListTop), maxTop)
-    }
-
-    private var reorderTargetIndex: Int? {
-        guard reorderActiveIndex != nil, !uiState.workSets.isEmpty else { return nil }
-        let slot = Int(((fingerY - anchoredListTop) / reorderRowHeight).rounded(.down))
-        return min(max(slot, 0), uiState.workSets.count - 1)
     }
 
     var body: some View {
@@ -53,8 +32,8 @@ struct RoutineDetailView: View {
             } else {
                 routineReadOnly
             }
-            if isEditing && reorderActiveIndex != nil {
-                reorderOverlay
+            if isEditing && reorder.activeIndex != nil {
+                ExerciseReorderOverlay(model: $reorder, names: uiState.workSets.map { $0.exercise.name })
                     .transition(.opacity)
                     .zIndex(1)
             }
@@ -162,15 +141,12 @@ struct RoutineDetailView: View {
                     workSet: workSet,
                     formState: formState,
                     onReorderStart: { startY in
-                        fingerY = startY
-                        startFingerY = startY
-                        lastActiveIndex = wsIndex
                         withAnimation(.easeOut(duration: 0.15)) {
-                            reorderActiveIndex = wsIndex
+                            reorder.begin(index: wsIndex, fingerY: startY)
                         }
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     },
-                    onReorderChanged: { y in fingerY = y },
+                    onReorderChanged: { y in reorder.update(fingerY: y) },
                     onReorderEnded: { commitReorder() }
                 )
                 .swipeActions(edge: .trailing) {
@@ -188,84 +164,18 @@ struct RoutineDetailView: View {
                 Label("Add Exercise", systemImage: "plus")
             }
         }
-        .scrollDisabled(reorderActiveIndex != nil)
+        .scrollDisabled(reorder.activeIndex != nil)
     }
 
     private func commitReorder() {
-        if let from = reorderActiveIndex, let to = reorderTargetIndex, from != to {
+        if let from = reorder.activeIndex,
+           let to = reorder.targetIndex(count: uiState.workSets.count),
+           from != to {
             formState.moveExercise(from: Int32(from), to: Int32(to))
         }
         withAnimation(.easeIn(duration: 0.2)) {
-            reorderActiveIndex = nil
+            reorder.activeIndex = nil
         }
-    }
-
-    private var reorderOverlay: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Reorder exercises")
-                .font(.headline)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-
-            let columnShift = anchoredListTop - overlayListTop
-            ZStack(alignment: .top) {
-                VStack(spacing: 0) {
-                    ForEach(Array(uiState.workSets.enumerated()), id: \.element.id) { index, workSet in
-                        reorderRow(workSet.exercise.name)
-                            .opacity(index == reorderActiveIndex ? 0 : 1)
-                            .offset(y: reorderShift(for: index))
-                            .animation(.default, value: reorderTargetIndex)
-                    }
-                }
-                .offset(y: columnShift)
-
-                if let active = reorderActiveIndex {
-                    let maxY = CGFloat(uiState.workSets.count - 1) * reorderRowHeight
-                    let floatY = min(max(fingerY - anchoredListTop - reorderRowHeight / 2, 0), maxY)
-                    reorderRow(uiState.workSets[active].exercise.name)
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .shadow(radius: 8)
-                        .offset(y: floatY + columnShift)
-                }
-            }
-            .onGeometryChange(for: CGFloat.self) { proxy in
-                proxy.frame(in: .global).minY
-            } action: { top in
-                overlayListTop = top
-            }
-
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemBackground))
-        .onGeometryChange(for: CGFloat.self) { proxy in
-            proxy.frame(in: .global).maxY
-        } action: { bottom in
-            overlayBottom = bottom
-        }
-    }
-
-    private func reorderShift(for index: Int) -> CGFloat {
-        guard let active = reorderActiveIndex,
-              let target = reorderTargetIndex,
-              index != active else { return 0 }
-        if active < index && index <= target { return -reorderRowHeight }
-        if target <= index && index < active { return reorderRowHeight }
-        return 0
-    }
-
-    private func reorderRow(_ name: String) -> some View {
-        HStack {
-            Text(name)
-                .foregroundStyle(Color.accentColor)
-            Spacer()
-            Image(systemName: "line.3.horizontal")
-                .foregroundStyle(.secondary)
-        }
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity)
-        .frame(height: reorderRowHeight)
     }
 }
 
@@ -279,21 +189,17 @@ private struct ExerciseCardView: View {
     var onReorderChanged: (CGFloat) -> Void
     var onReorderEnded: () -> Void
 
-    @State private var headerMidY: CGFloat = 0
-    @State private var reorderStarted = false
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(workSet.exercise.name)
                 .font(.headline)
                 .foregroundStyle(Color.accentColor)
                 .padding(.vertical, 6)
-                .onGeometryChange(for: CGFloat.self) { proxy in
-                    proxy.frame(in: .global).midY
-                } action: { midY in
-                    headerMidY = midY
-                }
-                .gesture(reorderGesture)
+                .reorderHandle(
+                    onStart: onReorderStart,
+                    onChanged: onReorderChanged,
+                    onEnded: onReorderEnded
+                )
 
             HStack {
                 Text("SET")
@@ -384,30 +290,5 @@ private struct ExerciseCardView: View {
             .foregroundStyle(Color.accentColor)
         }
         .padding(.vertical, 4)
-    }
-
-    private var reorderGesture: some Gesture {
-        LongPressGesture(minimumDuration: 0.35)
-            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
-            .onChanged { value in
-                switch value {
-                case .second(true, let drag):
-                    if !reorderStarted {
-                        reorderStarted = true
-                        onReorderStart(drag?.location.y ?? headerMidY)
-                    }
-                    if let drag {
-                        onReorderChanged(drag.location.y)
-                    }
-                default:
-                    break
-                }
-            }
-            .onEnded { _ in
-                if reorderStarted {
-                    reorderStarted = false
-                    onReorderEnded()
-                }
-            }
     }
 }

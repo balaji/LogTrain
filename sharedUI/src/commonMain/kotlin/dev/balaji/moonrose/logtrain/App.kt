@@ -35,7 +35,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.balaji.moonrose.logtrain.db.ActiveWorkoutSession
 import dev.balaji.moonrose.logtrain.db.ProfileRepository
+import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
 import dev.balaji.moonrose.logtrain.db.WorkoutSessionRepository
+import dev.balaji.moonrose.logtrain.model.UserSettings
 import dev.balaji.moonrose.logtrain.navigation.CalendarRoute
 import dev.balaji.moonrose.logtrain.navigation.ExercisesRoute
 import dev.balaji.moonrose.logtrain.navigation.NavStack
@@ -59,7 +61,8 @@ private data class TabSpec(val route: TopLevelRoute, val icon: ImageVector)
 @Composable
 @Preview
 fun App() {
-    PlatformTheme {
+    val settings by UserSettingsRepository.settings.collectAsState(initial = UserSettings())
+    PlatformTheme(appearance = settings.appearance) {
         val hasProfile by produceState<Boolean?>(initialValue = null) {
             ProfileRepository.profile.collect { value = it != null }
         }

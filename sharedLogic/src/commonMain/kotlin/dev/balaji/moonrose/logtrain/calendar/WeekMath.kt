@@ -8,8 +8,19 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.isoDayNumber
 import kotlinx.datetime.todayIn
 
-/** Which weekday a calendar week is laid out from. */
-enum class WeekStart { SUNDAY, MONDAY }
+/**
+ * Which weekday a calendar week is laid out from. Persisted as the lowercase
+ * [value] string in user_settings.
+ */
+enum class WeekStart(val value: String) {
+    SUNDAY("sunday"),
+    MONDAY("monday"),
+    ;
+
+    companion object {
+        fun fromValue(value: String?): WeekStart = entries.firstOrNull { it.value == value } ?: SUNDAY
+    }
+}
 
 /**
  * Calendar models are primitive-typed (Long/Int/Boolean/String) on purpose:

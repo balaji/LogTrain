@@ -22,7 +22,20 @@ data class ProfileEntity(
     val gender: String?,
     val weight: Double?,
     val height: Double?,
-    @ColumnInfo(name = "week_starts_monday", defaultValue = "0") val weekStartsMonday: Boolean = false,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+)
+
+/**
+ * Key-value app settings ("week_start", "appearance", "weight_unit"). Values
+ * are language-neutral keys (e.g. "monday", "dark", "metric") — never display
+ * strings — so UI labels can be regionalized later. Missing rows fall back to
+ * defaults in UserSettingsRepository; nothing is seeded.
+ */
+@Entity(tableName = "user_settings")
+data class UserSettingEntity(
+    @PrimaryKey val key: String,
+    val value: String,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )

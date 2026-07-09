@@ -12,6 +12,14 @@ enum class ExerciseUpdateError {
     Builtin,
 }
 
+enum class ExerciseDeleteError {
+    /** Seed exercises are read-only; sample programs reference them by name. */
+    Builtin,
+
+    /** Referenced by a routine's work sets or by workout history (FKs are NO_ACTION). */
+    InUse,
+}
+
 object ExerciseRepository {
     val exercises: Flow<List<Exercise>> =
         AppDb.db.exerciseDao().observeAll().map { entities -> entities.map { it.toDomain() } }
@@ -72,6 +80,20 @@ object ExerciseRepository {
         } catch (e: SQLiteException) {
             if (e.message?.contains("UNIQUE", ignoreCase = true) == true) {
                 ExerciseUpdateError.DuplicateName
+            } else {
+                throw e
+            }
+        }
+    }
+
+    suspend fun delete(id: Long): ExerciseDeleteError? {
+        if (AppDb.db.exerciseDao().findById(id)?.builtin == true) return ExerciseDeleteError.Builtin
+        return try {
+            AppDb.db.exerciseDao().delete(id)
+            null
+        } catch (e: SQLiteException) {
+            if (e.message?.contains("FOREIGN KEY", ignoreCase = true) == true) {
+                ExerciseDeleteError.InUse
             } else {
                 throw e
             }

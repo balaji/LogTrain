@@ -24,6 +24,18 @@ interface ProfileDao {
 }
 
 @Dao
+interface UserSettingDao {
+    @Query("SELECT * FROM user_settings")
+    fun observeAll(): Flow<List<UserSettingEntity>>
+
+    @Query("SELECT * FROM user_settings WHERE `key` = :key")
+    suspend fun find(key: String): UserSettingEntity?
+
+    @Upsert
+    suspend fun upsert(setting: UserSettingEntity)
+}
+
+@Dao
 interface ProgramDao {
     @Query("SELECT * FROM programs ORDER BY id")
     fun observeAll(): Flow<List<ProgramEntity>>
@@ -97,6 +109,9 @@ interface ExerciseDao {
         equipment: String?,
         now: Long,
     )
+
+    @Query("DELETE FROM exercises WHERE id = :id")
+    suspend fun delete(id: Long)
 }
 
 @Dao

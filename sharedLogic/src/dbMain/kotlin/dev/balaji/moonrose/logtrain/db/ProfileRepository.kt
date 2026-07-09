@@ -18,7 +18,6 @@ object ProfileRepository {
         gender: String?,
         weight: Double?,
         height: Double?,
-        weekStartsMonday: Boolean,
     ) {
         val now = nowMillis()
         val existing = AppDb.db.profileDao().observe().first()
@@ -30,7 +29,6 @@ object ProfileRepository {
                 gender = gender,
                 weight = weight,
                 height = height,
-                weekStartsMonday = weekStartsMonday,
                 createdAt = existing?.createdAt ?: now,
                 updatedAt = now,
             ),
@@ -46,5 +44,4 @@ private fun ProfileEntity.toDomain() =
         gender = gender,
         weight = weight,
         height = height,
-        weekStartsMonday = weekStartsMonday,
     )

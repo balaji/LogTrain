@@ -7,10 +7,10 @@ private let weekdayLabelsMondayFirst = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
 
 struct CalendarView: View {
     @State private var model: CalendarModel?
-    @State private var profile: Profile?
+    @State private var settings: UserSettings?
     @State private var showingSessionList = false
 
-    private var weekStartsMonday: Bool { profile?.weekStartsMonday == true }
+    private var weekStartsMonday: Bool { settings?.weekStart == WeekStart.monday }
 
     var body: some View {
         Group {
@@ -42,8 +42,8 @@ struct CalendarView: View {
             }
         }
         .task {
-            for await value in ProfileRepository.shared.profile {
-                profile = value
+            for await value in UserSettingsRepository.shared.settings {
+                settings = value
             }
         }
     }

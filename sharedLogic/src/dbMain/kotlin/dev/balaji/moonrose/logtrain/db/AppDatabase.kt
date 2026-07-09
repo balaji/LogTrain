@@ -16,11 +16,13 @@ import androidx.room.TypeConverters
         WorkSetDetailEntity::class,
         WorkoutSessionEntity::class,
         WorkoutSessionDetailEntity::class,
+        UserSettingEntity::class,
     ],
     // v6: seed exercises reclassified into the new exercise types.
     // v7: warmup flag on work_set_details and workout_session_details.
     // v8: builtin flag on exercises so seed exercises are read-only.
-    version = 8,
+    // v9: user_settings KV table; week_starts_monday moved off profile.
+    version = 9,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -34,6 +36,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun workSetDetailDao(): WorkSetDetailDao
     abstract fun workoutSessionDao(): WorkoutSessionDao
     abstract fun workoutSessionDetailDao(): WorkoutSessionDetailDao
+    abstract fun userSettingDao(): UserSettingDao
 }
 
 // Room's KSP processor generates the per-platform actuals.

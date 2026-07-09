@@ -2,11 +2,15 @@ package dev.balaji.moonrose.logtrain.db
 
 import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
+import dev.balaji.moonrose.logtrain.calendar.WeekStart
+import dev.balaji.moonrose.logtrain.model.Appearance
 import dev.balaji.moonrose.logtrain.model.SampleProgram
 import dev.balaji.moonrose.logtrain.model.SamplePrograms
 import dev.balaji.moonrose.logtrain.model.SampleRoutine
 import dev.balaji.moonrose.logtrain.model.SampleSet
 import dev.balaji.moonrose.logtrain.model.SampleWorkSet
+import dev.balaji.moonrose.logtrain.model.UserSettings
+import dev.balaji.moonrose.logtrain.model.WeightUnit
 import java.io.File
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -212,6 +216,39 @@ class AppDatabaseTest {
         assertFailsWith<IllegalStateException> { db.insertSampleProgram(broken) }
         assertTrue(db.programDao().observeAll().first().isEmpty(), "no program should be written")
         assertTrue(db.routineDao().observeAll().first().isEmpty(), "no routine should be written")
+    }
+
+    @Test
+    fun `user settings default when table is empty and round-trip enum keys`() = runBlocking {
+        assertEquals(UserSettings(), db.userSettingDao().observeAll().first().toUserSettings())
+
+        val now = nowMillis()
+        db.userSettingDao().upsert(UserSettingEntity(SETTING_WEEK_START, WeekStart.MONDAY.value, now, now))
+        db.userSettingDao().upsert(UserSettingEntity(SETTING_APPEARANCE, Appearance.DARK.value, now, now))
+        db.userSettingDao().upsert(UserSettingEntity(SETTING_WEIGHT_UNIT, WeightUnit.IMPERIAL.value, now, now))
+
+        val settings = db.userSettingDao().observeAll().first().toUserSettings()
+        assertEquals(WeekStart.MONDAY, settings.weekStart)
+        assertEquals(Appearance.DARK, settings.appearance)
+        assertEquals(WeightUnit.IMPERIAL, settings.weightUnit)
+    }
+
+    @Test
+    fun `user setting upsert replaces the value for an existing key`() = runBlocking {
+        val now = nowMillis()
+        db.userSettingDao().upsert(UserSettingEntity(SETTING_APPEARANCE, "dark", now, now))
+        db.userSettingDao().upsert(UserSettingEntity(SETTING_APPEARANCE, "light", now, now + 1))
+
+        val rows = db.userSettingDao().observeAll().first()
+        assertEquals(1, rows.size)
+        assertEquals("light", rows.single().value)
+    }
+
+    @Test
+    fun `unknown setting values fall back to defaults`() = runBlocking {
+        val now = nowMillis()
+        db.userSettingDao().upsert(UserSettingEntity(SETTING_APPEARANCE, "sepia", now, now))
+        assertEquals(Appearance.SYSTEM, db.userSettingDao().observeAll().first().toUserSettings().appearance)
     }
 
     private suspend fun seedProfile() {

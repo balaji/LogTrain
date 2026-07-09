@@ -224,7 +224,7 @@ struct ProgramsView: View {
         } label: {
             HStack {
                 Text(program.name)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.primary)
                 Spacer()
                 Image(systemName: "chevron.right")
                     .foregroundStyle(.secondary)

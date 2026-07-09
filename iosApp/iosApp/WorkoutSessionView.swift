@@ -22,6 +22,7 @@ struct WorkoutSessionView: View {
     @State private var showDiscardConfirm = false
     @State private var showNothingToSave = false
     @State private var ownSessionObserved = false
+    @State private var reorder = ExerciseReorderModel()
 
     private var sessionStartDate: Date? {
         guard uiState.startedAt > 0 else { return nil }
@@ -29,11 +30,16 @@ struct WorkoutSessionView: View {
     }
 
     var body: some View {
-        Group {
+        ZStack {
             if let formState, !uiState.loading {
                 sessionBody(formState: formState)
             } else {
                 ProgressView()
+            }
+            if reorder.activeIndex != nil {
+                ExerciseReorderOverlay(model: $reorder, names: uiState.exercises.map { $0.exercise.name })
+                    .transition(.opacity)
+                    .zIndex(1)
             }
         }
         .task { await bootstrap() }
@@ -175,6 +181,16 @@ struct WorkoutSessionView: View {
                         .font(.headline)
                         .foregroundStyle(Color.accentColor)
                         .textCase(nil)
+                        .reorderHandle(
+                            onStart: { startY in
+                                withAnimation(.easeOut(duration: 0.15)) {
+                                    reorder.begin(index: exIndex, fingerY: startY)
+                                }
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            },
+                            onChanged: { y in reorder.update(fingerY: y) },
+                            onEnded: { commitReorder() }
+                        )
                 }
                 .swipeActions(edge: .trailing) {
                     Button(role: .destructive) {
@@ -183,11 +199,6 @@ struct WorkoutSessionView: View {
                         Label("Delete", systemImage: "trash")
                     }
                 }
-            }
-            .onMove { source, destination in
-                guard let from = source.first else { return }
-                let to = destination > from ? destination - 1 : destination
-                formState.moveExercise(from: Int32(from), to: Int32(to))
             }
 
             Section {
@@ -198,10 +209,18 @@ struct WorkoutSessionView: View {
                 }
             }
         }
-        // Reordering (and deleting, via swipeActions above) should always be
-        // available on an in-progress session, matching sharedUI's Android
-        // behavior — there's no separate "edit mode" to toggle into.
-        .environment(\.editMode, .constant(.active))
+        .scrollDisabled(reorder.activeIndex != nil)
+    }
+
+    private func commitReorder() {
+        if let from = reorder.activeIndex,
+           let to = reorder.targetIndex(count: uiState.exercises.count),
+           from != to {
+            formState?.moveExercise(from: Int32(from), to: Int32(to))
+        }
+        withAnimation(.easeIn(duration: 0.2)) {
+            reorder.activeIndex = nil
+        }
     }
 }
 
@@ -211,6 +230,12 @@ private struct SessionExerciseSection: View {
     let formState: WorkoutSessionFormState
 
     private var setsCount: Int { Int(exercise.sets.count) }
+
+    private func setNumberLabel(_ setIdx: Int) -> String {
+        if exercise.sets[setIdx].warmup { return "W" }
+        let workingNumber = exercise.sets.prefix(setIdx + 1).filter { !$0.warmup }.count
+        return "\(workingNumber)"
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -226,9 +251,20 @@ private struct SessionExerciseSection: View {
 
             ForEach(Array(exercise.sets.enumerated()), id: \.offset) { setIdx, set in
                 HStack(spacing: 8) {
-                    Text("\(setIdx + 1)")
-                        .frame(width: 28)
-                        .foregroundStyle(.secondary)
+                    // Warm-up sets show "W" and don't consume a working-set
+                    // number; tapping the number toggles warm-up, matching
+                    // sharedUI's Android behavior.
+                    Button {
+                        formState.toggleWarmup(
+                            exerciseIndex: Int32(exIndex),
+                            setIndex: Int32(setIdx)
+                        )
+                    } label: {
+                        Text(setNumberLabel(setIdx))
+                            .foregroundStyle(set.warmup ? Color.orange : Color.secondary)
+                    }
+                    .buttonStyle(.borderless)
+                    .frame(width: 28)
 
                     TextField(
                         set.targetWeight.isEmpty ? "0" : set.targetWeight,

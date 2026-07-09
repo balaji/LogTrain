@@ -44,9 +44,10 @@ import androidx.compose.ui.unit.dp
 import dev.balaji.moonrose.logtrain.calendar.CalendarDay
 import dev.balaji.moonrose.logtrain.calendar.CalendarWeek
 import dev.balaji.moonrose.logtrain.calendar.WeekMath
+import dev.balaji.moonrose.logtrain.calendar.WeekStart
 import dev.balaji.moonrose.logtrain.db.CalendarRepository
 import dev.balaji.moonrose.logtrain.db.CompletedWorkoutDay
-import dev.balaji.moonrose.logtrain.db.ProfileRepository
+import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 
 private val WeekNumberWidth = 32.dp
@@ -95,11 +96,11 @@ fun CalendarScreen(
 @Composable
 private fun CalendarContent(modifier: Modifier, onDayClick: (Long) -> Unit) {
     val model by CalendarRepository.calendar.collectAsState(initial = null)
-    val profile by ProfileRepository.profile.collectAsState(initial = null)
+    val settings by UserSettingsRepository.settings.collectAsState(initial = null)
     // Early-return until the first emission so the list state below is created
     // with the current week index already known.
     val current = model ?: return
-    val weekStartsMonday = profile?.weekStartsMonday == true
+    val weekStartsMonday = settings?.weekStart == WeekStart.MONDAY
 
     Column(modifier.fillMaxSize()) {
         WeekdayHeader(weekStartsMonday)
