@@ -4,7 +4,7 @@ import SharedUI
 // MARK: - Coordinators
 
 @Observable class AppNavigationCoordinator {
-    enum AppTab { case exercises, programs, calendar, profile }
+    enum AppTab { case exercises, programs, calendar, progress }
     var selectedTab: AppTab = .exercises
 }
 
@@ -36,6 +36,55 @@ private extension View {
     }
 }
 
+// MARK: - Profile entry point
+
+/// Top-leading avatar button shown on every tab root now that Profile no
+/// longer has a tab of its own; presents the profile page as a sheet.
+/// Detail screens never show it — their nav bars belong to contextual actions.
+private struct ProfileToolbar: ViewModifier {
+    @State private var showingProfile = false
+
+    func body(content: Content) -> some View {
+        content
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingProfile = true
+                    } label: {
+                        Image(systemName: "person.crop.circle")
+                    }
+                    .accessibilityLabel("Profile")
+                }
+            }
+            .sheet(isPresented: $showingProfile) {
+                ProfileSheet()
+            }
+    }
+}
+
+private struct ProfileSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ProfileView()
+                .navigationTitle("Profile")
+                .toolbarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { dismiss() }
+                    }
+                }
+        }
+    }
+}
+
+extension View {
+    func profileToolbar() -> some View {
+        modifier(ProfileToolbar())
+    }
+}
+
 // MARK: - Navigation shell
 
 struct ContentView: View {
@@ -43,6 +92,7 @@ struct ContentView: View {
     @State private var appCoordinator = AppNavigationCoordinator()
     @State private var activeSession: ActiveWorkoutSession?
     @State private var showDiscardConfirm = false
+    @State private var showNothingToSave = false
 
     var body: some View {
         if profileState.hasProfile == true {
@@ -52,6 +102,7 @@ struct ContentView: View {
                     NavigationStack {
                         ExercisesView()
                             .navigationTitle("Exercises")
+                            .profileToolbar()
                             .tabRootStyle()
                     }
                     .modifier(sessionBarInset)
@@ -61,21 +112,21 @@ struct ContentView: View {
                     ProgramsView()
                         .modifier(sessionBarInset)
                 }
-                Tab("Calendar", systemImage: "calendar",
+                Tab("History", systemImage: "calendar",
                     value: AppNavigationCoordinator.AppTab.calendar) {
                     NavigationStack {
-                        // Title comes from CalendarView: it swaps between the
-                        // grid and the workout-history list.
                         CalendarView()
+                            .profileToolbar()
                             .tabRootStyle()
                     }
                     .modifier(sessionBarInset)
                 }
-                Tab("Profile", systemImage: "person.crop.circle",
-                    value: AppNavigationCoordinator.AppTab.profile) {
+                Tab("Progress", systemImage: "chart.line.uptrend.xyaxis",
+                    value: AppNavigationCoordinator.AppTab.progress) {
                     NavigationStack {
-                        ProfileView()
-                            .navigationTitle("Profile")
+                        ProgressTabView()
+                            .navigationTitle("Progress")
+                            .profileToolbar()
                             .tabRootStyle()
                     }
                     .modifier(sessionBarInset)
@@ -97,6 +148,16 @@ struct ContentView: View {
             } message: {
                 Text("This workout and all logged sets will be deleted.")
             }
+            .alert("Nothing to save", isPresented: $showNothingToSave) {
+                Button("Yes", role: .destructive) {
+                    if let session = activeSession {
+                        Task { try? await WorkoutSessionRepository.shared.discard(sessionId: session.sessionId) }
+                    }
+                }
+                Button("No", role: .cancel) {}
+            } message: {
+                Text("There are no completed sets to save. Discard?")
+            }
         } else if profileState.hasProfile == false {
             ProfileSetupView()
         } else {
@@ -115,7 +176,16 @@ struct ContentView: View {
                 )
             },
             onComplete: { session in
-                Task { try? await WorkoutSessionRepository.shared.finish(sessionId: session.sessionId) }
+                Task {
+                    let hasSets = try? await WorkoutSessionRepository.shared.hasCompletedSets(
+                        sessionId: session.sessionId
+                    )
+                    if hasSets?.boolValue == true {
+                        try? await WorkoutSessionRepository.shared.finish(sessionId: session.sessionId)
+                    } else {
+                        showNothingToSave = true
+                    }
+                }
             },
             onDiscard: { showDiscardConfirm = true }
         )

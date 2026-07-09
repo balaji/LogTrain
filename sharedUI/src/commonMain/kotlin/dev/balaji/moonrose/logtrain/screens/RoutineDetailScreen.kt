@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
@@ -212,6 +213,7 @@ private fun RoutineDetailBody(
                         onRemoveSet = { setIdx -> formState.removeSet(wsIndex, setIdx) },
                         onUpdateWeight = { setIdx, v -> formState.updateWeight(wsIndex, setIdx, v) },
                         onUpdateReps = { setIdx, v -> formState.updateReps(wsIndex, setIdx, v) },
+                        onToggleWarmup = { setIdx -> formState.toggleWarmup(wsIndex, setIdx) },
                         onDelete = { formState.removeExercise(wsIndex) },
                         onReorderStart = { startRootY ->
                             reorder.activeIndex = wsIndex
@@ -458,6 +460,7 @@ private fun ExerciseCard(
     onRemoveSet: (Int) -> Unit,
     onUpdateWeight: (Int, String) -> Unit,
     onUpdateReps: (Int, String) -> Unit,
+    onToggleWarmup: (Int) -> Unit,
     onDelete: () -> Unit,
     onReorderStart: (Float) -> Unit,
     onReorderDrag: (Float) -> Unit,
@@ -564,8 +567,11 @@ private fun ExerciseCard(
                 Spacer(Modifier.width(40.dp))
             }
 
-            // Set rows
+            // Set rows. Warm-up sets show "W" and don't consume a working-set
+            // number; tapping the number cell toggles warm-up.
+            var workingSetNumber = 0
             workSet.sets.forEachIndexed { setIdx, set ->
+                if (!set.warmup) workingSetNumber++
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -573,10 +579,18 @@ private fun ExerciseCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "${setIdx + 1}",
-                        modifier = Modifier.width(40.dp),
+                        if (set.warmup) "W" else "$workingSetNumber",
+                        modifier = Modifier
+                            .width(40.dp)
+                            .clickable { onToggleWarmup(setIdx) }
+                            .padding(vertical = 8.dp),
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.bodyMedium,
+                        color = if (set.warmup) {
+                            MaterialTheme.colorScheme.tertiary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                     )
                     CompactInput(
                         value = set.weight,

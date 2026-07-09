@@ -102,6 +102,7 @@ object WorkoutSessionRepository {
                             actualWeight = null,
                             actualReps = null,
                             actualDuration = null,
+                            warmup = detail.warmup,
                             completed = false,
                             createdAt = now,
                             updatedAt = now,
@@ -139,8 +140,23 @@ object WorkoutSessionRepository {
         return if (routineId > 0L) startFromRoutine(routineId) else startEmpty()
     }
 
+    /**
+     * Whether the persisted session has anything worth saving. Chrome outside
+     * the session screen (the mini bar) uses this to decide between finishing
+     * and offering to discard; the screen itself checks its own form state.
+     */
+    suspend fun hasCompletedSets(sessionId: Long): Boolean =
+        AppDb.db.workoutSessionDetailDao().hasCompletedSets(sessionId)
+
+    /**
+     * Sets without logged reps are dropped so the completed workout only
+     * records work that was actually performed. Pruning here (rather than in
+     * the form) keeps the session-screen finish and the mini-bar finish
+     * consistent.
+     */
     suspend fun finish(sessionId: Long) {
         val now = nowMillis()
+        AppDb.db.workoutSessionDetailDao().deleteEmptySetsForSession(sessionId)
         AppDb.db.workoutSessionDao().setCompletedAt(sessionId, now, now)
     }
 

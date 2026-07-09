@@ -116,6 +116,8 @@ data class WorkSetDetailEntity(
     @ColumnInfo(name = "target_reps") val targetReps: Int?,
     // Seconds, matching moonrose.
     @ColumnInfo(name = "target_duration") val targetDuration: Int?,
+    // Warm-up sets are part of the routine but don't count as working sets.
+    @ColumnInfo(defaultValue = "0") val warmup: Boolean = false,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )
@@ -171,6 +173,9 @@ data class WorkoutSessionDetailEntity(
     @ColumnInfo(name = "actual_weight") val actualWeight: Double?,
     @ColumnInfo(name = "actual_reps") val actualReps: Int?,
     @ColumnInfo(name = "actual_duration") val actualDuration: Int?,
+    // Snapshotted from the source WorkSetDetail like the targets above, and
+    // toggleable on the fly for sets added during the session.
+    @ColumnInfo(defaultValue = "0") val warmup: Boolean = false,
     @ColumnInfo(defaultValue = "0") val completed: Boolean = false,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,

@@ -106,6 +106,7 @@ struct ProgramsView: View {
             }
             .navigationTitle("Programs")
             .navigationBarTitleDisplayMode(.inline)
+            .profileToolbar()
             .scrollBounceBehavior(.basedOnSize)
             .navigationDestination(for: RoutineTarget.self) { target in
                 RoutineDetailView(routineId: target.routineId, title: target.title, isNew: target.isNew)

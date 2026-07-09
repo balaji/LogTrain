@@ -9,8 +9,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -31,13 +36,35 @@ import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(onGoBack: () -> Unit) {
     if (LocalUseNativeNavigation.current) {
         ProfileContent(Modifier.padding(WindowInsets.safeDrawing.asPaddingValues()))
     } else {
-        Scaffold(topBar = { TopAppBar(title = { Text("Profile") }) }) { padding ->
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Profile") },
+                    navigationIcon = {
+                        IconButton(onClick = onGoBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                )
+            },
+        ) { padding ->
             ProfileContent(Modifier.padding(padding))
         }
+    }
+}
+
+/**
+ * Entry point to the profile screen, shown as the leading top-bar action on
+ * each tab root now that Profile no longer has a tab of its own.
+ */
+@Composable
+fun ProfileTopBarButton(onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        Icon(Icons.Filled.AccountCircle, contentDescription = "Profile")
     }
 }
 

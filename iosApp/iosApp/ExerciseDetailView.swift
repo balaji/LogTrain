@@ -8,11 +8,18 @@ struct ExerciseDetailView: View {
     @State private var formState: ExerciseFormState
     @State private var uiState: ExerciseFormUiState
     @State private var editing = false
+    @State private var showingSearch = false
 
     init(exerciseId: Int64) {
         let state = ExerciseFormState(exerciseId: exerciseId)
         _formState = State(initialValue: state)
         _uiState = State(initialValue: state.uiState.value)
+    }
+
+    private var searchUrl: URL? {
+        let query = "Describe the exercise \(uiState.name)"
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        return URL(string: "https://google.com/search?q=\(query)")
     }
 
     var body: some View {
@@ -23,21 +30,13 @@ struct ExerciseDetailView: View {
                 ExerciseEditForm(uiState: uiState, formState: formState, onDone: { editing = false })
             } else {
                 List {
-                    Section {
-                        HStack {
-                            Spacer()
-                            Image(systemName: "dumbbell")
-                                .font(.system(size: 48))
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                        }
-                        .frame(height: 160)
-                        .listRowBackground(Color(.secondarySystemBackground))
-                    }
-
-                    if !uiState.descriptionText.isEmpty {
+                    if let searchUrl {
                         Section {
-                            Text(uiState.descriptionText)
+                            Button("Search in Google") { showingSearch = true }
+                        }
+                        .sheet(isPresented: $showingSearch) {
+                            SafariView(url: searchUrl)
+                                .ignoresSafeArea()
                         }
                     }
 

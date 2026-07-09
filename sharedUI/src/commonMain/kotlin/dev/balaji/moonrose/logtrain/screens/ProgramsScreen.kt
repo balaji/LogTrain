@@ -47,6 +47,7 @@ import dev.balaji.moonrose.logtrain.db.ProgramRepository
 import dev.balaji.moonrose.logtrain.model.Program
 import dev.balaji.moonrose.logtrain.model.Routine
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
+import dev.balaji.moonrose.logtrain.navigation.ProfileRoute
 import dev.balaji.moonrose.logtrain.navigation.Route
 import dev.balaji.moonrose.logtrain.navigation.RoutineDetailRoute
 import dev.balaji.moonrose.logtrain.navigation.WorkoutSessionRoute
@@ -115,7 +116,12 @@ fun ProgramsScreen(onNavigate: (Route) -> Unit) {
         body(WindowInsets.safeDrawing.asPaddingValues())
     } else {
         Scaffold(
-            topBar = { TopAppBar(title = { Text("Programs") }) },
+            topBar = {
+                TopAppBar(
+                    title = { Text("Programs") },
+                    navigationIcon = { ProfileTopBarButton(onClick = { onNavigate(ProfileRoute) }) },
+                )
+            },
             floatingActionButton = {
                 FloatingActionButton(onClick = { dialog = ProgramDialog.Create }) {
                     Icon(Icons.Filled.Add, contentDescription = "New Program")

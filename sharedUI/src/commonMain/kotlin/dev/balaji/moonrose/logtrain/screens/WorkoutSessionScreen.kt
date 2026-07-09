@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
@@ -117,6 +118,7 @@ fun WorkoutSessionScreen(route: WorkoutSessionRoute, onGoBack: () -> Unit) {
     }
 
     var showDiscardConfirm by remember { mutableStateOf(false) }
+    var showNothingToSave by remember { mutableStateOf(false) }
     val elapsedSeconds = rememberElapsedSeconds(uiState.startedAt)
 
     WorkoutSessionShell(
@@ -124,7 +126,9 @@ fun WorkoutSessionScreen(route: WorkoutSessionRoute, onGoBack: () -> Unit) {
         elapsedSeconds = elapsedSeconds.takeIf { uiState.startedAt > 0 },
         onGoBack = onGoBack,
         onDiscard = { showDiscardConfirm = true },
-        onFinish = { formState.finish() },
+        onFinish = {
+            if (uiState.hasCompletedSets) formState.finish() else showNothingToSave = true
+        },
         finishEnabled = !uiState.saving && !uiState.loading,
     ) { padding ->
         WorkoutSessionBody(
@@ -150,6 +154,27 @@ fun WorkoutSessionScreen(route: WorkoutSessionRoute, onGoBack: () -> Unit) {
             dismissButton = {
                 TextButton(onClick = { showDiscardConfirm = false }) {
                     Text("Cancel")
+                }
+            },
+        )
+    }
+
+    if (showNothingToSave) {
+        AlertDialog(
+            onDismissRequest = { showNothingToSave = false },
+            title = { Text("Nothing to save") },
+            text = { Text("There are no completed sets to save. Discard?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showNothingToSave = false
+                    formState.discard()
+                }) {
+                    Text("Yes", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNothingToSave = false }) {
+                    Text("No")
                 }
             },
         )
@@ -246,6 +271,7 @@ private fun WorkoutSessionBody(
                         onRemoveSet = { setIdx -> formState.removeSet(exIndex, setIdx) },
                         onUpdateWeight = { setIdx, v -> formState.updateActualWeight(exIndex, setIdx, v) },
                         onUpdateReps = { setIdx, v -> formState.updateActualReps(exIndex, setIdx, v) },
+                        onToggleWarmup = { setIdx -> formState.toggleWarmup(exIndex, setIdx) },
                         onToggleCompleted = { setIdx -> formState.toggleCompleted(exIndex, setIdx) },
                         onDelete = { formState.removeExercise(exIndex) },
                         onReorderStart = { startRootY ->
@@ -436,6 +462,7 @@ private fun SessionExerciseCard(
     onRemoveSet: (Int) -> Unit,
     onUpdateWeight: (Int, String) -> Unit,
     onUpdateReps: (Int, String) -> Unit,
+    onToggleWarmup: (Int) -> Unit,
     onToggleCompleted: (Int) -> Unit,
     onDelete: () -> Unit,
     onReorderStart: (Float) -> Unit,
@@ -539,7 +566,11 @@ private fun SessionExerciseCard(
                 Spacer(Modifier.width(40.dp))
             }
 
+            // Warm-up sets show "W" and don't consume a working-set number;
+            // tapping the number cell toggles warm-up on the fly.
+            var workingSetNumber = 0
             exercise.sets.forEachIndexed { setIdx, set ->
+                if (!set.warmup) workingSetNumber++
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -547,10 +578,18 @@ private fun SessionExerciseCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "${setIdx + 1}",
-                        modifier = Modifier.width(32.dp),
+                        if (set.warmup) "W" else "$workingSetNumber",
+                        modifier = Modifier
+                            .width(32.dp)
+                            .clickable { onToggleWarmup(setIdx) }
+                            .padding(vertical = 8.dp),
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.bodyMedium,
+                        color = if (set.warmup) {
+                            MaterialTheme.colorScheme.tertiary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                     )
                     CompactActualInput(
                         value = set.actualWeight,
@@ -569,6 +608,10 @@ private fun SessionExerciseCard(
                     Checkbox(
                         checked = set.completed,
                         onCheckedChange = { onToggleCompleted(setIdx) },
+                        // A set needs at least one rep before it can be
+                        // completed; completed stays enabled so stale rows can
+                        // still be unchecked.
+                        enabled = set.completed || (set.actualReps.toIntOrNull() ?: 0) > 0,
                         modifier = Modifier.size(40.dp),
                     )
                     IconButton(

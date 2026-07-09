@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.balaji.moonrose.logtrain.calendar.WeekMath
 import dev.balaji.moonrose.logtrain.db.DayDetailState
+import dev.balaji.moonrose.logtrain.db.DayDetailUiState
 import dev.balaji.moonrose.logtrain.db.DaySession
 import dev.balaji.moonrose.logtrain.db.DaySessionExercise
 import dev.balaji.moonrose.logtrain.navigation.DayDetailRoute
@@ -68,7 +69,7 @@ fun DayDetailScreen(route: DayDetailRoute, onGoBack: () -> Unit) {
 @Composable
 private fun DayDetailContent(route: DayDetailRoute, modifier: Modifier = Modifier) {
     val state = remember(route.epochDay) { DayDetailState(route.epochDay) }
-    val uiState by state.uiState.collectAsState()
+    val uiState by state.uiState.collectAsState(initial = DayDetailUiState())
 
     if (uiState.loading) {
         CenteredMessage(PaddingValues(0.dp)) { CircularProgressIndicator() }
@@ -110,10 +111,12 @@ private fun SessionSummaryCard(session: DaySession) {
 private fun ExerciseSummaryRow(exercise: DaySessionExercise) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(exercise.name, style = MaterialTheme.typography.bodyLarge)
-        exercise.sets.forEachIndexed { index, set ->
+        var workingSetNumber = 0
+        exercise.sets.forEach { set ->
+            if (!set.warmup) workingSetNumber++
             Row(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    "Set ${index + 1}",
+                    if (set.warmup) "Warm-up" else "Set $workingSetNumber",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),

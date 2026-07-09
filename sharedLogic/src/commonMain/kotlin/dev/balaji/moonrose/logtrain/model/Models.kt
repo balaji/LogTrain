@@ -30,6 +30,35 @@ data class Routine(
     val position: Int,
 )
 
+/**
+ * How an exercise is measured when logging a set. Persisted as the lowercase
+ * [value] string in exercises.exercise_type.
+ */
+enum class ExerciseType(val value: String) {
+    /** Load and reps, e.g. Barbell Bench Press (8 reps at 60 kg). */
+    STRENGTH("strength"),
+
+    /** Timed / endurance, e.g. Plank (60 seconds). */
+    DURATION("duration"),
+
+    /** Distance only, e.g. Open Swim (1000 meters). */
+    DISTANCE("distance"),
+
+    /** Pacing / interval, e.g. Kettlebell Swings (20 reps in 45s). */
+    REPS_DURATION("reps_duration"),
+
+    /** Cardio / time-distance, e.g. Treadmill Run (5 km timed). */
+    DISTANCE_DURATION("distance_duration"),
+
+    /** Carry / travel, e.g. Walking Lunges (20 steps over 15m). */
+    REPS_DISTANCE("reps_distance"),
+    ;
+
+    companion object {
+        fun fromValue(value: String?): ExerciseType? = entries.firstOrNull { it.value == value }
+    }
+}
+
 @OptIn(ExperimentalObjCName::class)
 data class Exercise(
     val id: Long,

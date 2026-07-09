@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-data class DraftSet(val weight: String = "", val reps: String = "")
+data class DraftSet(val weight: String = "", val reps: String = "", val warmup: Boolean = false)
 
 data class DraftWorkSet(
     val id: Long,
@@ -44,6 +44,7 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
                             DraftSet(
                                 weight = d.targetWeight?.formatWeight() ?: "",
                                 reps = d.targetReps?.toString() ?: "",
+                                warmup = d.warmup,
                             )
                         }
                     },
@@ -77,6 +78,12 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
     fun updateReps(workSetIndex: Int, setIndex: Int, value: String) {
         updateWorkSet(workSetIndex) { ws ->
             ws.copy(sets = ws.sets.mapIndexed { i, s -> if (i == setIndex) s.copy(reps = value) else s })
+        }
+    }
+
+    fun toggleWarmup(workSetIndex: Int, setIndex: Int) {
+        updateWorkSet(workSetIndex) { ws ->
+            ws.copy(sets = ws.sets.mapIndexed { i, s -> if (i == setIndex) s.copy(warmup = !s.warmup) else s })
         }
     }
 
@@ -126,6 +133,7 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
                             targetWeight = set.weight.toDoubleOrNull(),
                             targetReps = set.reps.toIntOrNull(),
                             targetDuration = null,
+                            warmup = set.warmup,
                             createdAt = now,
                             updatedAt = now,
                         ),

@@ -1,12 +1,8 @@
 package dev.balaji.moonrose.logtrain.db
 
 import kotlin.time.ExperimentalTime
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
@@ -16,6 +12,7 @@ data class DaySessionSet(
     val targetReps: String,
     val actualWeight: String,
     val actualReps: String,
+    val warmup: Boolean,
     val completed: Boolean,
 )
 
@@ -36,32 +33,31 @@ data class DayDetailUiState(
 )
 
 class DayDetailState(private val epochDay: Long) {
-    private val _uiState = MutableStateFlow(DayDetailUiState())
-    val uiState: StateFlow<DayDetailUiState> = _uiState.asStateFlow()
-
-    init {
-        CoroutineScope(Dispatchers.Main).launch {
-            _uiState.value = DayDetailUiState(loading = false, sessions = load())
-        }
+    /**
+     * Cold: each collector observes the database while it is collecting, so
+     * the page stays current when a session finishes while it is open (e.g.
+     * from the mini bar) and picks up changes again when it reappears.
+     */
+    @OptIn(ExperimentalTime::class)
+    val uiState: Flow<DayDetailUiState> = run {
+        val zone = TimeZone.currentSystemDefault()
+        val startMillis = LocalDate.fromEpochDays(epochDay).atStartOfDayIn(zone).toEpochMilliseconds()
+        val endMillis = LocalDate.fromEpochDays(epochDay + 1).atStartOfDayIn(zone).toEpochMilliseconds()
+        AppDb.db.workoutSessionDao()
+            .observeCompletedInRange(PROFILE_ID, startMillis, endMillis)
+            .map { sessions ->
+                DayDetailUiState(loading = false, sessions = sessions.map { toDaySession(it) })
+            }
     }
 
-    @OptIn(ExperimentalTime::class)
-    private suspend fun load(): List<DaySession> {
-        val zone = TimeZone.currentSystemDefault()
-        val date = LocalDate.fromEpochDays(epochDay)
-        val startMillis = date.atStartOfDayIn(zone).toEpochMilliseconds()
-        val endMillis = LocalDate.fromEpochDays(epochDay + 1).atStartOfDayIn(zone).toEpochMilliseconds()
-
-        val sessions = AppDb.db.workoutSessionDao().getCompletedInRange(PROFILE_ID, startMillis, endMillis)
-        return sessions.map { session ->
-            val routine = session.routineId?.let { AppDb.db.routineDao().findById(it) }
-            val details = AppDb.db.workoutSessionDetailDao().getForSession(session.id)
-            DaySession(
-                id = session.id,
-                routineName = routine?.name,
-                exercises = groupByExercise(details),
-            )
-        }
+    private suspend fun toDaySession(session: WorkoutSessionEntity): DaySession {
+        val routine = session.routineId?.let { AppDb.db.routineDao().findById(it) }
+        val details = AppDb.db.workoutSessionDetailDao().getForSession(session.id)
+        return DaySession(
+            id = session.id,
+            routineName = routine?.name,
+            exercises = groupByExercise(details),
+        )
     }
 
     /** Details arrive in flat position order with sets of the same exercise adjacent. */
@@ -86,6 +82,7 @@ class DayDetailState(private val epochDay: Long) {
                     targetReps = detail.targetReps?.toString().orEmpty(),
                     actualWeight = detail.actualWeight?.formatDayDetailNumber().orEmpty(),
                     actualReps = detail.actualReps?.toString().orEmpty(),
+                    warmup = detail.warmup,
                     completed = detail.completed,
                 ),
             )

@@ -73,6 +73,9 @@ interface ExerciseDao {
     @Insert
     suspend fun insertAll(exercises: List<ExerciseEntity>)
 
+    @Insert
+    suspend fun insert(exercise: ExerciseEntity): Long
+
     @Query(
         "UPDATE exercises SET name = :name, description = :description, " +
             "exercise_type = :exerciseType, body_part = :bodyPart, equipment = :equipment, " +
@@ -160,6 +163,14 @@ interface WorkoutSessionDao {
     )
     suspend fun getCompletedInRange(profileId: Long, startMillis: Long, endMillis: Long): List<WorkoutSessionEntity>
 
+    @Query(
+        "SELECT * FROM workout_sessions " +
+            "WHERE profile_id = :profileId AND completed_at IS NOT NULL " +
+            "AND performed_at >= :startMillis AND performed_at < :endMillis " +
+            "ORDER BY performed_at",
+    )
+    fun observeCompletedInRange(profileId: Long, startMillis: Long, endMillis: Long): Flow<List<WorkoutSessionEntity>>
+
     @Insert
     suspend fun insert(session: WorkoutSessionEntity): Long
 
@@ -180,6 +191,18 @@ interface WorkoutSessionDetailDao {
 
     @Query("DELETE FROM workout_session_details WHERE workout_session_id = :sessionId")
     suspend fun deleteForSession(sessionId: Long)
+
+    @Query(
+        "DELETE FROM workout_session_details " +
+            "WHERE workout_session_id = :sessionId AND (actual_reps IS NULL OR actual_reps <= 0)",
+    )
+    suspend fun deleteEmptySetsForSession(sessionId: Long)
+
+    @Query(
+        "SELECT EXISTS(SELECT 1 FROM workout_session_details " +
+            "WHERE workout_session_id = :sessionId AND completed != 0)",
+    )
+    suspend fun hasCompletedSets(sessionId: Long): Boolean
 
     @Insert
     suspend fun insert(detail: WorkoutSessionDetailEntity): Long
