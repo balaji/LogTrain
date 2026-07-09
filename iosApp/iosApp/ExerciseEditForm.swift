@@ -13,10 +13,6 @@ private let equipmentOptions = [
     "dumbbell", "kettlebell", "other", "band",
 ]
 
-private enum ExerciseFormField: Hashable {
-    case description
-}
-
 /// Editable fields for an exercise, bound to a shared `ExerciseFormState`
 /// owned by the parent `ExerciseDetailView` (so read-only display and
 /// editing share one load, matching `ExerciseDetailScreen.kt`'s Compose
@@ -25,7 +21,6 @@ struct ExerciseEditForm: View {
     let uiState: ExerciseFormUiState
     let formState: ExerciseFormState
     let onDone: () -> Void
-    @FocusState private var focusedField: ExerciseFormField?
 
     var body: some View {
         Form {
@@ -44,13 +39,6 @@ struct ExerciseEditForm: View {
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
-
-                TextField("Description", text: Binding(
-                    get: { uiState.descriptionText },
-                    set: { formState.updateDescription(value: $0) }
-                ), axis: .vertical)
-                .lineLimit(3...8)
-                .focused($focusedField, equals: .description)
 
                 Picker("Type", selection: Binding(
                     get: { uiState.exerciseType ?? "" },
@@ -88,12 +76,6 @@ struct ExerciseEditForm: View {
                     formState.save(onSaved: onDone)
                 }
                 .disabled(uiState.saving)
-            }
-        }
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") { focusedField = nil }
             }
         }
     }
