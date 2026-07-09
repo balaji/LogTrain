@@ -55,7 +55,7 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
     }
 
     fun updateName(value: String) {
-        _uiState.value = _uiState.value.copy(name = value)
+        _uiState.value = _uiState.value.copy(name = filterProgramName(value))
     }
 
     fun addExercise(exercise: Exercise) {
@@ -70,14 +70,16 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
     }
 
     fun updateWeight(workSetIndex: Int, setIndex: Int, value: String) {
+        val weight = value.filterDecimal()
         updateWorkSet(workSetIndex) { ws ->
-            ws.copy(sets = ws.sets.mapIndexed { i, s -> if (i == setIndex) s.copy(weight = value) else s })
+            ws.copy(sets = ws.sets.mapIndexed { i, s -> if (i == setIndex) s.copy(weight = weight) else s })
         }
     }
 
     fun updateReps(workSetIndex: Int, setIndex: Int, value: String) {
+        val reps = value.filterDigits()
         updateWorkSet(workSetIndex) { ws ->
-            ws.copy(sets = ws.sets.mapIndexed { i, s -> if (i == setIndex) s.copy(reps = value) else s })
+            ws.copy(sets = ws.sets.mapIndexed { i, s -> if (i == setIndex) s.copy(reps = reps) else s })
         }
     }
 
@@ -113,7 +115,10 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
         _uiState.value = state.copy(saving = true)
         CoroutineScope(Dispatchers.Main).launch {
             val now = nowMillis()
-            ProgramRepository.renameRoutine(routineId, state.name.trim().ifBlank { "Routine" })
+            ProgramRepository.renameRoutine(
+                routineId,
+                filterProgramName(state.name).trim().ifBlank { "Routine" },
+            )
             AppDb.db.workSetDao().deleteForRoutine(routineId)
             state.workSets.forEachIndexed { wsIdx, draft ->
                 val wsId = AppDb.db.workSetDao().insert(

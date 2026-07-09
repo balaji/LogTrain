@@ -41,14 +41,16 @@ struct ExerciseDetailView: View {
                     }
 
                     Section {
-                        LabeledContent("Type", value: uiState.exerciseType ?? "—")
-                        LabeledContent("Body part", value: uiState.bodyPart ?? "—")
-                        LabeledContent("Equipment", value: uiState.equipment ?? "—")
+                        LabeledContent("Type", value: uiState.exerciseType?.firstCapitalized ?? "—")
+                        LabeledContent("Body part", value: uiState.bodyPart?.firstCapitalized ?? "—")
+                        LabeledContent("Equipment", value: uiState.equipment?.firstCapitalized ?? "—")
                     }
                 }
                 .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button("Edit") { editing = true }
+                    if !uiState.builtin {
+                        ToolbarItem(placement: .primaryAction) {
+                            Button("Edit") { editing = true }
+                        }
                     }
                 }
             }

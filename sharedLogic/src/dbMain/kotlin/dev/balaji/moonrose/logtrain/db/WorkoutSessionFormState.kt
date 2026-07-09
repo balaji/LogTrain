@@ -142,11 +142,12 @@ class WorkoutSessionFormState(private val sessionId: Long) {
     }
 
     fun updateActualWeight(exerciseIndex: Int, setIndex: Int, value: String) {
-        updateSet(exerciseIndex, setIndex) { it.copy(actualWeight = value) }
+        val weight = value.filterDecimal()
+        updateSet(exerciseIndex, setIndex) { it.copy(actualWeight = weight) }
     }
 
     fun updateActualReps(exerciseIndex: Int, setIndex: Int, value: String) {
-        val reps = value.filter { it.isDigit() }
+        val reps = value.filterDigits()
         updateSet(exerciseIndex, setIndex) {
             // A set only counts as completed while it has at least one rep.
             it.copy(actualReps = reps, completed = it.completed && reps.hasReps())

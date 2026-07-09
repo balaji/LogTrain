@@ -58,11 +58,9 @@ fun ProfileForm(
             value = uiState.name,
             onValueChange = formState::updateName,
             label = { Text("Name") },
-            isError = uiState.nameError,
-            supportingText = if (uiState.nameError) {
-                { Text("Name is required") }
-            } else {
-                null
+            isError = uiState.nameError != null,
+            supportingText = uiState.nameError?.let { error ->
+                { Text(error) }
             },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
@@ -71,6 +69,10 @@ fun ProfileForm(
             value = uiState.age,
             onValueChange = formState::updateAge,
             label = { Text("Age") },
+            isError = uiState.ageError != null,
+            supportingText = uiState.ageError?.let { error ->
+                { Text(error) }
+            },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),

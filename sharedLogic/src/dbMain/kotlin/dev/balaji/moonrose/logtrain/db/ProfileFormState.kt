@@ -15,9 +15,14 @@ data class ProfileFormUiState(
     val weight: String = "",
     val height: String = "",
     val weekStartsMonday: Boolean = false,
-    val nameError: Boolean = false,
+    val nameError: String? = null,
+    val ageError: String? = null,
     val saving: Boolean = false,
 )
+
+const val MAX_NAME_LENGTH = 50
+const val MIN_AGE = 1
+const val MAX_AGE = 120
 
 /**
  * Profile create/edit form state, shared by the Compose form and the native
@@ -37,11 +42,12 @@ class ProfileFormState(initial: Profile? = null) {
     val uiState: StateFlow<ProfileFormUiState> = _uiState.asStateFlow()
 
     fun updateName(value: String) {
-        _uiState.value = _uiState.value.copy(name = value, nameError = false)
+        val filtered = value.filter { it.isLetter() || it == ' ' }.take(MAX_NAME_LENGTH)
+        _uiState.value = _uiState.value.copy(name = filtered, nameError = null)
     }
 
     fun updateAge(value: String) {
-        _uiState.value = _uiState.value.copy(age = value.filter(Char::isDigit))
+        _uiState.value = _uiState.value.copy(age = value.filterDigits(), ageError = null)
     }
 
     fun updateGender(value: String) {
@@ -62,8 +68,10 @@ class ProfileFormState(initial: Profile? = null) {
 
     fun save(onSaved: () -> Unit) {
         val state = _uiState.value
-        if (state.name.isBlank()) {
-            _uiState.value = state.copy(nameError = true)
+        val nameError = validateName(state.name)
+        val ageError = validateAge(state.age)
+        if (nameError != null || ageError != null) {
+            _uiState.value = state.copy(nameError = nameError, ageError = ageError)
             return
         }
         _uiState.value = state.copy(saving = true)
@@ -82,12 +90,23 @@ class ProfileFormState(initial: Profile? = null) {
     }
 }
 
-private fun String.filterDecimal(): String {
-    val filtered = filter { it.isDigit() || it == '.' }
-    val firstDot = filtered.indexOf('.')
-    return if (firstDot == -1) {
-        filtered
-    } else {
-        filtered.substring(0, firstDot + 1) + filtered.substring(firstDot + 1).replace(".", "")
+private fun validateName(name: String): String? {
+    val trimmed = name.trim()
+    return when {
+        trimmed.isEmpty() -> "Name is required"
+        trimmed.length > MAX_NAME_LENGTH -> "Name must be at most $MAX_NAME_LENGTH characters"
+        !trimmed.all { it.isLetter() || it == ' ' } -> "Name must contain only letters"
+        else -> null
     }
 }
+
+private fun validateAge(age: String): String? {
+    if (age.isBlank()) return null
+    val parsed = age.toIntOrNull()
+    return if (parsed == null || parsed < MIN_AGE || parsed > MAX_AGE) {
+        "Age must be between $MIN_AGE and $MAX_AGE"
+    } else {
+        null
+    }
+}
+

@@ -70,10 +70,16 @@ struct ProgramsView: View {
     @State private var programs: [Program]?
     @State private var routines: [Routine]?
     @State private var expandedProgramId: Int64?
+    @State private var expandedSampleId: String?
     @State private var prompt: TextPrompt?
     @State private var promptText = ""
     @State private var deleteTarget: DeleteTarget?
+    @State private var copyTarget: SampleProgram?
+    @State private var routineInfo: SampleRoutine?
     @State private var errorMessage: String?
+
+    /// Static, code-defined catalog: unlike programs/routines there is nothing to observe.
+    private let samplePrograms = SamplePrograms.shared.all
 
     private var routinesByProgram: [Int64: [Routine]] {
         Dictionary(grouping: routines ?? [], by: \.programId)
@@ -81,29 +87,9 @@ struct ProgramsView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            Group {
-                if let programs {
-                    List {
-                        Section {
-                            NavigationLink(value: WorkoutSessionTarget(routineId: 0, title: "Empty workout")) {
-                                Text("Start Empty Workout")
-                            }
-                        }
-                        if programs.isEmpty {
-                            Section {
-                                Text("No programs yet. Tap + to create one.")
-                                    .foregroundStyle(.secondary)
-                            }
-                        } else {
-                            ForEach(programs, id: \.id) { program in
-                                programRows(program)
-                            }
-                        }
-                    }
-                } else {
-                    ProgressView()
-                }
-            }
+            // Split from the navigation chrome below at an explicit `some View`
+            // boundary: as one chain, body took over 11s to type-check.
+            listWithAlerts
             .navigationTitle("Programs")
             .navigationBarTitleDisplayMode(.inline)
             .profileToolbar()
@@ -131,32 +117,6 @@ struct ProgramsView: View {
                     }
                 }
             }
-            .alert(prompt?.title ?? "", isPresented: Binding(
-                get: { prompt != nil },
-                set: { if !$0 { prompt = nil } }
-            ), presenting: prompt) { current in
-                TextField("Name", text: $promptText)
-                Button(current.confirmLabel) { submit(current) }
-                    .disabled(promptText.trimmingCharacters(in: .whitespaces).isEmpty)
-                Button("Cancel", role: .cancel) {}
-            }
-            .alert(deleteTarget?.title ?? "", isPresented: Binding(
-                get: { deleteTarget != nil },
-                set: { if !$0 { deleteTarget = nil } }
-            ), presenting: deleteTarget) { target in
-                Button("Delete", role: .destructive) { delete(target) }
-                Button("Cancel", role: .cancel) {}
-            } message: { target in
-                Text(target.message)
-            }
-            .alert("Something went wrong", isPresented: Binding(
-                get: { errorMessage != nil },
-                set: { if !$0 { errorMessage = nil } }
-            )) {
-                Button("OK") { errorMessage = nil }
-            } message: {
-                Text(errorMessage ?? "")
-            }
             .task {
                 for await list in ProgramRepository.shared.programs {
                     programs = list
@@ -166,6 +126,93 @@ struct ProgramsView: View {
                 for await list in ProgramRepository.shared.routines {
                     routines = list
                 }
+            }
+        }
+    }
+
+    private var listWithAlerts: some View {
+        Group {
+            if let programs {
+                List {
+                    Section {
+                        NavigationLink(value: WorkoutSessionTarget(routineId: 0, title: "Empty workout")) {
+                            Text("Start Empty Workout")
+                        }
+                    }
+                    userProgramsSection(programs)
+                    sampleProgramsSection
+                }
+            } else {
+                ProgressView()
+            }
+        }
+        .alert(prompt?.title ?? "", isPresented: Binding(
+            get: { prompt != nil },
+            set: { if !$0 { prompt = nil } }
+        ), presenting: prompt) { current in
+            TextField("Name", text: Binding(
+                get: { promptText },
+                set: { promptText = FormValidationKt.filterProgramName(value: $0) }
+            ))
+            Button(current.confirmLabel) { submit(current) }
+                .disabled(promptText.trimmingCharacters(in: .whitespaces).isEmpty)
+            Button("Cancel", role: .cancel) {}
+        }
+        .alert(deleteTarget?.title ?? "", isPresented: Binding(
+            get: { deleteTarget != nil },
+            set: { if !$0 { deleteTarget = nil } }
+        ), presenting: deleteTarget) { target in
+            Button("Delete", role: .destructive) { delete(target) }
+            Button("Cancel", role: .cancel) {}
+        } message: { target in
+            Text(target.message)
+        }
+        .alert("Add to your programs?", isPresented: Binding(
+            get: { copyTarget != nil },
+            set: { if !$0 { copyTarget = nil } }
+        ), presenting: copyTarget) { sample in
+            Button("Add") { copy(sample) }
+            Button("Cancel", role: .cancel) {}
+        } message: { sample in
+            Text("\"\(sample.name)\" will be copied into your programs, where you can edit it.")
+        }
+        .alert(routineInfo?.name ?? "", isPresented: Binding(
+            get: { routineInfo != nil },
+            set: { if !$0 { routineInfo = nil } }
+        ), presenting: routineInfo) { _ in
+            Button("OK") { routineInfo = nil }
+        } message: { routine in
+            Text(routine.workSets.map { "\($0.exerciseName) — \($0.repsSummary)" }.joined(separator: "\n"))
+        }
+        .alert("Something went wrong", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )) {
+            Button("OK") { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "")
+        }
+    }
+
+    @ViewBuilder
+    private func userProgramsSection(_ programs: [Program]) -> some View {
+        Section("My Programs") {
+            if programs.isEmpty {
+                Text("No programs yet. Tap + to create one.")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(programs, id: \.id) { program in
+                    programRows(program)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var sampleProgramsSection: some View {
+        Section("Sample Programs") {
+            ForEach(samplePrograms, id: \.id) { sample in
+                sampleRows(sample)
             }
         }
     }
@@ -225,7 +272,54 @@ struct ProgramsView: View {
                 promptText = ""
                 prompt = .newRoutine(program)
             } label: {
-                Label("Add routine", systemImage: "plus")
+                Label("Add Routine", systemImage: "plus")
+            }
+        }
+    }
+
+    /// Read-only counterpart to `programRows`: no swipe actions, so samples cannot be
+    /// renamed or deleted. The user copies one to get an editable program.
+    @ViewBuilder
+    private func sampleRows(_ sample: SampleProgram) -> some View {
+        Button {
+            toggle(sample)
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(sample.name)
+                        .foregroundStyle(.primary)
+                    Text("\(sample.daysPerWeek) days a week · \(sample.summary)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.secondary)
+                    .rotationEffect(.degrees(expandedSampleId == sample.id ? 90 : 0))
+            }
+            .contentShape(Rectangle())
+        }
+
+        if expandedSampleId == sample.id {
+            ForEach(sample.routines, id: \.name) { routine in
+                Button {
+                    routineInfo = routine
+                } label: {
+                    HStack {
+                        Text(routine.name)
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Text("\(routine.workSets.count) exercises")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+            }
+            Button {
+                copyTarget = sample
+            } label: {
+                Label("Copy to my programs", systemImage: "plus")
             }
         }
     }
@@ -233,6 +327,22 @@ struct ProgramsView: View {
     private func toggle(_ program: Program) {
         withAnimation {
             expandedProgramId = expandedProgramId == program.id ? nil : program.id
+        }
+    }
+
+    private func toggle(_ sample: SampleProgram) {
+        withAnimation {
+            expandedSampleId = expandedSampleId == sample.id ? nil : sample.id
+        }
+    }
+
+    private func copy(_ sample: SampleProgram) {
+        Task {
+            do {
+                _ = try await ProgramRepository.shared.addSampleProgram(sample: sample)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 

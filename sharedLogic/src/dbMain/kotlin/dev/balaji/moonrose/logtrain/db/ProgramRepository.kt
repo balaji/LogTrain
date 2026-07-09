@@ -1,7 +1,10 @@
 package dev.balaji.moonrose.logtrain.db
 
+import androidx.room.immediateTransaction
+import androidx.room.useWriterConnection
 import dev.balaji.moonrose.logtrain.model.Program
 import dev.balaji.moonrose.logtrain.model.Routine
+import dev.balaji.moonrose.logtrain.model.SampleProgram
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -13,14 +16,15 @@ object ProgramRepository {
         AppDb.db.routineDao().observeAll().map { entities -> entities.map { it.toDomain() } }
 
     suspend fun createProgram(name: String) {
+        val validName = requireValidProgramName(name)
         val now = nowMillis()
         AppDb.db.programDao().insert(
-            ProgramEntity(profileId = PROFILE_ID, name = name, createdAt = now, updatedAt = now),
+            ProgramEntity(profileId = PROFILE_ID, name = validName, createdAt = now, updatedAt = now),
         )
     }
 
     suspend fun renameProgram(id: Long, name: String) {
-        AppDb.db.programDao().rename(id, name, nowMillis())
+        AppDb.db.programDao().rename(id, requireValidProgramName(name), nowMillis())
     }
 
     /** Routines are removed by the program_id foreign key's ON DELETE CASCADE. */
@@ -29,12 +33,13 @@ object ProgramRepository {
     }
 
     suspend fun createRoutine(programId: Long, name: String): Long {
+        val validName = requireValidProgramName(name)
         val now = nowMillis()
         val dao = AppDb.db.routineDao()
         return dao.insert(
             RoutineEntity(
                 programId = programId,
-                name = name,
+                name = validName,
                 position = dao.nextPosition(programId),
                 createdAt = now,
                 updatedAt = now,
@@ -43,11 +48,96 @@ object ProgramRepository {
     }
 
     suspend fun renameRoutine(id: Long, name: String) {
-        AppDb.db.routineDao().rename(id, name, nowMillis())
+        AppDb.db.routineDao().rename(id, requireValidProgramName(name), nowMillis())
     }
 
     suspend fun deleteRoutine(id: Long) {
         AppDb.db.routineDao().delete(id)
+    }
+
+    /**
+     * Materializes a [SampleProgram] into ordinary rows the user owns and can edit.
+     * Returns the new program's id.
+     *
+     * Not named copySampleProgram: "copy" is an Objective-C method-family prefix, so
+     * Kotlin/Native would export it to Swift as doCopySampleProgram.
+     */
+    suspend fun addSampleProgram(sample: SampleProgram): Long = AppDb.db.insertSampleProgram(sample)
+}
+
+/**
+ * The body of [ProgramRepository.addSampleProgram], taking the database explicitly
+ * so tests can run it against a temporary one rather than the singleton.
+ *
+ * Copying the same sample twice yields two independent programs with the same name,
+ * which is what [ProgramRepository.createProgram] already allows for hand-made programs.
+ */
+internal suspend fun AppDatabase.insertSampleProgram(sample: SampleProgram): Long {
+    val programName = requireValidProgramName(sample.name)
+    val routineNames = sample.routines.map { requireValidProgramName(it.name) }
+
+    // Resolved before the transaction opens so an unknown name fails without writing
+    // anything. Seed exercises are builtin, so this cannot fail for a correct sample;
+    // it exists to catch a typo in the sample definitions.
+    val exerciseIds = sample.routines
+        .flatMap { it.workSets }
+        .map { it.exerciseName }
+        .distinct()
+        .associateWith { name ->
+            checkNotNull(exerciseDao().findByName(name)) {
+                "Sample program \"${sample.name}\" references unknown exercise \"$name\""
+            }.id
+        }
+
+    val now = nowMillis()
+    return useWriterConnection { transactor ->
+        transactor.immediateTransaction {
+            val programId = programDao().insert(
+                ProgramEntity(
+                    profileId = PROFILE_ID,
+                    name = programName,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+            sample.routines.forEachIndexed { routineIdx, routine ->
+                val routineId = routineDao().insert(
+                    RoutineEntity(
+                        programId = programId,
+                        name = routineNames[routineIdx],
+                        position = routineIdx + 1,
+                        createdAt = now,
+                        updatedAt = now,
+                    ),
+                )
+                routine.workSets.forEachIndexed { workSetIdx, workSet ->
+                    val workSetId = workSetDao().insert(
+                        WorkSetEntity(
+                            routineId = routineId,
+                            exerciseId = exerciseIds.getValue(workSet.exerciseName),
+                            position = workSetIdx + 1,
+                            createdAt = now,
+                            updatedAt = now,
+                        ),
+                    )
+                    workSet.sets.forEachIndexed { setIdx, set ->
+                        workSetDetailDao().insert(
+                            WorkSetDetailEntity(
+                                workSetId = workSetId,
+                                position = setIdx + 1,
+                                targetWeight = set.targetWeight,
+                                targetReps = set.targetReps,
+                                targetDuration = null,
+                                warmup = set.warmup,
+                                createdAt = now,
+                                updatedAt = now,
+                            ),
+                        )
+                    }
+                }
+            }
+            programId
+        }
     }
 }
 

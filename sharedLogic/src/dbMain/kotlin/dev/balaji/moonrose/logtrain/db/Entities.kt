@@ -39,6 +39,9 @@ data class ExerciseEntity(
     @ColumnInfo(name = "body_part") val bodyPart: String?,
     @ColumnInfo(name = "other_body_parts") val otherBodyParts: List<String>?,
     val equipment: String?,
+    // Seeded catalog entries, which the sample programs reference by name. Read-only
+    // so those references can never be broken by a rename.
+    @ColumnInfo(defaultValue = "0") val builtin: Boolean = false,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )

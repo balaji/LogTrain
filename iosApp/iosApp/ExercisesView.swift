@@ -153,6 +153,7 @@ private struct ExerciseRowLabel: View {
         VStack(alignment: .leading) {
             Text(exercise.name)
             let details = [exercise.bodyPart, exercise.equipment].compactMap { $0 }
+                .map(\.firstCapitalized)
             if !details.isEmpty {
                 Text(details.joined(separator: " • "))
                     .font(.caption)

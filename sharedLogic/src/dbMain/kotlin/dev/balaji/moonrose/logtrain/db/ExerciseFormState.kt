@@ -20,6 +20,8 @@ data class ExerciseFormUiState(
     val exerciseType: String? = null,
     val bodyPart: String? = null,
     val equipment: String? = null,
+    /** Seed exercise: the UI hides its Edit affordance. */
+    val builtin: Boolean = false,
     val nameError: Boolean = false,
     val duplicateNameError: Boolean = false,
     val saving: Boolean = false,
@@ -49,6 +51,7 @@ class ExerciseFormState private constructor(private val exerciseId: Long?) {
                     exerciseType = exercise?.exerciseType,
                     bodyPart = exercise?.bodyPart,
                     equipment = exercise?.equipment,
+                    builtin = exercise?.builtin ?: false,
                 )
             }
         }
@@ -100,11 +103,17 @@ class ExerciseFormState private constructor(private val exerciseId: Long?) {
                     equipment = state.equipment,
                 )
             }
-            if (error == ExerciseUpdateError.DuplicateName) {
-                _uiState.value = _uiState.value.copy(saving = false, duplicateNameError = true)
-            } else {
-                _uiState.value = _uiState.value.copy(saving = false)
-                onSaved()
+            when (error) {
+                ExerciseUpdateError.DuplicateName ->
+                    _uiState.value = _uiState.value.copy(saving = false, duplicateNameError = true)
+                // Unreachable from the UI, which hides Edit for builtins, but never
+                // report a save that did not happen.
+                ExerciseUpdateError.Builtin ->
+                    _uiState.value = _uiState.value.copy(saving = false)
+                null -> {
+                    _uiState.value = _uiState.value.copy(saving = false)
+                    onSaved()
+                }
             }
         }
     }

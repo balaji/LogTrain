@@ -14,8 +14,9 @@ internal object ExerciseSeedCallback : RoomDatabase.Callback() {
             val otherBodyParts = seed.otherBodyParts.joinToString(",")
             connection.prepare(
                 "INSERT INTO exercises " +
-                    "(name, description, exercise_type, body_part, other_body_parts, equipment, created_at, updated_at) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    "(name, description, exercise_type, body_part, other_body_parts, equipment, " +
+                    "builtin, created_at, updated_at) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             ).use { statement ->
                 statement.bindText(1, seed.name)
                 statement.bindText(2, seed.description)
@@ -23,8 +24,9 @@ internal object ExerciseSeedCallback : RoomDatabase.Callback() {
                 statement.bindText(4, seed.bodyPart)
                 statement.bindText(5, otherBodyParts)
                 statement.bindText(6, seed.equipment)
-                statement.bindLong(7, now)
+                statement.bindLong(7, 1L)
                 statement.bindLong(8, now)
+                statement.bindLong(9, now)
                 statement.step()
             }
         }

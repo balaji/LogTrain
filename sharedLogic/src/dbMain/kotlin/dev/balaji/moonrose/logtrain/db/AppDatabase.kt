@@ -19,7 +19,8 @@ import androidx.room.TypeConverters
     ],
     // v6: seed exercises reclassified into the new exercise types.
     // v7: warmup flag on work_set_details and workout_session_details.
-    version = 7,
+    // v8: builtin flag on exercises so seed exercises are read-only.
+    version = 8,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

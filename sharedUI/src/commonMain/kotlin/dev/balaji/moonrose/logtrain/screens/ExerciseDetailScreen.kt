@@ -156,7 +156,6 @@ private fun ExerciseDetailContent(route: ExerciseDetailRoute, modifier: Modifier
 private fun ExerciseReadOnlyDetails(uiState: ExerciseFormUiState, onEdit: () -> Unit) {
     val uriHandler = LocalUriHandler.current
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(uiState.name, style = MaterialTheme.typography.headlineSmall)
         Text(
             "Search in Google",
             style = MaterialTheme.typography.bodyLarge,
@@ -170,14 +169,16 @@ private fun ExerciseReadOnlyDetails(uiState: ExerciseFormUiState, onEdit: () -> 
             },
         )
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-        ExerciseField("Type", uiState.exerciseType)
+        ExerciseField("Type", uiState.exerciseType?.replaceFirstChar(Char::uppercase))
         HorizontalDivider()
-        ExerciseField("Body part", uiState.bodyPart)
+        ExerciseField("Body part", uiState.bodyPart?.replaceFirstChar(Char::uppercase))
         HorizontalDivider()
-        ExerciseField("Equipment", uiState.equipment)
+        ExerciseField("Equipment", uiState.equipment?.replaceFirstChar(Char::uppercase))
         HorizontalDivider()
-        TextButton(onClick = onEdit, modifier = Modifier.align(Alignment.End)) {
-            Text("Edit")
+        if (!uiState.builtin) {
+            TextButton(onClick = onEdit, modifier = Modifier.align(Alignment.End)) {
+                Text("Edit")
+            }
         }
     }
 }
@@ -235,7 +236,7 @@ private fun ExerciseEditForm(
             onExpandedChange = { typeExpanded = it },
         ) {
             OutlinedTextField(
-                value = uiState.exerciseType ?: "",
+                value = uiState.exerciseType?.replaceFirstChar(Char::uppercase) ?: "",
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Type") },
@@ -248,7 +249,7 @@ private fun ExerciseEditForm(
             ) {
                 EXERCISE_TYPE_OPTIONS.forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option) },
+                        text = { Text(option.replaceFirstChar(Char::uppercase)) },
                         onClick = {
                             formState.updateExerciseType(option)
                             typeExpanded = false
@@ -263,7 +264,7 @@ private fun ExerciseEditForm(
             onExpandedChange = { bodyPartExpanded = it },
         ) {
             OutlinedTextField(
-                value = uiState.bodyPart ?: "",
+                value = uiState.bodyPart?.replaceFirstChar(Char::uppercase) ?: "",
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Body part") },
@@ -276,7 +277,7 @@ private fun ExerciseEditForm(
             ) {
                 BODY_PART_OPTIONS.forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option) },
+                        text = { Text(option.replaceFirstChar(Char::uppercase)) },
                         onClick = {
                             formState.updateBodyPart(option)
                             bodyPartExpanded = false
@@ -291,7 +292,7 @@ private fun ExerciseEditForm(
             onExpandedChange = { equipmentExpanded = it },
         ) {
             OutlinedTextField(
-                value = uiState.equipment ?: "",
+                value = uiState.equipment?.replaceFirstChar(Char::uppercase) ?: "",
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Equipment") },
@@ -304,7 +305,7 @@ private fun ExerciseEditForm(
             ) {
                 EQUIPMENT_OPTIONS.forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option) },
+                        text = { Text(option.replaceFirstChar(Char::uppercase)) },
                         onClick = {
                             formState.updateEquipment(option)
                             equipmentExpanded = false

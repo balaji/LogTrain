@@ -70,4 +70,6 @@ data class Exercise(
     val exerciseType: String?,
     val bodyPart: String?,
     val equipment: String?,
+    /** Seeded catalog entry: cannot be edited or deleted. */
+    val builtin: Boolean,
 )

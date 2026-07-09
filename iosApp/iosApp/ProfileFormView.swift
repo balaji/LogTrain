@@ -34,8 +34,8 @@ struct ProfileFormView: View {
                 ))
                 .focused($focusedField, equals: .name)
 
-                if uiState.nameError {
-                    Text("Name is required")
+                if let nameError = uiState.nameError {
+                    Text(nameError)
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
@@ -46,6 +46,12 @@ struct ProfileFormView: View {
                 ))
                 .keyboardType(.numberPad)
                 .focused($focusedField, equals: .age)
+
+                if let ageError = uiState.ageError {
+                    Text(ageError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
 
                 Picker("Gender", selection: Binding(
                     get: { uiState.gender ?? "" },

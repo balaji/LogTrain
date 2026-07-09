@@ -3,6 +3,12 @@ import SharedUI
 
 private let exerciseTypeOptions = ["strength", "cardio"]
 
+/// Display-only capitalization for catalog values (body part, equipment,
+/// type), which are stored lowercase and matched exactly by the filters.
+extension String {
+    var firstCapitalized: String { prefix(1).uppercased() + dropFirst() }
+}
+
 private let bodyPartOptions = [
     "back", "biceps", "calves", "chest", "core", "forearms",
     "full body", "glutes", "hamstrings", "shoulders", "thighs", "triceps",
@@ -46,7 +52,7 @@ struct ExerciseEditForm: View {
                 )) {
                     Text("Select").tag("")
                     ForEach(exerciseTypeOptions, id: \.self) { option in
-                        Text(option).tag(option)
+                        Text(option.firstCapitalized).tag(option)
                     }
                 }
 
@@ -56,7 +62,7 @@ struct ExerciseEditForm: View {
                 )) {
                     Text("Select").tag("")
                     ForEach(bodyPartOptions, id: \.self) { option in
-                        Text(option).tag(option)
+                        Text(option.firstCapitalized).tag(option)
                     }
                 }
 
@@ -66,7 +72,7 @@ struct ExerciseEditForm: View {
                 )) {
                     Text("Select").tag("")
                     ForEach(equipmentOptions, id: \.self) { option in
-                        Text(option).tag(option)
+                        Text(option.firstCapitalized).tag(option)
                     }
                 }
             }

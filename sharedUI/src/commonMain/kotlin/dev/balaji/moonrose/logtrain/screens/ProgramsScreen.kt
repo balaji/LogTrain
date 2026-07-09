@@ -27,7 +27,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -46,6 +45,9 @@ import androidx.compose.ui.unit.dp
 import dev.balaji.moonrose.logtrain.db.ProgramRepository
 import dev.balaji.moonrose.logtrain.model.Program
 import dev.balaji.moonrose.logtrain.model.Routine
+import dev.balaji.moonrose.logtrain.model.SampleProgram
+import dev.balaji.moonrose.logtrain.model.SamplePrograms
+import dev.balaji.moonrose.logtrain.model.SampleRoutine
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import dev.balaji.moonrose.logtrain.navigation.ProfileRoute
 import dev.balaji.moonrose.logtrain.navigation.Route
@@ -61,6 +63,8 @@ private sealed interface ProgramDialog {
     data class CreateRoutine(val program: Program) : ProgramDialog
     data class RenameRoutine(val routine: Routine) : ProgramDialog
     data class DeleteRoutine(val routine: Routine) : ProgramDialog
+    data class CopySample(val sample: SampleProgram) : ProgramDialog
+    data class ViewSampleRoutine(val routine: SampleRoutine) : ProgramDialog
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,10 +77,15 @@ fun ProgramsScreen(onNavigate: (Route) -> Unit) {
     var actionError by remember { mutableStateOf<String?>(null) }
     var dialog by remember { mutableStateOf<ProgramDialog?>(null) }
     var expandedProgramId by remember { mutableStateOf<Long?>(null) }
+    var expandedSampleId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     fun toggleExpanded(program: Program) {
         expandedProgramId = if (expandedProgramId == program.id) null else program.id
+    }
+
+    fun toggleSampleExpanded(sample: SampleProgram) {
+        expandedSampleId = if (expandedSampleId == sample.id) null else sample.id
     }
 
     fun runMutation(block: suspend () -> Unit) {
@@ -109,6 +118,10 @@ fun ProgramsScreen(onNavigate: (Route) -> Unit) {
             },
             onRenameRoutine = { dialog = ProgramDialog.RenameRoutine(it) },
             onDeleteRoutine = { dialog = ProgramDialog.DeleteRoutine(it) },
+            expandedSampleId = expandedSampleId,
+            onToggleSample = ::toggleSampleExpanded,
+            onCopySample = { dialog = ProgramDialog.CopySample(it) },
+            onViewSampleRoutine = { dialog = ProgramDialog.ViewSampleRoutine(it) },
         )
     }
 
@@ -180,6 +193,16 @@ fun ProgramsScreen(onNavigate: (Route) -> Unit) {
             onConfirm = { runMutation { ProgramRepository.deleteRoutine(current.routine.id) } },
             onDismiss = { dialog = null },
         )
+        is ProgramDialog.CopySample -> ConfirmCopyDialog(
+            title = "Add to your programs?",
+            text = "\"${current.sample.name}\" will be copied into your programs, where you can edit it.",
+            onConfirm = { runMutation { ProgramRepository.addSampleProgram(current.sample) } },
+            onDismiss = { dialog = null },
+        )
+        is ProgramDialog.ViewSampleRoutine -> SampleRoutineDialog(
+            routine = current.routine,
+            onDismiss = { dialog = null },
+        )
         null -> {}
     }
 
@@ -202,6 +225,10 @@ private fun ProgramsBody(
     onOpenRoutine: (Routine) -> Unit,
     onRenameRoutine: (Routine) -> Unit,
     onDeleteRoutine: (Routine) -> Unit,
+    expandedSampleId: String?,
+    onToggleSample: (SampleProgram) -> Unit,
+    onCopySample: (SampleProgram) -> Unit,
+    onViewSampleRoutine: (SampleRoutine) -> Unit,
 ) {
     if (programs == null) {
         CenteredMessage(contentPadding) { CircularProgressIndicator() }
@@ -212,6 +239,9 @@ private fun ProgramsBody(
             StartEmptyWorkoutRow(onClick = onStartEmptyWorkout)
             HorizontalDivider()
             Spacer(Modifier.height(24.dp))
+        }
+        item(key = "my-programs-header") {
+            SectionHeader("My Programs")
         }
         if (programs.isEmpty()) {
             item(key = "empty-programs") {
@@ -236,12 +266,6 @@ private fun ProgramsBody(
                     }
                 }
                 if (program.id == expandedProgramId) {
-                    item(key = "actions-${program.id}") {
-                        Column(modifier = Modifier.animateItem()) {
-                            ProgramExpandedActions(onAddRoutine = { onAddRoutine(program) })
-                            HorizontalDivider()
-                        }
-                    }
                     val routines = routinesByProgram[program.id].orEmpty()
                     if (routines.isEmpty()) {
                         item(key = "routines-empty-${program.id}") {
@@ -270,6 +294,45 @@ private fun ProgramsBody(
                                 }
                             }
                         }
+                    }
+                    item(key = "actions-${program.id}") {
+                        Column(modifier = Modifier.animateItem()) {
+                            AddRoutineRow(onClick = { onAddRoutine(program) })
+                            HorizontalDivider()
+                        }
+                    }
+                }
+            }
+        }
+
+        item(key = "sample-header") {
+            Spacer(Modifier.height(24.dp))
+            SectionHeader("Sample Programs")
+        }
+        SamplePrograms.all.forEach { sample ->
+            item(key = "sample-${sample.id}") {
+                Column(modifier = Modifier.animateItem()) {
+                    SampleProgramRow(
+                        sample = sample,
+                        expanded = sample.id == expandedSampleId,
+                        onToggle = onToggleSample,
+                    )
+                    HorizontalDivider()
+                }
+            }
+            if (sample.id == expandedSampleId) {
+                sample.routines.forEach { routine ->
+                    item(key = "sample-routine-${sample.id}-${routine.name}") {
+                        Column(modifier = Modifier.animateItem()) {
+                            SampleRoutineRow(routine, onClick = { onViewSampleRoutine(routine) })
+                            HorizontalDivider()
+                        }
+                    }
+                }
+                item(key = "sample-copy-${sample.id}") {
+                    Column(modifier = Modifier.animateItem()) {
+                        CopySampleRow(onClick = { onCopySample(sample) })
+                        HorizontalDivider()
                     }
                 }
             }
@@ -335,21 +398,25 @@ private fun ProgramRow(
 }
 
 @Composable
-private fun ProgramExpandedActions(onAddRoutine: () -> Unit) {
+private fun AddRoutineRow(onClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceContainer)
-            .padding(horizontal = 8.dp),
-        horizontalArrangement = Arrangement.Start,
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onAddRoutine) {
-            Icon(
-                Icons.Filled.Add,
-                contentDescription = "New routine",
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        }
+        Icon(
+            Icons.Filled.Add,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            "Add Routine",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
     }
 }
 
@@ -388,6 +455,94 @@ private fun RoutineRow(
         },
     ) {
         Text(routine.name, modifier = Modifier.padding(start = 16.dp))
+    }
+}
+
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        title,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    HorizontalDivider()
+}
+
+/**
+ * Read-only counterpart to [ProgramRow]: no SwipeRevealRow, so samples cannot be
+ * renamed or deleted. The user copies one to get an editable program.
+ */
+@Composable
+private fun SampleProgramRow(
+    sample: SampleProgram,
+    expanded: Boolean,
+    onToggle: (SampleProgram) -> Unit,
+) {
+    val chevronRotation by animateFloatAsState(if (expanded) 90f else 0f)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggle(sample) }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(sample.name, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                "${sample.daysPerWeek} days a week · ${sample.summary}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = if (expanded) "Collapse" else "Expand",
+            modifier = Modifier.rotate(chevronRotation),
+        )
+    }
+}
+
+@Composable
+private fun SampleRoutineRow(routine: SampleRoutine, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(routine.name, modifier = Modifier.padding(start = 16.dp))
+        Text(
+            "${routine.workSets.size} exercises",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun CopySampleRow(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.Filled.Add,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            "Copy to my programs",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
     }
 }
 

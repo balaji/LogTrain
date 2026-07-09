@@ -148,6 +148,7 @@ private fun ExercisesBody(contentPadding: PaddingValues, onOpen: (Exercise) -> U
                         headlineContent = { Text(exercise.name) },
                         supportingContent = {
                             val details = listOfNotNull(exercise.bodyPart, exercise.equipment)
+                                .map { it.replaceFirstChar(Char::uppercase) }
                             if (details.isNotEmpty()) Text(details.joinToString(" • "))
                         },
                         modifier = Modifier.fillMaxWidth().clickable { onOpen(exercise) },

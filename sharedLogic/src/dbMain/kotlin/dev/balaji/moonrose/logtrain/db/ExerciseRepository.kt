@@ -7,6 +7,9 @@ import kotlinx.coroutines.flow.map
 
 enum class ExerciseUpdateError {
     DuplicateName,
+
+    /** Seed exercises are read-only; sample programs reference them by name. */
+    Builtin,
 }
 
 object ExerciseRepository {
@@ -54,6 +57,7 @@ object ExerciseRepository {
         bodyPart: String?,
         equipment: String?,
     ): ExerciseUpdateError? {
+        if (AppDb.db.exerciseDao().findById(id)?.builtin == true) return ExerciseUpdateError.Builtin
         return try {
             AppDb.db.exerciseDao().update(
                 id = id,
@@ -82,4 +86,5 @@ private fun ExerciseEntity.toDomain() = Exercise(
     exerciseType = exerciseType,
     bodyPart = bodyPart,
     equipment = equipment,
+    builtin = builtin,
 )

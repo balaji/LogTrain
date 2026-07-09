@@ -64,11 +64,18 @@ interface RoutineDao {
 
 @Dao
 interface ExerciseDao {
-    @Query("SELECT * FROM exercises ORDER BY name")
+    @Query("SELECT * FROM exercises ORDER BY name COLLATE NOCASE")
     fun observeAll(): Flow<List<ExerciseEntity>>
 
     @Query("SELECT * FROM exercises WHERE id = :id")
     suspend fun findById(id: Long): ExerciseEntity?
+
+    /**
+     * Exact match, not COLLATE NOCASE: the unique index on name is case-sensitive,
+     * so a case-insensitive lookup could match a user exercise that shadows a seed one.
+     */
+    @Query("SELECT * FROM exercises WHERE name = :name LIMIT 1")
+    suspend fun findByName(name: String): ExerciseEntity?
 
     @Insert
     suspend fun insertAll(exercises: List<ExerciseEntity>)
