@@ -7,6 +7,11 @@ struct ProfileView: View {
     @State private var profile: Profile?
     @State private var settings: UserSettings?
     @State private var editing = false
+    @State private var testSessionCount = 0
+    @State private var showGenerateAlert = false
+    @State private var showDeleteAlert = false
+    @State private var generateDaysText = "90"
+    @State private var working = false
 
     var body: some View {
         Group {
@@ -49,6 +54,42 @@ struct ProfileView: View {
                                 }
                             }
                         }
+                        // Test-data tooling for development. Kept in release
+                        // builds for now; generated rows carry the test_data
+                        // flag so Delete only removes what Generate created.
+                        Section("Developer") {
+                            Button("Generate test data…") { showGenerateAlert = true }
+                                .disabled(working)
+                            Button("Delete test data", role: .destructive) { showDeleteAlert = true }
+                                .disabled(working || testSessionCount == 0)
+                        }
+                    }
+                    .alert("Generate test data", isPresented: $showGenerateAlert) {
+                        TextField("Days of history", text: $generateDaysText)
+                            .keyboardType(.numberPad)
+                        Button("Generate") {
+                            guard let days = Int32(generateDaysText), days > 0 else { return }
+                            working = true
+                            Task {
+                                defer { working = false }
+                                try? await TestDataRepository.shared.generate(days: days)
+                            }
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("Fills the calendar with roughly three workouts a week and regular weigh-ins, ending today.")
+                    }
+                    .alert("Delete test data", isPresented: $showDeleteAlert) {
+                        Button("Delete", role: .destructive) {
+                            working = true
+                            Task {
+                                defer { working = false }
+                                try? await TestDataRepository.shared.deleteAll()
+                            }
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("Removes all \(testSessionCount) generated workouts and their weigh-ins. Your own logged data is untouched.")
                     }
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {
@@ -68,6 +109,11 @@ struct ProfileView: View {
         .task {
             for await value in UserSettingsRepository.shared.settings {
                 settings = value
+            }
+        }
+        .task {
+            for await value in TestDataRepository.shared.testSessionCount {
+                testSessionCount = value.intValue
             }
         }
     }

@@ -14,6 +14,15 @@ data class CompletedSessionRow(
     @ColumnInfo(name = "routine_name") val routineName: String?,
 )
 
+/** Projection for insights: one row per completed working set in a completed session. */
+data class CompletedSetRow(
+    @ColumnInfo(name = "performed_at") val performedAt: Long,
+    @ColumnInfo(name = "exercise_id") val exerciseId: Long,
+    @ColumnInfo(name = "exercise_name") val exerciseName: String,
+    @ColumnInfo(name = "actual_weight") val actualWeight: Double?,
+    @ColumnInfo(name = "actual_reps") val actualReps: Int?,
+)
+
 @Dao
 interface ProfileDao {
     @Query("SELECT * FROM profile WHERE id = 1")
@@ -21,6 +30,10 @@ interface ProfileDao {
 
     @Upsert
     suspend fun upsert(profile: ProfileEntity)
+
+    /** No-op when no profile row exists yet. */
+    @Query("UPDATE profile SET weight = :weight, updated_at = :now WHERE id = 1")
+    suspend fun updateWeight(weight: Double, now: Long)
 }
 
 @Dao
@@ -142,6 +155,30 @@ interface WorkSetDetailDao {
 }
 
 @Dao
+interface BodyMetricDao {
+    @Query("SELECT * FROM body_metrics WHERE profile_id = :profileId ORDER BY logged_at DESC")
+    fun observeAll(profileId: Long): Flow<List<BodyMetricEntity>>
+
+    @Query("SELECT * FROM body_metrics WHERE profile_id = :profileId ORDER BY logged_at DESC LIMIT 1")
+    suspend fun latest(profileId: Long): BodyMetricEntity?
+
+    @Query(
+        "SELECT * FROM body_metrics WHERE profile_id = :profileId " +
+            "AND logged_at >= :startMillis ORDER BY logged_at",
+    )
+    suspend fun getInRange(profileId: Long, startMillis: Long): List<BodyMetricEntity>
+
+    @Insert
+    suspend fun insert(metric: BodyMetricEntity): Long
+
+    @Query("DELETE FROM body_metrics WHERE id = :id")
+    suspend fun delete(id: Long)
+
+    @Query("DELETE FROM body_metrics WHERE test_data != 0")
+    suspend fun deleteTestData()
+}
+
+@Dao
 interface WorkoutSessionDao {
     @Query("SELECT * FROM workout_sessions ORDER BY performed_at DESC")
     fun observeAll(): Flow<List<WorkoutSessionEntity>>
@@ -168,6 +205,12 @@ interface WorkoutSessionDao {
             "WHERE profile_id = :profileId AND completed_at IS NOT NULL",
     )
     fun observeCompletedPerformedAt(profileId: Long): Flow<List<Long>>
+
+    @Query(
+        "SELECT performed_at FROM workout_sessions " +
+            "WHERE profile_id = :profileId AND completed_at IS NOT NULL",
+    )
+    suspend fun getCompletedPerformedAt(profileId: Long): List<Long>
 
     @Query(
         "SELECT s.performed_at AS performed_at, r.name AS routine_name " +
@@ -201,6 +244,13 @@ interface WorkoutSessionDao {
 
     @Query("DELETE FROM workout_sessions WHERE id = :id")
     suspend fun delete(id: Long)
+
+    @Query("SELECT COUNT(*) FROM workout_sessions WHERE test_data != 0")
+    fun observeTestDataCount(): Flow<Int>
+
+    /** Cascades to `workout_session_details` via the FK. */
+    @Query("DELETE FROM workout_sessions WHERE test_data != 0")
+    suspend fun deleteTestData()
 }
 
 @Dao
@@ -225,6 +275,30 @@ interface WorkoutSessionDetailDao {
             "WHERE workout_session_id = :sessionId AND completed != 0)",
     )
     suspend fun hasCompletedSets(sessionId: Long): Boolean
+
+    @Query(
+        "SELECT s.performed_at AS performed_at, d.exercise_id AS exercise_id, " +
+            "e.name AS exercise_name, d.actual_weight AS actual_weight, d.actual_reps AS actual_reps " +
+            "FROM workout_session_details d " +
+            "JOIN workout_sessions s ON s.id = d.workout_session_id " +
+            "JOIN exercises e ON e.id = d.exercise_id " +
+            "WHERE s.profile_id = :profileId AND s.completed_at IS NOT NULL " +
+            "AND d.completed != 0 AND d.warmup = 0 AND s.performed_at >= :startMillis " +
+            "ORDER BY s.performed_at",
+    )
+    fun observeCompletedSets(profileId: Long, startMillis: Long): Flow<List<CompletedSetRow>>
+
+    @Query(
+        "SELECT s.performed_at AS performed_at, d.exercise_id AS exercise_id, " +
+            "e.name AS exercise_name, d.actual_weight AS actual_weight, d.actual_reps AS actual_reps " +
+            "FROM workout_session_details d " +
+            "JOIN workout_sessions s ON s.id = d.workout_session_id " +
+            "JOIN exercises e ON e.id = d.exercise_id " +
+            "WHERE s.profile_id = :profileId AND s.completed_at IS NOT NULL " +
+            "AND d.completed != 0 AND d.warmup = 0 AND s.performed_at >= :startMillis " +
+            "ORDER BY s.performed_at",
+    )
+    suspend fun getCompletedSets(profileId: Long, startMillis: Long): List<CompletedSetRow>
 
     @Insert
     suspend fun insert(detail: WorkoutSessionDetailEntity): Long

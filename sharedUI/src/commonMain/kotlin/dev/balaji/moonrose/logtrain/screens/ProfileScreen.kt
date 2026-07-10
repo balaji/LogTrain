@@ -9,14 +9,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -33,9 +38,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import dev.balaji.moonrose.logtrain.calendar.WeekStart
 import dev.balaji.moonrose.logtrain.db.ProfileRepository
+import dev.balaji.moonrose.logtrain.db.TestDataRepository
 import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
 import dev.balaji.moonrose.logtrain.model.Appearance
 import dev.balaji.moonrose.logtrain.model.Profile
@@ -84,7 +91,7 @@ private fun ProfileContent(modifier: Modifier = Modifier) {
 
     val current = profile ?: return
 
-    Column(modifier = modifier.fillMaxSize()) {
+    Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         if (editing) {
             ProfileForm(
                 initial = current,
@@ -145,6 +152,130 @@ private fun SettingsSection() {
         scope.launch { UserSettingsRepository.setWeightUnit(it) }
     }
     HorizontalDivider()
+    DeveloperSection()
+}
+
+/**
+ * Test-data tooling for development. Kept in release builds for now, tucked
+ * under its own heading; generated rows carry the test_data flag so Delete
+ * only ever removes what Generate created.
+ */
+@Composable
+private fun DeveloperSection() {
+    val scope = rememberCoroutineScope()
+    val testSessionCount by TestDataRepository.testSessionCount.collectAsState(initial = 0)
+    var showGenerateDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var working by remember { mutableStateOf(false) }
+
+    Text(
+        "Developer",
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 24.dp, bottom = 4.dp),
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("Test data", style = MaterialTheme.typography.bodyLarge)
+        Row {
+            TextButton(enabled = !working, onClick = { showGenerateDialog = true }) {
+                Text("Generate")
+            }
+            TextButton(
+                enabled = !working && testSessionCount > 0,
+                onClick = { showDeleteDialog = true },
+            ) {
+                Text("Delete")
+            }
+        }
+    }
+    HorizontalDivider()
+
+    if (showGenerateDialog) {
+        var daysText by remember { mutableStateOf("90") }
+        val days = daysText.toIntOrNull()?.takeIf { it > 0 }
+        AlertDialog(
+            onDismissRequest = { if (!working) showGenerateDialog = false },
+            title = { Text("Generate test data") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        "Fills the calendar with roughly three workouts a week " +
+                            "and regular weigh-ins, ending today.",
+                    )
+                    OutlinedTextField(
+                        value = daysText,
+                        onValueChange = { daysText = it.filter(Char::isDigit).take(4) },
+                        label = { Text("Days of history") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = days != null && !working,
+                    onClick = {
+                        working = true
+                        scope.launch {
+                            try {
+                                TestDataRepository.generate(days!!)
+                            } finally {
+                                working = false
+                                showGenerateDialog = false
+                            }
+                        }
+                    },
+                ) {
+                    Text(if (working) "Generating…" else "Generate")
+                }
+            },
+            dismissButton = {
+                TextButton(enabled = !working, onClick = { showGenerateDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!working) showDeleteDialog = false },
+            title = { Text("Delete test data") },
+            text = {
+                Text(
+                    "Removes all $testSessionCount generated workouts and their " +
+                        "weigh-ins. Your own logged data is untouched.",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !working,
+                    onClick = {
+                        working = true
+                        scope.launch {
+                            try {
+                                TestDataRepository.deleteAll()
+                            } finally {
+                                working = false
+                                showDeleteDialog = false
+                            }
+                        }
+                    },
+                ) {
+                    Text(if (working) "Deleting…" else "Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(enabled = !working, onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
 }
 
 @Composable

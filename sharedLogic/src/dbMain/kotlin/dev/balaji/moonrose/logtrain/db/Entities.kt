@@ -157,6 +157,28 @@ data class WorkoutSessionEntity(
     @ColumnInfo(name = "performed_at") val performedAt: Long,
     // Null while the session is in progress; set when the user taps Finish.
     @ColumnInfo(name = "completed_at") val completedAt: Long?,
+    // Rows created by the developer test-data generator, so they can be
+    // deleted in one statement without touching real history.
+    @ColumnInfo(name = "test_data", defaultValue = "0") val testData: Boolean = false,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+)
+
+@Entity(
+    tableName = "body_metrics",
+    foreignKeys = [
+        ForeignKey(ProfileEntity::class, ["id"], ["profile_id"], onDelete = ForeignKey.CASCADE),
+    ],
+    indices = [Index(value = ["profile_id", "logged_at"])],
+)
+data class BodyMetricEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "profile_id") val profileId: Long,
+    // Raw number in the user's display unit, like profile.weight.
+    val weight: Double,
+    @ColumnInfo(name = "logged_at") val loggedAt: Long,
+    // See WorkoutSessionEntity.testData.
+    @ColumnInfo(name = "test_data", defaultValue = "0") val testData: Boolean = false,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )
