@@ -287,14 +287,14 @@ struct ProgramsView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(sample.name)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.primary)
                     Text("\(sample.daysPerWeek) days a week · \(sample.summary)")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.secondary)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.secondary)
                     .rotationEffect(.degrees(expandedSampleId == sample.id ? 90 : 0))
             }
             .contentShape(Rectangle())
@@ -307,11 +307,11 @@ struct ProgramsView: View {
                 } label: {
                     HStack {
                         Text(routine.name)
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(Color.primary)
                         Spacer()
                         Text("\(routine.workSets.count) exercises")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.secondary)
                     }
                     .contentShape(Rectangle())
                 }
