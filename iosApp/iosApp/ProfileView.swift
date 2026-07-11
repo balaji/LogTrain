@@ -23,47 +23,47 @@ struct ProfileView: View {
                 } else {
                     List {
                         Section {
-                            LabeledContent("Name", value: profile.name)
-                            LabeledContent("Age", value: profile.age.map { "\($0)" } ?? "—")
-                            LabeledContent("Gender", value: profile.gender ?? "—")
-                            LabeledContent("Weight", value: profile.weight.map { "\($0) kg" } ?? "—")
-                            LabeledContent("Height", value: profile.height.map { "\($0) cm" } ?? "—")
+                            LabeledContent(L10n.name, value: profile.name)
+                            LabeledContent(L10n.age, value: profile.age.map { "\($0)" } ?? "—")
+                            LabeledContent(L10n.gender, value: profile.gender ?? "—")
+                            LabeledContent(L10n.weight, value: profile.weight.map { L10n.weightKgValue("\($0)") } ?? "—")
+                            LabeledContent(L10n.height, value: profile.height.map { L10n.heightCmValue("\($0)") } ?? "—")
                         }
                         // Always-editable app settings backed by user_settings;
                         // each change saves immediately, no Edit mode. Display
                         // labels live only here — the DB stores language-neutral
                         // keys, so they can be regionalized later.
                         if let settings {
-                            Section("Settings") {
-                                Picker("Week starts on", selection: settingBinding(settings.weekStart, save: {
+                            Section(L10n.settings) {
+                                Picker(L10n.weekStartsOn, selection: settingBinding(settings.weekStart, save: {
                                     try await UserSettingsRepository.shared.setWeekStart(weekStart: $0)
                                 })) {
-                                    Text("Sunday").tag(WeekStart.sunday)
-                                    Text("Monday").tag(WeekStart.monday)
+                                    Text(L10n.weekdaySunday).tag(WeekStart.sunday)
+                                    Text(L10n.weekdayMonday).tag(WeekStart.monday)
                                 }
-                                Picker("Appearance", selection: settingBinding(settings.appearance, save: {
+                                Picker(L10n.appearance, selection: settingBinding(settings.appearance, save: {
                                     try await UserSettingsRepository.shared.setAppearance(appearance: $0)
                                 })) {
-                                    Text("Light").tag(Appearance.light)
-                                    Text("Dark").tag(Appearance.dark)
-                                    Text("System").tag(Appearance.system)
+                                    Text(L10n.appearanceLight).tag(Appearance.light)
+                                    Text(L10n.appearanceDark).tag(Appearance.dark)
+                                    Text(L10n.appearanceSystem).tag(Appearance.system)
                                 }
-                                Picker("Weight units", selection: settingBinding(settings.weightUnit, save: {
+                                Picker(L10n.weightUnits, selection: settingBinding(settings.weightUnit, save: {
                                     try await UserSettingsRepository.shared.setWeightUnit(weightUnit: $0)
                                 })) {
-                                    Text("Metric").tag(WeightUnit.metric)
-                                    Text("Imperial").tag(WeightUnit.imperial)
+                                    Text(L10n.unitsMetric).tag(WeightUnit.metric)
+                                    Text(L10n.unitsImperial).tag(WeightUnit.imperial)
                                 }
                                 Button {
                                     showOneRmCalculator = true
                                 } label: {
-                                    LabeledContent("1 Rep Max Calculator", value: formulaName(settings.oneRmFormula))
+                                    LabeledContent(L10n.oneRmCalculator, value: formulaName(settings.oneRmFormula))
                                 }
                                 .tint(.primary)
                                 // Opting in also asks the OS for notification
                                 // permission; the stored flag is the user's
                                 // intent, the grant lives with the system.
-                                Toggle("Send notifications", isOn: settingBinding(settings.notificationsEnabled, save: { enabled in
+                                Toggle(L10n.sendNotifications, isOn: settingBinding(settings.notificationsEnabled, save: { enabled in
                                     if enabled {
                                         _ = try? await UNUserNotificationCenter.current()
                                             .requestAuthorization(options: [.alert, .badge, .sound])
@@ -75,17 +75,17 @@ struct ProfileView: View {
                         // Test-data tooling for development. Kept in release
                         // builds for now; generated rows carry the test_data
                         // flag so Delete only removes what Generate created.
-                        Section("Developer") {
-                            Button("Generate test data…") { showGenerateAlert = true }
+                        Section(L10n.developer) {
+                            Button(L10n.generateTestDataButton) { showGenerateAlert = true }
                                 .disabled(working)
-                            Button("Delete test data", role: .destructive) { showDeleteAlert = true }
+                            Button(L10n.deleteTestDataTitle, role: .destructive) { showDeleteAlert = true }
                                 .disabled(working || testSessionCount == 0)
                         }
                     }
-                    .alert("Generate test data", isPresented: $showGenerateAlert) {
-                        TextField("Days of history", text: $generateDaysText)
+                    .alert(L10n.generateTestDataTitle, isPresented: $showGenerateAlert) {
+                        TextField(L10n.daysOfHistory, text: $generateDaysText)
                             .keyboardType(.numberPad)
-                        Button("Generate") {
+                        Button(L10n.generate) {
                             guard let days = Int32(generateDaysText), days > 0 else { return }
                             working = true
                             Task {
@@ -93,34 +93,34 @@ struct ProfileView: View {
                                 try? await TestDataRepository.shared.generate(days: days)
                             }
                         }
-                        Button("Cancel", role: .cancel) {}
+                        Button(L10n.cancel, role: .cancel) {}
                     } message: {
-                        Text("Fills the calendar with roughly three workouts a week and regular weigh-ins, ending today.")
+                        Text(L10n.generateTestDataMessage)
                     }
-                    .alert("Delete test data", isPresented: $showDeleteAlert) {
-                        Button("Delete", role: .destructive) {
+                    .alert(L10n.deleteTestDataTitle, isPresented: $showDeleteAlert) {
+                        Button(L10n.delete, role: .destructive) {
                             working = true
                             Task {
                                 defer { working = false }
                                 try? await TestDataRepository.shared.deleteAll()
                             }
                         }
-                        Button("Cancel", role: .cancel) {}
+                        Button(L10n.cancel, role: .cancel) {}
                     } message: {
-                        Text("Removes all \(testSessionCount) generated workouts and their weigh-ins. Your own logged data is untouched.")
+                        Text(L10n.deleteTestDataMessage(testSessionCount))
                     }
                     .sheet(isPresented: $showOneRmCalculator) {
                         if let settings {
                             NavigationStack {
                                 OneRmCalculatorView(settings: settings)
-                                    .navigationTitle("1 Rep Max Calculator")
+                                    .navigationTitle(L10n.oneRmCalculator)
                                     .navigationBarTitleDisplayMode(.inline)
                             }
                         }
                     }
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {
-                            Button("Edit") { editing = true }
+                            Button(L10n.edit) { editing = true }
                         }
                     }
                 }

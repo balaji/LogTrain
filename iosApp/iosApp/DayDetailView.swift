@@ -21,11 +21,11 @@ struct DayDetailView: View {
             if uiState.loading {
                 ProgressView()
             } else if uiState.sessions.isEmpty {
-                ContentUnavailableView("No completed workouts", systemImage: "calendar")
+                ContentUnavailableView(L10n.noCompletedWorkouts, systemImage: "calendar")
             } else {
                 List {
                     ForEach(uiState.sessions, id: \.id) { session in
-                        Section(session.routineName ?? "Workout") {
+                        Section(session.routineName ?? L10n.workout) {
                             ForEach(Array(session.exercises.enumerated()), id: \.offset) { _, exercise in
                                 ExerciseSummaryRow(exercise: exercise)
                             }
@@ -61,7 +61,7 @@ private struct ExerciseSummaryRow: View {
                 .font(.body)
             ForEach(Array(exercise.sets.enumerated()), id: \.offset) { index, set in
                 HStack {
-                    Text("Set \(index + 1)")
+                    Text(L10n.setNumber(index + 1))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -78,8 +78,8 @@ private struct ExerciseSummaryRow: View {
         let weight = set.actualWeight.isEmpty ? set.targetWeight : set.actualWeight
         let reps = set.actualReps.isEmpty ? set.targetReps : set.actualReps
         var parts: [String] = []
-        if !weight.isEmpty { parts.append("\(weight) kg") }
-        if !reps.isEmpty { parts.append("\(reps) reps") }
+        if !weight.isEmpty { parts.append(L10n.weightKgValue(weight)) }
+        if !reps.isEmpty { parts.append(L10n.repsValue(reps)) }
         return parts.isEmpty ? "—" : parts.joined(separator: " · ")
     }
 }

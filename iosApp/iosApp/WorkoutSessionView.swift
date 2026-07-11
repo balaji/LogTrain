@@ -113,32 +113,32 @@ struct WorkoutSessionView: View {
                     formState?.addExercise(exercise: exercise)
                     showExercisePicker = false
                 })
-                .navigationTitle("Add Exercise")
+                .navigationTitle(L10n.addExercise)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { showExercisePicker = false }
+                        Button(L10n.cancel) { showExercisePicker = false }
                     }
                 }
             }
         }
-        .alert("Discard workout?", isPresented: $showDiscardConfirm) {
-            Button("Discard", role: .destructive) {
+        .alert(L10n.discardWorkoutTitle, isPresented: $showDiscardConfirm) {
+            Button(L10n.discard, role: .destructive) {
                 // Dismissal happens via followActiveSession() once the
                 // session row is deleted.
                 formState?.discard { }
             }
-            Button("Cancel", role: .cancel) {}
+            Button(L10n.cancel, role: .cancel) {}
         } message: {
-            Text("This workout and all logged sets will be deleted.")
+            Text(L10n.discardWorkoutMessage)
         }
-        .alert("Nothing to save", isPresented: $showNothingToSave) {
-            Button("Yes", role: .destructive) {
+        .alert(L10n.nothingToSaveTitle, isPresented: $showNothingToSave) {
+            Button(L10n.yes, role: .destructive) {
                 formState?.discard { }
             }
-            Button("No", role: .cancel) {}
+            Button(L10n.no, role: .cancel) {}
         } message: {
-            Text("There are no completed sets to save. Discard?")
+            Text(L10n.nothingToSaveMessage)
         }
     }
 
@@ -236,7 +236,7 @@ struct WorkoutSessionView: View {
                             Button(role: .destructive) {
                                 formState.removeExercise(exerciseIndex: Int32(exIndex))
                             } label: {
-                                Label("Delete Exercise", systemImage: "trash")
+                                Label(L10n.deleteExercise, systemImage: "trash")
                             }
                         } label: {
                             Image(systemName: "ellipsis.circle")
@@ -253,7 +253,7 @@ struct WorkoutSessionView: View {
                 Button {
                     showExercisePicker = true
                 } label: {
-                    Label("Add Exercise", systemImage: "plus")
+                    Label(L10n.addExercise, systemImage: "plus")
                 }
             }
         }
@@ -283,7 +283,7 @@ private struct SessionExerciseSection: View {
     private var setsCount: Int { Int(exercise.sets.count) }
 
     private func setNumberLabel(_ setIdx: Int) -> String {
-        if exercise.sets[setIdx].warmup { return "W" }
+        if exercise.sets[setIdx].warmup { return L10n.warmupMarker }
         let workingNumber = exercise.sets.prefix(setIdx + 1).filter { !$0.warmup }.count
         return "\(workingNumber)"
     }
@@ -297,10 +297,10 @@ private struct SessionExerciseSection: View {
     var body: some View {
         Group {
             HStack(spacing: 8) {
-                Text("SET").frame(width: 28)
-                Text("PREVIOUS").frame(maxWidth: .infinity)
-                Text(weightUnit == .imperial ? "LB" : "KG").frame(maxWidth: .infinity)
-                Text("REPS").frame(maxWidth: .infinity)
+                Text(L10n.columnSet).frame(width: 28)
+                Text(L10n.columnPrevious).frame(maxWidth: .infinity)
+                Text(weightUnit == .imperial ? L10n.columnLb : L10n.columnKg).frame(maxWidth: .infinity)
+                Text(L10n.columnReps).frame(maxWidth: .infinity)
                 Spacer().frame(width: 28)
             }
             .font(.caption)
@@ -343,7 +343,7 @@ private struct SessionExerciseSection: View {
                         Button(role: .destructive) {
                             formState.removeSet(exerciseIndex: Int32(exIndex), setIndex: Int32(setIdx))
                         } label: {
-                            Label("Delete", systemImage: "trash")
+                            Label(L10n.delete, systemImage: "trash")
                         }
                     }
                 }
@@ -352,7 +352,7 @@ private struct SessionExerciseSection: View {
             Button {
                 formState.addSet(exerciseIndex: Int32(exIndex))
             } label: {
-                Label("Add Set", systemImage: "plus")
+                Label(L10n.addSet, systemImage: "plus")
                     .font(.subheadline)
                     .frame(maxWidth: .infinity)
             }

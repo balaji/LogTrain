@@ -53,7 +53,7 @@ private struct ProfileToolbar: ViewModifier {
                     } label: {
                         Image(systemName: "person.crop.circle")
                     }
-                    .accessibilityLabel("Profile")
+                    .accessibilityLabel(L10n.profile)
                 }
             }
             .sheet(isPresented: $showingProfile) {
@@ -68,11 +68,11 @@ private struct ProfileSheet: View {
     var body: some View {
         NavigationStack {
             ProfileView()
-                .navigationTitle("Profile")
+                .navigationTitle(L10n.profile)
                 .toolbarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Done") { dismiss() }
+                        Button(L10n.done) { dismiss() }
                     }
                 }
         }
@@ -97,22 +97,22 @@ struct ContentView: View {
     var body: some View {
         if profileState.hasProfile == true {
             TabView(selection: $appCoordinator.selectedTab) {
-                Tab("Exercises", systemImage: "figure.strengthtraining.traditional",
+                Tab(L10n.tabExercises, systemImage: "figure.strengthtraining.traditional",
                     value: AppNavigationCoordinator.AppTab.exercises) {
                     NavigationStack {
                         ExercisesView()
-                            .navigationTitle("Exercises")
+                            .navigationTitle(L10n.tabExercises)
                             .profileToolbar()
                             .tabRootStyle()
                     }
                     .modifier(sessionBarInset)
                 }
-                Tab("Workouts", systemImage: "list.clipboard",
+                Tab(L10n.tabWorkouts, systemImage: "list.clipboard",
                     value: AppNavigationCoordinator.AppTab.programs) {
                     ProgramsView()
                         .modifier(sessionBarInset)
                 }
-                Tab("History", systemImage: "calendar",
+                Tab(L10n.tabHistory, systemImage: "calendar",
                     value: AppNavigationCoordinator.AppTab.calendar) {
                     NavigationStack {
                         CalendarView()
@@ -121,11 +121,11 @@ struct ContentView: View {
                     }
                     .modifier(sessionBarInset)
                 }
-                Tab("Progress", systemImage: "chart.line.uptrend.xyaxis",
+                Tab(L10n.tabProgress, systemImage: "chart.line.uptrend.xyaxis",
                     value: AppNavigationCoordinator.AppTab.progress) {
                     NavigationStack {
                         ProgressTabView()
-                            .navigationTitle("Progress")
+                            .navigationTitle(L10n.tabProgress)
                             .profileToolbar()
                             .tabRootStyle()
                     }
@@ -138,25 +138,25 @@ struct ContentView: View {
                     activeSession = session
                 }
             }
-            .alert("Discard workout?", isPresented: $showDiscardConfirm) {
-                Button("Discard", role: .destructive) {
+            .alert(L10n.discardWorkoutTitle, isPresented: $showDiscardConfirm) {
+                Button(L10n.discard, role: .destructive) {
                     if let session = activeSession {
                         Task { try? await WorkoutSessionRepository.shared.discard(sessionId: session.sessionId) }
                     }
                 }
-                Button("Cancel", role: .cancel) {}
+                Button(L10n.cancel, role: .cancel) {}
             } message: {
-                Text("This workout and all logged sets will be deleted.")
+                Text(L10n.discardWorkoutMessage)
             }
-            .alert("Nothing to save", isPresented: $showNothingToSave) {
-                Button("Yes", role: .destructive) {
+            .alert(L10n.nothingToSaveTitle, isPresented: $showNothingToSave) {
+                Button(L10n.yes, role: .destructive) {
                     if let session = activeSession {
                         Task { try? await WorkoutSessionRepository.shared.discard(sessionId: session.sessionId) }
                     }
                 }
-                Button("No", role: .cancel) {}
+                Button(L10n.no, role: .cancel) {}
             } message: {
-                Text("There are no completed sets to save. Discard?")
+                Text(L10n.nothingToSaveMessage)
             }
         } else if profileState.hasProfile == false {
             ProfileSetupView()

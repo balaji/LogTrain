@@ -1,17 +1,20 @@
 import SwiftUI
 import SharedUI
 
-private let genderOptions = ["Male", "Female", "Other", "Prefer not to say"]
+// Stored to the profile as displayed, matching the Compose form's behavior.
+private let genderOptions = [
+    L10n.genderMale, L10n.genderFemale, L10n.genderOther, L10n.genderPreferNotToSay,
+]
 
-/// English messages for the language-neutral validation errors the shared
+/// Localized messages for the language-neutral validation errors the shared
 /// form state emits; mirrors sharedUI's profileNameErrorText. The length
 /// bound matches MAX_NAME_LENGTH in the shared ProfileFormState.
 private func nameErrorText(_ error: ProfileNameError) -> String {
     switch error {
-    case .required: return "Name is required"
-    case .tooLong: return "Name must be at most 50 characters"
-    case .invalidChars: return "Name must contain only letters"
-    default: return "Invalid name"
+    case .required: return L10n.nameRequired
+    case .tooLong: return L10n.profileNameTooLong(50)
+    case .invalidChars: return L10n.profileNameLettersOnly
+    default: return L10n.profileNameInvalid
     }
 }
 
@@ -29,7 +32,7 @@ struct ProfileFormView: View {
     @State private var uiState: ProfileFormUiState
     @FocusState private var focusedField: ProfileFormField?
 
-    init(initial: Profile? = nil, saveLabel: String = "Save", onSaved: @escaping () -> Void = {}) {
+    init(initial: Profile? = nil, saveLabel: String = L10n.save, onSaved: @escaping () -> Void = {}) {
         let state = ProfileFormState(initial: initial)
         _formState = State(initialValue: state)
         _uiState = State(initialValue: state.uiState.value)
@@ -40,7 +43,7 @@ struct ProfileFormView: View {
     var body: some View {
         Form {
             Section {
-                TextField("Name", text: Binding(
+                TextField(L10n.name, text: Binding(
                     get: { uiState.name },
                     set: { formState.updateName(value: $0) }
                 ))
@@ -52,7 +55,7 @@ struct ProfileFormView: View {
                         .foregroundStyle(.red)
                 }
 
-                TextField("Age", text: Binding(
+                TextField(L10n.age, text: Binding(
                     get: { uiState.age },
                     set: { formState.updateAge(value: $0) }
                 ))
@@ -61,29 +64,29 @@ struct ProfileFormView: View {
 
                 if uiState.ageError {
                     // Bounds match MIN_AGE/MAX_AGE in the shared ProfileFormState.
-                    Text("Age must be between 1 and 120")
+                    Text(L10n.profileAgeRange(1, 120))
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
 
-                Picker("Gender", selection: Binding(
+                Picker(L10n.gender, selection: Binding(
                     get: { uiState.gender ?? "" },
                     set: { formState.updateGender(value: $0) }
                 )) {
-                    Text("Select").tag("")
+                    Text(L10n.select).tag("")
                     ForEach(genderOptions, id: \.self) { option in
                         Text(option).tag(option)
                     }
                 }
 
-                TextField("Weight (kg)", text: Binding(
+                TextField(L10n.weightKgLabel, text: Binding(
                     get: { uiState.weight },
                     set: { formState.updateWeight(value: $0) }
                 ))
                 .keyboardType(.decimalPad)
                 .focused($focusedField, equals: .weight)
 
-                TextField("Height (cm)", text: Binding(
+                TextField(L10n.heightCmLabel, text: Binding(
                     get: { uiState.height },
                     set: { formState.updateHeight(value: $0) }
                 ))
@@ -101,7 +104,7 @@ struct ProfileFormView: View {
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button("Done") {
+                Button(L10n.done) {
                     focusedField = nil
                 }
             }

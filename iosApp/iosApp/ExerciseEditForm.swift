@@ -31,54 +31,54 @@ struct ExerciseEditForm: View {
     var body: some View {
         Form {
             Section {
-                TextField("Name", text: Binding(
+                TextField(L10n.name, text: Binding(
                     get: { uiState.name },
                     set: { formState.updateName(value: $0) }
                 ))
 
                 if uiState.nameError {
-                    Text("Name is required")
+                    Text(L10n.nameRequired)
                         .font(.caption)
                         .foregroundStyle(.red)
                 } else if uiState.duplicateNameError {
-                    Text("An exercise with this name already exists")
+                    Text(L10n.duplicateExerciseName)
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
 
-                Picker("Type", selection: Binding(
+                Picker(L10n.exerciseType, selection: Binding(
                     get: { uiState.exerciseType ?? "" },
                     set: { formState.updateExerciseType(value: $0) }
                 )) {
-                    Text("Select").tag("")
+                    Text(L10n.select).tag("")
                     ForEach(exerciseTypeOptions, id: \.self) { option in
-                        Text(option.firstCapitalized).tag(option)
+                        Text(L10n.exerciseCatalogLabel(option)).tag(option)
                     }
                 }
 
-                Picker("Body part", selection: Binding(
+                Picker(L10n.bodyPart, selection: Binding(
                     get: { uiState.bodyPart ?? "" },
                     set: { formState.updateBodyPart(value: $0) }
                 )) {
-                    Text("Select").tag("")
+                    Text(L10n.select).tag("")
                     ForEach(bodyPartOptions, id: \.self) { option in
-                        Text(option.firstCapitalized).tag(option)
+                        Text(L10n.exerciseCatalogLabel(option)).tag(option)
                     }
                 }
 
-                Picker("Equipment", selection: Binding(
+                Picker(L10n.equipment, selection: Binding(
                     get: { uiState.equipment ?? "" },
                     set: { formState.updateEquipment(value: $0) }
                 )) {
-                    Text("Select").tag("")
+                    Text(L10n.select).tag("")
                     ForEach(equipmentOptions, id: \.self) { option in
-                        Text(option.firstCapitalized).tag(option)
+                        Text(L10n.exerciseCatalogLabel(option)).tag(option)
                     }
                 }
             }
 
             Section {
-                Button("Save") {
+                Button(L10n.save) {
                     formState.save(onSaved: onDone)
                 }
                 .disabled(uiState.saving)

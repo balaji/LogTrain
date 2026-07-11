@@ -46,17 +46,17 @@ struct ExercisesView: View {
         Group {
             if exercises != nil {
                 if filtered.isEmpty {
-                    ContentUnavailableView("No exercises match your filters.", systemImage: "magnifyingglass")
+                    ContentUnavailableView(L10n.noExercisesMatch, systemImage: "magnifyingglass")
                 } else {
                     List {
                         if customFiltered.isEmpty {
                             exerciseRows(filtered)
                         } else {
-                            Section("My Exercises") {
+                            Section(L10n.myExercises) {
                                 exerciseRows(customFiltered)
                             }
                             if !builtinFiltered.isEmpty {
-                                Section("All Exercises") {
+                                Section(L10n.allExercises) {
                                     exerciseRows(builtinFiltered)
                                 }
                             }
@@ -70,43 +70,43 @@ struct ExercisesView: View {
         .navigationDestination(for: Int64.self) { id in
             ExerciseDetailView(exerciseId: id)
         }
-        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search exercises")
+        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: Text(L10n.searchExercises))
         .toolbar {
             if onExerciseSelected == nil {
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Add") {
+                    Button(L10n.add) {
                         showingCreateSheet = true
                     }
-                    .accessibilityLabel("Add Exercise")
+                    .accessibilityLabel(L10n.addExercise)
                 }
                 ToolbarSpacer(.fixed, placement: .primaryAction)
             }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
-                    Menu("Body part") {
-                        Button("Any") { selectedBodyPart = nil }
+                    Menu(L10n.bodyPart) {
+                        Button(L10n.any) { selectedBodyPart = nil }
                         ForEach(bodyParts, id: \.self) { option in
                             Button {
                                 selectedBodyPart = option
                             } label: {
                                 if selectedBodyPart == option {
-                                    Label(option, systemImage: "checkmark")
+                                    Label(L10n.exerciseCatalogLabel(option), systemImage: "checkmark")
                                 } else {
-                                    Text(option)
+                                    Text(L10n.exerciseCatalogLabel(option))
                                 }
                             }
                         }
                     }
-                    Menu("Equipment") {
-                        Button("Any") { selectedEquipment = nil }
+                    Menu(L10n.equipment) {
+                        Button(L10n.any) { selectedEquipment = nil }
                         ForEach(equipmentOptions, id: \.self) { option in
                             Button {
                                 selectedEquipment = option
                             } label: {
                                 if selectedEquipment == option {
-                                    Label(option, systemImage: "checkmark")
+                                    Label(L10n.exerciseCatalogLabel(option), systemImage: "checkmark")
                                 } else {
-                                    Text(option)
+                                    Text(L10n.exerciseCatalogLabel(option))
                                 }
                             }
                         }
@@ -122,20 +122,20 @@ struct ExercisesView: View {
         .sheet(isPresented: $showingCreateSheet) {
             ExerciseCreateView()
         }
-        .alert("Delete exercise?", isPresented: Binding(
+        .alert(L10n.deleteExerciseTitle, isPresented: Binding(
             get: { deleteTarget != nil },
             set: { if !$0 { deleteTarget = nil } }
         ), presenting: deleteTarget) { exercise in
-            Button("Delete", role: .destructive) { delete(exercise) }
-            Button("Cancel", role: .cancel) {}
+            Button(L10n.delete, role: .destructive) { delete(exercise) }
+            Button(L10n.cancel, role: .cancel) {}
         } message: { exercise in
-            Text("\"\(exercise.name)\" will be permanently deleted.")
+            Text(L10n.deleteExerciseMessage(exercise.name))
         }
-        .alert("Can't delete", isPresented: Binding(
+        .alert(L10n.cannotDelete, isPresented: Binding(
             get: { deleteErrorMessage != nil },
             set: { if !$0 { deleteErrorMessage = nil } }
         )) {
-            Button("OK") { deleteErrorMessage = nil }
+            Button(L10n.ok) { deleteErrorMessage = nil }
         } message: {
             Text(deleteErrorMessage ?? "")
         }
@@ -168,7 +168,7 @@ struct ExercisesView: View {
                 // browsing (not while picking an exercise for a workout).
                 if !exercise.builtin && onExerciseSelected == nil {
                     Button(role: .destructive) { deleteTarget = exercise } label: {
-                        Label("Delete", systemImage: "trash")
+                        Label(L10n.delete, systemImage: "trash")
                     }
                 }
             }
@@ -180,8 +180,7 @@ struct ExercisesView: View {
             do {
                 let error = try await ExerciseRepository.shared.delete(id: exercise.id)
                 if error == .inUse {
-                    deleteErrorMessage =
-                        "\"\(exercise.name)\" is used by a routine or workout history and can't be deleted."
+                    deleteErrorMessage = L10n.exerciseInUse(exercise.name)
                 }
             } catch {
                 deleteErrorMessage = error.localizedDescription
@@ -206,11 +205,11 @@ private struct ExerciseCreateView: View {
     var body: some View {
         NavigationStack {
             ExerciseEditForm(uiState: uiState, formState: formState, onDone: { dismiss() })
-                .navigationTitle("New Exercise")
+                .navigationTitle(L10n.newExercise)
                 .toolbarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { dismiss() }
+                        Button(L10n.cancel) { dismiss() }
                     }
                 }
         }
@@ -229,7 +228,7 @@ private struct ExerciseRowLabel: View {
         VStack(alignment: .leading) {
             Text(exercise.name)
             let details = [exercise.bodyPart, exercise.equipment].compactMap { $0 }
-                .map(\.firstCapitalized)
+                .map(L10n.exerciseCatalogLabel)
             if !details.isEmpty {
                 Text(details.joined(separator: " • "))
                     .font(.caption)

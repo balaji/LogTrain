@@ -17,7 +17,7 @@ struct ExerciseDetailView: View {
     }
 
     private var searchUrl: URL? {
-        let query = "Describe the exercise \(uiState.name)"
+        let query = L10n.describeExerciseQuery(uiState.name)
             .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         return URL(string: "https://google.com/search?q=\(query)")
     }
@@ -32,7 +32,7 @@ struct ExerciseDetailView: View {
                 List {
                     if let searchUrl {
                         Section {
-                            Button("Search in Google") { showingSearch = true }
+                            Button(L10n.searchInGoogle) { showingSearch = true }
                         }
                         .sheet(isPresented: $showingSearch) {
                             SafariView(url: searchUrl)
@@ -41,21 +41,21 @@ struct ExerciseDetailView: View {
                     }
 
                     Section {
-                        LabeledContent("Type", value: uiState.exerciseType?.firstCapitalized ?? "—")
-                        LabeledContent("Body part", value: uiState.bodyPart?.firstCapitalized ?? "—")
-                        LabeledContent("Equipment", value: uiState.equipment?.firstCapitalized ?? "—")
+                        LabeledContent(L10n.exerciseType, value: uiState.exerciseType.map(L10n.exerciseCatalogLabel) ?? "—")
+                        LabeledContent(L10n.bodyPart, value: uiState.bodyPart.map(L10n.exerciseCatalogLabel) ?? "—")
+                        LabeledContent(L10n.equipment, value: uiState.equipment.map(L10n.exerciseCatalogLabel) ?? "—")
                     }
                 }
                 .toolbar {
                     if !uiState.builtin {
                         ToolbarItem(placement: .primaryAction) {
-                            Button("Edit") { editing = true }
+                            Button(L10n.edit) { editing = true }
                         }
                     }
                 }
             }
         }
-        .navigationTitle(uiState.name.isEmpty ? "Exercise" : uiState.name)
+        .navigationTitle(uiState.name.isEmpty ? L10n.exercise : uiState.name)
         .toolbarTitleDisplayMode(.inline)
         .task {
             for await state in formState.uiState {

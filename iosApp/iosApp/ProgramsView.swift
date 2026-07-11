@@ -11,36 +11,36 @@ import SharedUI
 
 private func sampleName(_ sample: SampleProgram) -> String {
     switch sample.id {
-    case "full-body-3day": return "3 Day Full Body"
-    case "upper-lower-4day": return "4 Day Upper Lower"
-    case "push-pull-legs-5day": return "5 Day Push Pull Legs"
+    case "full-body-3day": return L10n.sampleFullBody3DayName
+    case "upper-lower-4day": return L10n.sampleUpperLower4DayName
+    case "push-pull-legs-5day": return L10n.samplePushPullLegs5DayName
     default: return sample.id
     }
 }
 
 private func sampleSummary(_ sample: SampleProgram) -> String {
     switch sample.id {
-    case "full-body-3day": return "Three full-body sessions a week. The simplest way to start."
-    case "upper-lower-4day": return "Two upper-body and two lower-body days, alternating through the week."
-    case "push-pull-legs-5day": return "A push, pull and legs split, then an upper and lower day to finish the week."
+    case "full-body-3day": return L10n.sampleFullBody3DaySummary
+    case "upper-lower-4day": return L10n.sampleUpperLower4DaySummary
+    case "push-pull-legs-5day": return L10n.samplePushPullLegs5DaySummary
     default: return sample.id
     }
 }
 
 private func sampleRoutineName(_ routine: SampleRoutine) -> String {
     switch routine.id {
-    case "full-body-a": return "Full Body A"
-    case "full-body-b": return "Full Body B"
-    case "full-body-c": return "Full Body C"
-    case "upper-a": return "Upper A"
-    case "lower-a": return "Lower A"
-    case "upper-b": return "Upper B"
-    case "lower-b": return "Lower B"
-    case "push": return "Push"
-    case "pull": return "Pull"
-    case "legs": return "Legs"
-    case "upper": return "Upper"
-    case "lower": return "Lower"
+    case "full-body-a": return L10n.sampleRoutineFullBodyA
+    case "full-body-b": return L10n.sampleRoutineFullBodyB
+    case "full-body-c": return L10n.sampleRoutineFullBodyC
+    case "upper-a": return L10n.sampleRoutineUpperA
+    case "lower-a": return L10n.sampleRoutineLowerA
+    case "upper-b": return L10n.sampleRoutineUpperB
+    case "lower-b": return L10n.sampleRoutineLowerB
+    case "push": return L10n.sampleRoutinePush
+    case "pull": return L10n.sampleRoutinePull
+    case "legs": return L10n.sampleRoutineLegs
+    case "upper": return L10n.sampleRoutineUpper
+    case "lower": return L10n.sampleRoutineLower
     default: return routine.id
     }
 }
@@ -68,17 +68,17 @@ private enum TextPrompt: Identifiable {
 
     var title: String {
         switch self {
-        case .newProgram: return "New program"
-        case .renameProgram: return "Rename program"
-        case .newRoutine: return "New routine"
-        case .renameRoutine: return "Rename routine"
+        case .newProgram: return L10n.newProgram
+        case .renameProgram: return L10n.renameProgram
+        case .newRoutine: return L10n.newRoutine
+        case .renameRoutine: return L10n.renameRoutine
         }
     }
 
     var confirmLabel: String {
         switch self {
-        case .newProgram, .newRoutine: return "Create"
-        case .renameProgram, .renameRoutine: return "Save"
+        case .newProgram, .newRoutine: return L10n.create
+        case .renameProgram, .renameRoutine: return L10n.save
         }
     }
 }
@@ -96,15 +96,15 @@ private enum DeleteTarget: Identifiable {
 
     var title: String {
         switch self {
-        case .program: return "Delete program?"
-        case .routine: return "Delete routine?"
+        case .program: return L10n.deleteProgramTitle
+        case .routine: return L10n.deleteRoutineTitle
         }
     }
 
     var message: String {
         switch self {
-        case .program(let program): return "\"\(program.name)\" and all of its routines will be deleted."
-        case .routine(let routine): return "\"\(routine.name)\" will be deleted."
+        case .program(let program): return L10n.deleteProgramMessage(program.name)
+        case .routine(let routine): return L10n.deleteRoutineMessage(routine.name)
         }
     }
 }
@@ -134,7 +134,7 @@ struct ProgramsView: View {
             // Split from the navigation chrome below at an explicit `some View`
             // boundary: as one chain, body took over 11s to type-check.
             listWithAlerts
-            .navigationTitle("Programs")
+            .navigationTitle(L10n.programsTitle)
             .navigationBarTitleDisplayMode(.inline)
             .profileToolbar()
             .scrollBounceBehavior(.basedOnSize)
@@ -179,8 +179,8 @@ struct ProgramsView: View {
             if let programs {
                 List {
                     Section {
-                        NavigationLink(value: WorkoutSessionTarget(routineId: 0, title: "Empty workout")) {
-                            Text("Start Empty Workout")
+                        NavigationLink(value: WorkoutSessionTarget(routineId: 0, title: L10n.emptyWorkoutTitle)) {
+                            Text(L10n.startEmptyWorkout)
                         }
                     }
                     userProgramsSection(programs)
@@ -194,45 +194,45 @@ struct ProgramsView: View {
             get: { prompt != nil },
             set: { if !$0 { prompt = nil } }
         ), presenting: prompt) { current in
-            TextField("Name", text: Binding(
+            TextField(L10n.name, text: Binding(
                 get: { promptText },
                 set: { promptText = FormValidationKt.filterProgramName(value: $0) }
             ))
             Button(current.confirmLabel) { submit(current) }
                 .disabled(promptText.trimmingCharacters(in: .whitespaces).isEmpty)
-            Button("Cancel", role: .cancel) {}
+            Button(L10n.cancel, role: .cancel) {}
         }
         .alert(deleteTarget?.title ?? "", isPresented: Binding(
             get: { deleteTarget != nil },
             set: { if !$0 { deleteTarget = nil } }
         ), presenting: deleteTarget) { target in
-            Button("Delete", role: .destructive) { delete(target) }
-            Button("Cancel", role: .cancel) {}
+            Button(L10n.delete, role: .destructive) { delete(target) }
+            Button(L10n.cancel, role: .cancel) {}
         } message: { target in
             Text(target.message)
         }
-        .alert("Add to your programs?", isPresented: Binding(
+        .alert(L10n.addSampleTitle, isPresented: Binding(
             get: { copyTarget != nil },
             set: { if !$0 { copyTarget = nil } }
         ), presenting: copyTarget) { sample in
-            Button("Add") { copy(sample) }
-            Button("Cancel", role: .cancel) {}
+            Button(L10n.add) { copy(sample) }
+            Button(L10n.cancel, role: .cancel) {}
         } message: { sample in
-            Text("\"\(sampleName(sample))\" will be copied into your programs, where you can edit it.")
+            Text(L10n.addSampleMessage(sampleName(sample)))
         }
         .alert(routineInfo.map(sampleRoutineName) ?? "", isPresented: Binding(
             get: { routineInfo != nil },
             set: { if !$0 { routineInfo = nil } }
         ), presenting: routineInfo) { _ in
-            Button("OK") { routineInfo = nil }
+            Button(L10n.ok) { routineInfo = nil }
         } message: { routine in
             Text(routine.workSets.map { "\($0.exerciseName) — \($0.repsSummary)" }.joined(separator: "\n"))
         }
-        .alert("Something went wrong", isPresented: Binding(
+        .alert(L10n.somethingWentWrong, isPresented: Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
         )) {
-            Button("OK") { errorMessage = nil }
+            Button(L10n.ok) { errorMessage = nil }
         } message: {
             Text(errorMessage ?? "")
         }
@@ -240,9 +240,9 @@ struct ProgramsView: View {
 
     @ViewBuilder
     private func userProgramsSection(_ programs: [Program]) -> some View {
-        Section("My Programs") {
+        Section(L10n.myPrograms) {
             if programs.isEmpty {
-                Text("No programs yet. Tap + to create one.")
+                Text(L10n.noProgramsYet)
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(programs, id: \.id) { program in
@@ -254,7 +254,7 @@ struct ProgramsView: View {
 
     @ViewBuilder
     private var sampleProgramsSection: some View {
-        Section("Sample Programs") {
+        Section(L10n.samplePrograms) {
             ForEach(samplePrograms, id: \.id) { sample in
                 sampleRows(sample)
             }
@@ -278,20 +278,20 @@ struct ProgramsView: View {
         }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) { deleteTarget = .program(program) } label: {
-                Label("Delete", systemImage: "trash")
+                Label(L10n.delete, systemImage: "trash")
             }
             Button {
                 promptText = program.name
                 prompt = .renameProgram(program)
             } label: {
-                Label("Rename", systemImage: "pencil")
+                Label(L10n.rename, systemImage: "pencil")
             }.tint(.blue)
         }
 
         if expandedProgramId == program.id {
             let programRoutines = routinesByProgram[program.id] ?? []
             if programRoutines.isEmpty {
-                Text("No routines yet. Tap + to add one.")
+                Text(L10n.noRoutinesYet)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
@@ -301,13 +301,13 @@ struct ProgramsView: View {
                     }
                     .swipeActions(edge: .trailing) {
                         Button(role: .destructive) { deleteTarget = .routine(routine) } label: {
-                            Label("Delete", systemImage: "trash")
+                            Label(L10n.delete, systemImage: "trash")
                         }
                         Button {
                             promptText = routine.name
                             prompt = .renameRoutine(routine)
                         } label: {
-                            Label("Rename", systemImage: "pencil")
+                            Label(L10n.rename, systemImage: "pencil")
                         }.tint(.blue)
                     }
                 }
@@ -316,7 +316,7 @@ struct ProgramsView: View {
                 promptText = ""
                 prompt = .newRoutine(program)
             } label: {
-                Label("Add Routine", systemImage: "plus")
+                Label(L10n.addRoutine, systemImage: "plus")
             }
         }
     }
@@ -332,7 +332,7 @@ struct ProgramsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(sampleName(sample))
                         .foregroundStyle(Color.primary)
-                    Text("\(sample.daysPerWeek) days a week · \(sampleSummary(sample))")
+                    Text(L10n.sampleDaysSummary(Int(sample.daysPerWeek), sampleSummary(sample)))
                         .font(.caption)
                         .foregroundStyle(Color.secondary)
                 }
@@ -353,7 +353,7 @@ struct ProgramsView: View {
                         Text(sampleRoutineName(routine))
                             .foregroundStyle(Color.primary)
                         Spacer()
-                        Text("\(routine.workSets.count) exercises")
+                        Text(L10n.exerciseCount(routine.workSets.count))
                             .font(.caption)
                             .foregroundStyle(Color.secondary)
                     }
@@ -363,7 +363,7 @@ struct ProgramsView: View {
             Button {
                 copyTarget = sample
             } label: {
-                Label("Copy to my programs", systemImage: "plus")
+                Label(L10n.copyToMyPrograms, systemImage: "plus")
             }
         }
     }
