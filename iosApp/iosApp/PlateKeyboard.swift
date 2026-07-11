@@ -21,7 +21,7 @@ struct PlateKeypadView: View {
         setIndex: -1
     )
 
-    private var unitSuffix: String { state.unit == .imperial ? "lb" : "kg" }
+    private var unitSuffix: String { state.unit == .imperial ? L10n.unitLb : L10n.unitKg }
 
     /// Blue ramp, lightest to strongest, one step per plate denomination
     /// (there are always exactly 7). Assigned by rank within the full plate
@@ -100,7 +100,7 @@ struct PlateKeypadView: View {
             Button {
                 keyboard.setNumericMode(numeric: true)
             } label: {
-                Text("123")
+                Text(L10n.plateUseNumeric)
                     .font(.body.weight(.medium))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 48)
@@ -120,7 +120,7 @@ struct PlateKeypadView: View {
                     }
                 } label: {
                     HStack(spacing: 4) {
-                        Text("Bar \(PlateMath.shared.formatWeight(value: state.barWeight)) \(unitSuffix)")
+                        Text("\(L10n.plateBar) \(PlateMath.shared.formatWeight(value: state.barWeight)) \(unitSuffix)")
                         Image(systemName: "chevron.up.chevron.down")
                             .font(.caption2)
                     }
@@ -140,7 +140,7 @@ struct PlateKeypadView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 4) {
                     if state.plateBreakdown.isEmpty {
-                        Text("per side")
+                        Text(L10n.platePerSide)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {
@@ -261,7 +261,7 @@ struct PlateWeightField: UIViewRepresentable {
         func makeAccessory() -> UIToolbar {
             let toolbar = UIToolbar(frame: CGRect(x: 0, y: 0, width: 320, height: 44))
             let toggle = UIBarButtonItem(
-                title: "Plates",
+                title: L10n.plateUsePlates,
                 style: .plain,
                 target: self,
                 action: #selector(toggleMode)

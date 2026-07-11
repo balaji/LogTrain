@@ -2,8 +2,8 @@ import SwiftUI
 import SharedUI
 
 private let weekNumberWidth: CGFloat = 32
-private let weekdayLabelsSundayFirst = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-private let weekdayLabelsMondayFirst = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+private let weekdayLabelsSundayFirst = L10n.weekdaysShortSundayFirst
+private let weekdayLabelsMondayFirst = L10n.weekdaysShortMondayFirst
 
 struct CalendarView: View {
     @State private var model: CalendarModel?
@@ -22,7 +22,7 @@ struct CalendarView: View {
                 ProgressView()
             }
         }
-        .navigationTitle("History")
+        .navigationTitle(L10n.tabHistory)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -30,7 +30,7 @@ struct CalendarView: View {
                 } label: {
                     Image(systemName: showingSessionList ? "calendar" : "list.bullet")
                 }
-                .accessibilityLabel(showingSessionList ? "Show calendar" : "Show workout history")
+                .accessibilityLabel(showingSessionList ? L10n.showCalendar : L10n.showWorkoutHistory)
             }
         }
         .navigationDestination(for: Int64.self) { epochDay in
@@ -77,7 +77,7 @@ struct CalendarView: View {
     private var weekdayHeader: some View {
         let labels = weekStartsMonday ? weekdayLabelsMondayFirst : weekdayLabelsSundayFirst
         return HStack(spacing: 0) {
-            Text("Wk")
+            Text(L10n.weekNumberAbbrev)
                 .frame(width: weekNumberWidth)
             ForEach(labels, id: \.self) { label in
                 Text(label)
@@ -109,12 +109,11 @@ private struct WeekRowView: View {
     }
 }
 
-/// English month abbreviation for a 1-based month; the shared calendar model
+/// Month abbreviation for a 1-based month; the shared calendar model
 /// only carries the month number. Mirrors sharedUI's monthAbbreviation.
 private func monthAbbreviation(_ monthOfYear: Int32) -> String {
-    let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     let index = Int(monthOfYear) - 1
-    return months.indices.contains(index) ? months[index] : " "
+    return L10n.monthsShort.indices.contains(index) ? L10n.monthsShort[index] : " "
 }
 
 private struct DayCellView: View {
@@ -169,7 +168,7 @@ private struct CompletedSessionListView: View {
         Group {
             if let days {
                 if days.isEmpty {
-                    ContentUnavailableView("No completed workouts", systemImage: "figure.strengthtraining.traditional")
+                    ContentUnavailableView(L10n.noCompletedWorkouts, systemImage: "figure.strengthtraining.traditional")
                 } else {
                     List(days, id: \.epochDay) { day in
                         NavigationLink(value: day.epochDay) {

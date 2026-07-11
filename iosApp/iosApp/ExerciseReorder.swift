@@ -60,7 +60,7 @@ struct ExerciseReorderOverlay: View {
         let columnShift = anchoredTop - model.listTop
 
         VStack(alignment: .leading, spacing: 0) {
-            Text("Reorder exercises")
+            Text(L10n.reorderExercises)
                 .font(.headline)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)

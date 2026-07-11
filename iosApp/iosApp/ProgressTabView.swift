@@ -56,28 +56,28 @@ struct ProgressTabView: View {
                 Button {
                     showLogWeight = true
                 } label: {
-                    Label("Log weight", systemImage: "scalemass")
+                    Label(L10n.logWeight, systemImage: "scalemass")
                 }
             }
         }
-        .alert("Log body weight", isPresented: $showLogWeight) {
-            TextField("Weight (\(unitLabel(uiState.weightUnit)))", text: $weightText)
+        .alert(L10n.logBodyWeight, isPresented: $showLogWeight) {
+            TextField("\(L10n.weight) (\(unitLabel(uiState.weightUnit)))", text: $weightText)
                 .keyboardType(.decimalPad)
-            Button("Save") {
+            Button(L10n.save) {
                 state.logWeight(text: weightText)
                 weightText = ""
             }
-            Button("Cancel", role: .cancel) { weightText = "" }
+            Button(L10n.cancel, role: .cancel) { weightText = "" }
         }
     }
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label("No progress yet", systemImage: "chart.line.uptrend.xyaxis")
+            Label(L10n.noProgressYet, systemImage: "chart.line.uptrend.xyaxis")
         } description: {
-            Text("Insights appear after your first completed workout or logged weight.")
+            Text(L10n.progressEmptyHint)
         } actions: {
-            Button("Log body weight") { showLogWeight = true }
+            Button(L10n.logBodyWeight) { showLogWeight = true }
         }
     }
 
@@ -86,16 +86,16 @@ struct ProgressTabView: View {
             Section {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Body weight")
+                        Text(L10n.bodyWeight)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         Text(uiState.latestBodyWeight.isEmpty
-                            ? "Not logged yet"
+                            ? L10n.notLoggedYet
                             : "\(uiState.latestBodyWeight) \(unitLabel(uiState.weightUnit))")
                             .font(.headline)
                     }
                     Spacer()
-                    Button("Log weight") { showLogWeight = true }
+                    Button(L10n.logWeight) { showLogWeight = true }
                         .buttonStyle(.bordered)
                 }
             }
@@ -134,7 +134,7 @@ struct ProgressTabView: View {
                         Button {
                             state.addProgressionCard(exercise: unused)
                         } label: {
-                            Label("Add comparison", systemImage: "plus")
+                            Label(L10n.insightAddComparison, systemImage: "plus")
                         }
                     }
                 }
@@ -191,10 +191,10 @@ struct ProgressTabView: View {
 
 private let progressionKinds: Set<String> = ["progression", "plateau", "progression_multi"]
 
-/// English label for the stored weights' unit; the shared logic only exposes
+/// Localized label for the stored weights' unit; the shared logic only exposes
 /// the `WeightUnit` enum. Mirrors sharedUI's `weightUnitLabel`.
 private func unitLabel(_ unit: WeightUnit) -> String {
-    unit == .imperial ? "lb" : "kg"
+    unit == .imperial ? L10n.unitLb : L10n.unitKg
 }
 
 /// Completed sets per primary body part as a pie plus legend; mirrors
@@ -231,18 +231,18 @@ private struct BodyPartBreakdownCard: View {
         let colors = colorScheme == .dark ? Self.darkColors : Self.lightColors
         let shown = slices.count > Self.maxSlices ? Array(slices.prefix(Self.maxSlices - 1)) : slices
         var result = shown.enumerated().map { i, slice in
-            Entry(label: slice.bodyPart.firstCapitalized, color: colors[i], setCount: Int(slice.setCount))
+            Entry(label: L10n.exerciseCatalogLabel(slice.bodyPart), color: colors[i], setCount: Int(slice.setCount))
         }
         let rest = total - shown.reduce(0) { $0 + Int($1.setCount) }
         if rest > 0 {
-            result.append(Entry(label: "Other", color: Self.otherColor, setCount: rest))
+            result.append(Entry(label: L10n.bodyPartOther, color: Self.otherColor, setCount: rest))
         }
         return result
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Body part focus")
+            Text(L10n.insightTitleBodyParts)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             HStack(spacing: 16) {
@@ -271,7 +271,7 @@ private struct BodyPartBreakdownCard: View {
             Text(entry.label)
                 .font(.subheadline)
             Spacer()
-            Text("\(entry.setCount) sets · \(percent(entry))%")
+            Text(L10n.insightBodyPartShare("\(entry.setCount)", "\(percent(entry))"))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -292,24 +292,24 @@ private extension Color {
     }
 }
 
-/// English templates for the language-neutral headline/detail keys the
+/// Localized templates for the language-neutral headline/detail keys the
 /// shared logic emits; mirrors sharedUI's insightHeadline/insightDetail.
 private func insightText(_ key: String, _ args: [String], _ unit: String) -> String {
     switch key {
-    case "volume_this_week": return "\(args[0]) \(unit) this week"
-    case "streak_weeks": return "\(args[0])-week streak"
-    case "no_streak": return "No active streak"
-    case "plateau_at": return "Plateau at ~\(args[0]) \(unit)"
-    case "est_1rm": return "Est. 1RM \(args[0]) \(unit)"
-    case "latest_body_weight": return "\(args[0]) \(unit)"
-    case "pct_vs_4_week_avg": return "\(args[0])% vs 4-week average"
-    case "sets_in_sessions": return "\(args[0]) sets in \(args[1]) sessions"
-    case "workouts_30_days": return "\(args[0]) workouts in the last 30 days"
-    case "workouts_30_days_longest": return "\(args[0]) workouts in the last 30 days · longest streak \(args[1]) weeks"
-    case "flat_across_weeks": return "Est. 1RM flat across \(args[0]) weeks"
-    case "slope_per_week": return "\(args[0]) \(unit)/week over \(args[1]) weeks"
-    case "change_30_days": return "\(args[0]) \(unit) in 30 days"
-    case "log_regularly": return "Log regularly to see your trend"
+    case "volume_this_week": return L10n.insightVolumeThisWeek(args[0], unit)
+    case "streak_weeks": return L10n.insightStreakWeeks(args[0])
+    case "no_streak": return L10n.insightNoStreak
+    case "plateau_at": return L10n.insightPlateauAt(args[0], unit)
+    case "est_1rm": return L10n.insightEst1Rm(args[0], unit)
+    case "latest_body_weight": return L10n.insightLatestBodyWeight(args[0], unit)
+    case "pct_vs_4_week_avg": return L10n.insightPctVs4WeekAvg(args[0])
+    case "sets_in_sessions": return L10n.insightSetsInSessions(args[0], args[1])
+    case "workouts_30_days": return L10n.insightWorkouts30Days(args[0])
+    case "workouts_30_days_longest": return L10n.insightWorkouts30DaysLongest(args[0], args[1])
+    case "flat_across_weeks": return L10n.insightFlatAcrossWeeks(args[0])
+    case "slope_per_week": return L10n.insightSlopePerWeek(args[0], unit, args[1])
+    case "change_30_days": return L10n.insightChange30Days(args[0], unit)
+    case "log_regularly": return L10n.insightLogRegularly
     // An unknown key means sharedLogic is newer than this view; show the
     // bare values rather than nothing.
     default: return args.joined(separator: " ")
@@ -351,7 +351,7 @@ private struct InsightNarrationView: View {
                 .foregroundStyle(.tint)
                 .padding(.top, 2)
             if narration.status == "loading" {
-                Text("Reading your training data and writing a note about this trend.")
+                Text(L10n.insightNarrationLoading)
                     .font(.footnote)
                     .redacted(reason: .placeholder)
                     .opacity(pulse ? 0.4 : 0.9)
@@ -415,9 +415,9 @@ private struct InsightCardView: View {
 
     private var title: String {
         switch card.kind {
-        case "volume": return "Weekly volume"
-        case "frequency": return "Consistency"
-        case "body_weight": return "Body weight"
+        case "volume": return L10n.insightTitleVolume
+        case "frequency": return L10n.insightTitleFrequency
+        case "body_weight": return L10n.bodyWeight
         // progression/plateau cards are titled by the exercise name.
         default: return card.exerciseName ?? ""
         }
@@ -586,9 +586,9 @@ private struct ProgressionCardView: View {
                         .font(.subheadline)
                         .lineLimit(1)
                     Spacer()
-                    Text("Est. 1RM \(formatStat(series.latest)) \(unit)")
+                    Text(L10n.insightEst1Rm(formatStat(series.latest), unit))
                         .font(.subheadline)
-                    Text("\(series.slopePerWeek >= 0 ? "+" : "")\(formatStat(series.slopePerWeek)) \(unit)/week")
+                    Text(L10n.insightSeriesSlope("\(series.slopePerWeek >= 0 ? "+" : "")\(formatStat(series.slopePerWeek))", unit))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -658,7 +658,7 @@ private struct ProgressionCardView: View {
 
     private var controls: some View {
         HStack {
-            Button("% change") { onToggleAxis() }
+            Button(L10n.insightAxisPctChange) { onToggleAxis() }
                 .font(.footnote)
                 .buttonStyle(.bordered)
                 .tint(card.showPctChange ? .accentColor : .secondary)

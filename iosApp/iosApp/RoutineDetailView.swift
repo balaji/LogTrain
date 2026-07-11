@@ -38,14 +38,14 @@ struct RoutineDetailView: View {
                     .zIndex(1)
             }
         }
-        .navigationTitle(uiState.name.isEmpty ? "Routine" : uiState.name)
+        .navigationTitle(uiState.name.isEmpty ? L10n.routine : uiState.name)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(isEditing && !isNew)
         .toolbar {
             if isEditing {
                 if !isNew {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") {
+                        Button(L10n.cancel) {
                             formState = RoutineFormState(routineId: routineId, initialName: nameBeforeEdit)
                             formVersion += 1
                             isEditing = false
@@ -56,9 +56,9 @@ struct RoutineDetailView: View {
                     if uiState.saving {
                         ProgressView()
                     } else {
-                        Button("Save") {
+                        Button(L10n.save) {
                             let trimmed = uiState.name.trimmingCharacters(in: .whitespaces)
-                            let savedName = trimmed.isEmpty ? "Routine" : trimmed
+                            let savedName = trimmed.isEmpty ? L10n.routine : trimmed
                             formState.save {
                                 formState = RoutineFormState(routineId: routineId, initialName: savedName)
                                 formVersion += 1
@@ -69,7 +69,7 @@ struct RoutineDetailView: View {
                 }
             } else {
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Edit") {
+                    Button(L10n.edit) {
                         nameBeforeEdit = uiState.name
                         isEditing = true
                     }
@@ -82,11 +82,11 @@ struct RoutineDetailView: View {
                     formState.addExercise(exercise: exercise)
                     showExercisePicker = false
                 })
-                .navigationTitle("Add Exercise")
+                .navigationTitle(L10n.addExercise)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { showExercisePicker = false }
+                        Button(L10n.cancel) { showExercisePicker = false }
                     }
                 }
             }
@@ -104,11 +104,11 @@ struct RoutineDetailView: View {
         ZStack(alignment: .bottomTrailing) {
             List {
                 if uiState.workSets.isEmpty {
-                    Text("No exercises yet. Tap Edit to add exercises.")
+                    Text(L10n.routineNoExercises)
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(Array(uiState.workSets.enumerated()), id: \.element.id) { _, workSet in
-                        Text("\(workSet.sets.count) x \(workSet.exercise.name)")
+                        Text(L10n.setsByExercise(workSet.sets.count, workSet.exercise.name))
                     }
                 }
             }
@@ -116,7 +116,7 @@ struct RoutineDetailView: View {
             if !uiState.workSets.isEmpty {
                 NavigationLink(value: WorkoutSessionTarget(
                     routineId: routineId,
-                    title: uiState.name.isEmpty ? "Workout" : uiState.name
+                    title: uiState.name.isEmpty ? L10n.workout : uiState.name
                 )) {
                     Image(systemName: "play.fill")
                         .font(.title2)
@@ -153,7 +153,7 @@ struct RoutineDetailView: View {
                     Button(role: .destructive) {
                         formState.removeExercise(workSetIndex: Int32(wsIndex))
                     } label: {
-                        Label("Delete", systemImage: "trash")
+                        Label(L10n.delete, systemImage: "trash")
                     }
                 }
             }
@@ -161,7 +161,7 @@ struct RoutineDetailView: View {
             Button {
                 showExercisePicker = true
             } label: {
-                Label("Add Exercise", systemImage: "plus")
+                Label(L10n.addExercise, systemImage: "plus")
             }
         }
         .scrollDisabled(reorder.activeIndex != nil)
@@ -202,11 +202,11 @@ private struct ExerciseCardView: View {
                 )
 
             HStack {
-                Text("SET")
+                Text(L10n.columnSet)
                     .frame(width: 28)
-                Text("KG")
+                Text(L10n.columnKg)
                     .frame(maxWidth: .infinity)
-                Text("REPS")
+                Text(L10n.columnReps)
                     .frame(maxWidth: .infinity)
                 Spacer().frame(width: 36)
             }
@@ -281,7 +281,7 @@ private struct ExerciseCardView: View {
             Button {
                 formState.addSet(workSetIndex: Int32(wsIndex))
             } label: {
-                Label("Add Set", systemImage: "plus")
+                Label(L10n.addSet, systemImage: "plus")
                     .font(.subheadline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 6)

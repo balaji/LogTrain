@@ -10,19 +10,19 @@ struct ProfileSetupView: View {
     var body: some View {
         if showForm {
             VStack {
-                Text("Create a Profile")
+                Text(L10n.createAProfile)
                     .font(.title2)
                     .padding(.top, 32)
-                ProfileFormView(saveLabel: "Create Profile")
+                ProfileFormView(saveLabel: L10n.createProfile)
             }
         } else {
             VStack(spacing: 8) {
-                Text("LogTrain")
+                Text(L10n.appName)
                     .font(.largeTitle)
-                Text("Track your workouts, all on your device.")
+                Text(L10n.appTagline)
                     .font(.body)
                     .foregroundStyle(.secondary)
-                Button("Create a Profile") {
+                Button(L10n.createAProfile) {
                     showForm = true
                 }
                 .padding(.top, 8)

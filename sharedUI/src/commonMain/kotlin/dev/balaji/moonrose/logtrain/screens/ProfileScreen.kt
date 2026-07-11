@@ -171,7 +171,7 @@ private fun SettingsSection() {
         OneRmCalculatorSheet(settings = current, onDismiss = { showOneRmCalculator = false })
     }
     HorizontalDivider()
-    SettingSwitchRow("Send notifications", current.notificationsEnabled) { enabled ->
+    SettingSwitchRow(stringResource(Res.string.send_notifications), current.notificationsEnabled) { enabled ->
         if (enabled) requestNotificationPermission()
         scope.launch { UserSettingsRepository.setNotificationsEnabled(enabled) }
     }
