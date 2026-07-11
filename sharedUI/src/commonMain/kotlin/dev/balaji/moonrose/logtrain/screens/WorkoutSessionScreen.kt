@@ -90,6 +90,8 @@ import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import dev.balaji.moonrose.logtrain.navigation.WorkoutSessionRoute
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import org.jetbrains.compose.resources.stringResource
+import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -141,19 +143,19 @@ fun WorkoutSessionScreen(route: WorkoutSessionRoute, onGoBack: () -> Unit) {
     if (showDiscardConfirm) {
         AlertDialog(
             onDismissRequest = { showDiscardConfirm = false },
-            title = { Text("Discard workout?") },
-            text = { Text("This workout and all logged sets will be deleted.") },
+            title = { Text(stringResource(Res.string.discard_workout_title)) },
+            text = { Text(stringResource(Res.string.discard_workout_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     showDiscardConfirm = false
                     formState.discard()
                 }) {
-                    Text("Discard", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(Res.string.discard), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDiscardConfirm = false }) {
-                    Text("Cancel")
+                    Text(stringResource(Res.string.cancel))
                 }
             },
         )
@@ -162,19 +164,19 @@ fun WorkoutSessionScreen(route: WorkoutSessionRoute, onGoBack: () -> Unit) {
     if (showNothingToSave) {
         AlertDialog(
             onDismissRequest = { showNothingToSave = false },
-            title = { Text("Nothing to save") },
-            text = { Text("There are no completed sets to save. Discard?") },
+            title = { Text(stringResource(Res.string.nothing_to_save_title)) },
+            text = { Text(stringResource(Res.string.nothing_to_save_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     showNothingToSave = false
                     formState.discard()
                 }) {
-                    Text("Yes", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(Res.string.yes), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showNothingToSave = false }) {
-                    Text("No")
+                    Text(stringResource(Res.string.no))
                 }
             },
         )
@@ -212,7 +214,7 @@ private fun WorkoutSessionShell(
                     },
                     navigationIcon = {
                         IconButton(onClick = onGoBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.back))
                         }
                     },
                     actions = {
@@ -220,7 +222,7 @@ private fun WorkoutSessionShell(
                             IconButton(onClick = onDiscard) {
                                 Icon(
                                     Icons.Default.Close,
-                                    contentDescription = "Discard workout",
+                                    contentDescription = stringResource(Res.string.discard_workout),
                                     tint = MaterialTheme.colorScheme.error,
                                 )
                             }
@@ -229,7 +231,7 @@ private fun WorkoutSessionShell(
                             IconButton(onClick = onFinish, enabled = finishEnabled) {
                                 Icon(
                                     Icons.Default.Check,
-                                    contentDescription = "Finish workout",
+                                    contentDescription = stringResource(Res.string.finish_workout),
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
                             }
@@ -303,7 +305,7 @@ private fun WorkoutSessionBody(
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(Modifier.width(4.dp))
-                        Text("ADD EXERCISE")
+                        Text(stringResource(Res.string.add_exercise_caps))
                     }
                 }
             }
@@ -379,7 +381,7 @@ private fun SessionReorderOverlay(
     ) {
         Column {
             Text(
-                "Reorder exercises",
+                stringResource(Res.string.reorder_exercises),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             )
@@ -499,7 +501,7 @@ private fun SessionExerciseCard(
             }) {
                 Icon(
                     Icons.Default.Delete,
-                    contentDescription = "Delete exercise",
+                    contentDescription = stringResource(Res.string.delete_exercise),
                     tint = MaterialTheme.colorScheme.onError,
                 )
             }
@@ -545,19 +547,19 @@ private fun SessionExerciseCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "SET",
+                    stringResource(Res.string.column_set),
                     modifier = Modifier.width(32.dp),
                     style = MaterialTheme.typography.labelSmall,
                     textAlign = TextAlign.Center,
                 )
                 Text(
-                    "KG",
+                    stringResource(Res.string.column_kg),
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelSmall,
                     textAlign = TextAlign.Center,
                 )
                 Text(
-                    "REPS",
+                    stringResource(Res.string.column_reps),
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelSmall,
                     textAlign = TextAlign.Center,
@@ -578,7 +580,7 @@ private fun SessionExerciseCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        if (set.warmup) "W" else "$workingSetNumber",
+                        if (set.warmup) stringResource(Res.string.warmup_marker) else "$workingSetNumber",
                         modifier = Modifier
                             .width(32.dp)
                             .clickable { onToggleWarmup(setIdx) }
@@ -621,7 +623,7 @@ private fun SessionExerciseCard(
                     ) {
                         Icon(
                             Icons.Default.Clear,
-                            contentDescription = "Remove set",
+                            contentDescription = stringResource(Res.string.remove_set),
                             modifier = Modifier.size(16.dp),
                             tint = if (exercise.sets.size > 1) {
                                 MaterialTheme.colorScheme.onSurfaceVariant
@@ -640,7 +642,7 @@ private fun SessionExerciseCard(
                     .padding(horizontal = 8.dp),
             ) {
                 Text(
-                    "ADD SET",
+                    stringResource(Res.string.add_set_caps),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )

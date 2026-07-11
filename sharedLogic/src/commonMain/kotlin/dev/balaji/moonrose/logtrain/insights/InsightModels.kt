@@ -1,43 +1,90 @@
 package dev.balaji.moonrose.logtrain.insights
 
-import dev.balaji.moonrose.logtrain.model.WeightUnit
-
 /*
  * Insight models are primitive-typed (Long/Int/Double/String) like the
  * calendar models: they cross the SKIE bridge to SwiftUI, where boxed
  * collection elements would surface as KotlinDouble. Weights are the raw
- * stored numbers with the user's unit preference applied as a label only,
- * matching the rest of the app.
+ * stored numbers; the user's unit preference is rendered as a label by each
+ * UI layer (the logic layer never produces display text for it).
  */
-
-/** Display label for the stored (unconverted) weight values. */
-val WeightUnit.label: String
-    get() = when (this) {
-        WeightUnit.METRIC -> "kg"
-        WeightUnit.IMPERIAL -> "lb"
-    }
 
 /** One point of a sparkline series. */
 data class SparkPoint(val epochDay: Long, val value: Double)
 
 /**
- * A self-contained card for the Progress screen. All strings are
- * pre-formatted in Kotlin (unit labels included) so Compose, SwiftUI, and
- * the chat tools render identical numbers.
+ * A self-contained card for the Progress screen. Numbers are pre-formatted
+ * in Kotlin so Compose, SwiftUI, and the webApp render identical values, but
+ * every sentence is a language-neutral key that each UI maps to its own
+ * localized template (Compose string resources, the iOS shell's English
+ * literals, the webApp's i18n). Templates also interpolate the user's weight
+ * unit where noted; the unit label itself is localized by the UI.
  */
 data class InsightCard(
     /** Stable identity: "weekly_volume", "frequency", "progression:<exerciseId>", "body_weight". */
     val id: String,
     /** "volume" | "frequency" | "progression" | "plateau" | "body_weight". */
     val kind: String,
-    val title: String,
-    val headline: String,
-    val detail: String,
+    /**
+     * Card title for progression/plateau cards (an exercise name — user data,
+     * shown verbatim); null for the other kinds, which the UI titles from [kind].
+     */
+    val exerciseName: String?,
+    /** One of the HEADLINE_* keys. */
+    val headlineKey: String,
+    /** Pre-formatted template arguments, in order. */
+    val headlineArgs: List<String>,
+    /** One of the DETAIL_* keys. */
+    val detailKey: String,
+    val detailArgs: List<String>,
     /** "up" | "down" | "flat" | "none". */
     val trend: String,
     /** Sparkline series, oldest first; empty when the card has no chart. */
     val spark: List<SparkPoint>,
-)
+) {
+    companion object {
+        /** args: [volume] + unit — "1,234 kg this week". */
+        const val HEADLINE_VOLUME_THIS_WEEK = "volume_this_week"
+
+        /** args: [weeks] — "2-week streak". */
+        const val HEADLINE_STREAK_WEEKS = "streak_weeks"
+
+        /** no args — "No active streak". */
+        const val HEADLINE_NO_STREAK = "no_streak"
+
+        /** args: [est1Rm] + unit — "Plateau at ~100 kg". */
+        const val HEADLINE_PLATEAU_AT = "plateau_at"
+
+        /** args: [est1Rm] + unit — "Est. 1RM 102.5 kg". */
+        const val HEADLINE_EST_1RM = "est_1rm"
+
+        /** args: [weight] + unit — "78.5 kg". */
+        const val HEADLINE_LATEST_BODY_WEIGHT = "latest_body_weight"
+
+        /** args: [signedPct] — "+12% vs 4-week average". */
+        const val DETAIL_PCT_VS_4_WEEK_AVG = "pct_vs_4_week_avg"
+
+        /** args: [sets, sessions] — "12 sets in 3 sessions". */
+        const val DETAIL_SETS_IN_SESSIONS = "sets_in_sessions"
+
+        /** args: [workouts] — "9 workouts in the last 30 days". */
+        const val DETAIL_WORKOUTS_30_DAYS = "workouts_30_days"
+
+        /** args: [workouts, longestWeeks] — "... · longest streak 5 weeks". */
+        const val DETAIL_WORKOUTS_30_DAYS_LONGEST = "workouts_30_days_longest"
+
+        /** args: [weeks] — "Est. 1RM flat across 4 weeks". */
+        const val DETAIL_FLAT_ACROSS_WEEKS = "flat_across_weeks"
+
+        /** args: [signedSlope, weeks] + unit — "+1.3 kg/week over 6 weeks". */
+        const val DETAIL_SLOPE_PER_WEEK = "slope_per_week"
+
+        /** args: [signedChange] + unit — "-1.5 kg in 30 days". */
+        const val DETAIL_CHANGE_30_DAYS = "change_30_days"
+
+        /** no args — "Log regularly to see your trend". */
+        const val DETAIL_LOG_REGULARLY = "log_regularly"
+    }
+}
 
 data class WeeklyVolumePoint(
     val weekStartEpochDay: Long,

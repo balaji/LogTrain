@@ -6,6 +6,7 @@ import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.isoDayNumber
+import kotlinx.datetime.number
 import kotlinx.datetime.todayIn
 
 /**
@@ -30,8 +31,8 @@ enum class WeekStart(val value: String) {
 data class CalendarDay(
     val epochDay: Long,
     val dayOfMonth: Int,
-    /** Month abbreviation ("Jan") on the 1st of a month, null otherwise. */
-    val monthLabel: String?,
+    /** Month (1-12) of this day's date; UIs label the 1st of each month with its localized abbreviation. */
+    val monthOfYear: Int,
     val isToday: Boolean,
     val isFuture: Boolean,
     val hasCompletedWorkout: Boolean,
@@ -89,7 +90,7 @@ object WeekMath {
                 CalendarDay(
                     epochDay = epochDay,
                     dayOfMonth = date.day,
-                    monthLabel = if (date.day == 1) monthAbbreviation(date) else null,
+                    monthOfYear = date.month.number,
                     isToday = epochDay == todayEpochDay,
                     isFuture = epochDay > todayEpochDay,
                     hasCompletedWorkout = epochDay in completedDays,
@@ -113,12 +114,20 @@ object WeekMath {
             WeekStart.MONDAY -> date.dayOfWeek.isoDayNumber - 1
         }
 
-    private fun monthAbbreviation(date: LocalDate): String =
-        date.month.name.take(3).lowercase().replaceFirstChar { it.uppercaseChar() }
-
-    /** e.g. "Jul 7, 2026" — for screens that only need a display string, no kotlinx-datetime dependency. */
-    fun formatDayTitle(epochDay: Long): String {
+    /**
+     * The calendar components of [epochDay], for UI layers that need to
+     * format a date as localized text without a kotlinx-datetime dependency.
+     */
+    fun dayParts(epochDay: Long): DayParts {
         val date = LocalDate.fromEpochDays(epochDay)
-        return "${monthAbbreviation(date)} ${date.day}, ${date.year}"
+        return DayParts(year = date.year, monthOfYear = date.month.number, dayOfMonth = date.day)
     }
 }
+
+/** Calendar components of one day; primitive-typed like the other calendar models. */
+data class DayParts(
+    val year: Int,
+    /** 1-12. */
+    val monthOfYear: Int,
+    val dayOfMonth: Int,
+)

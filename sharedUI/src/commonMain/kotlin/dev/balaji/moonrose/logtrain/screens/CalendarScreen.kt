@@ -43,16 +43,29 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.balaji.moonrose.logtrain.calendar.CalendarDay
 import dev.balaji.moonrose.logtrain.calendar.CalendarWeek
-import dev.balaji.moonrose.logtrain.calendar.WeekMath
 import dev.balaji.moonrose.logtrain.calendar.WeekStart
 import dev.balaji.moonrose.logtrain.db.CalendarRepository
 import dev.balaji.moonrose.logtrain.db.CompletedWorkoutDay
 import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
+import org.jetbrains.compose.resources.stringResource
+import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
 private val WeekNumberWidth = 32.dp
-private val WeekdayLabelsSundayFirst = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
-private val WeekdayLabelsMondayFirst = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
+@Composable
+private fun weekdayLabels(weekStartsMonday: Boolean): List<String> {
+    val sundayFirst = listOf(
+        Res.string.weekday_sun_short,
+        Res.string.weekday_mon_short,
+        Res.string.weekday_tue_short,
+        Res.string.weekday_wed_short,
+        Res.string.weekday_thu_short,
+        Res.string.weekday_fri_short,
+        Res.string.weekday_sat_short,
+    ).map { stringResource(it) }
+    return if (weekStartsMonday) sundayFirst.drop(1) + sundayFirst.first() else sundayFirst
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,13 +84,13 @@ fun CalendarScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("History") },
+                    title = { Text(stringResource(Res.string.tab_history)) },
                     navigationIcon = { ProfileTopBarButton(onClick = onOpenProfile) },
                     actions = {
                         IconButton(onClick = { showSessionList = !showSessionList }) {
                             Icon(
                                 if (showSessionList) Icons.Filled.CalendarMonth else Icons.AutoMirrored.Filled.List,
-                                contentDescription = if (showSessionList) "Show calendar" else "Show workout history",
+                                contentDescription = if (showSessionList) stringResource(Res.string.show_calendar) else stringResource(Res.string.show_workout_history),
                             )
                         }
                     },
@@ -118,9 +131,9 @@ private fun CalendarContent(modifier: Modifier, onDayClick: (Long) -> Unit) {
 
 @Composable
 private fun WeekdayHeader(weekStartsMonday: Boolean) {
-    val labels = if (weekStartsMonday) WeekdayLabelsMondayFirst else WeekdayLabelsSundayFirst
+    val labels = weekdayLabels(weekStartsMonday)
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)) {
-        HeaderLabel("Wk", Modifier.width(WeekNumberWidth))
+        HeaderLabel(stringResource(Res.string.week_number_abbrev), Modifier.width(WeekNumberWidth))
         labels.forEach { label ->
             HeaderLabel(label, Modifier.weight(1f))
         }
@@ -168,7 +181,7 @@ private fun CompletedSessionList(modifier: Modifier, onDayClick: (Long) -> Unit)
 
     if (current.isEmpty()) {
         Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No completed workouts", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(Res.string.no_completed_workouts), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         return
     }
@@ -190,7 +203,7 @@ private fun CompletedSessionRow(day: CompletedWorkoutDay, onDayClick: (Long) -> 
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Text(WeekMath.formatDayTitle(day.epochDay), style = MaterialTheme.typography.bodyLarge)
+        Text(formatDayTitle(day.epochDay), style = MaterialTheme.typography.bodyLarge)
         if (day.routineNames.isNotEmpty()) {
             Text(
                 day.routineNames.joinToString(" · "),
@@ -212,9 +225,9 @@ private fun DayCell(day: CalendarDay, onDayClick: (Long) -> Unit, modifier: Modi
             .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // Always rendered (blank when no label) to keep row heights uniform.
+        // Always rendered (blank off the 1st) to keep row heights uniform.
         Text(
-            day.monthLabel ?: " ",
+            if (day.dayOfMonth == 1) monthAbbreviation(day.monthOfYear) else " ",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.primary,
         )

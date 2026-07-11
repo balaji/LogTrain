@@ -8,14 +8,21 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+/**
+ * Why the name is invalid; the UI layers supply the localized message
+ * (with [MAX_NAME_LENGTH] as the argument for [TOO_LONG]).
+ */
+enum class ProfileNameError { REQUIRED, TOO_LONG, INVALID_CHARS }
+
 data class ProfileFormUiState(
     val name: String = "",
     val age: String = "",
     val gender: String? = null,
     val weight: String = "",
     val height: String = "",
-    val nameError: String? = null,
-    val ageError: String? = null,
+    val nameError: ProfileNameError? = null,
+    /** True when the age is not a number in [MIN_AGE]..[MAX_AGE]; the UI supplies the localized message. */
+    val ageError: Boolean = false,
     val saving: Boolean = false,
 )
 
@@ -45,7 +52,7 @@ class ProfileFormState(initial: Profile? = null) {
     }
 
     fun updateAge(value: String) {
-        _uiState.value = _uiState.value.copy(age = value.filterDigits(), ageError = null)
+        _uiState.value = _uiState.value.copy(age = value.filterDigits(), ageError = false)
     }
 
     fun updateGender(value: String) {
@@ -63,8 +70,8 @@ class ProfileFormState(initial: Profile? = null) {
     fun save(onSaved: () -> Unit) {
         val state = _uiState.value
         val nameError = validateName(state.name)
-        val ageError = validateAge(state.age)
-        if (nameError != null || ageError != null) {
+        val ageError = hasAgeError(state.age)
+        if (nameError != null || ageError) {
             _uiState.value = state.copy(nameError = nameError, ageError = ageError)
             return
         }
@@ -83,23 +90,20 @@ class ProfileFormState(initial: Profile? = null) {
     }
 }
 
-private fun validateName(name: String): String? {
+private fun validateName(name: String): ProfileNameError? {
     val trimmed = name.trim()
     return when {
-        trimmed.isEmpty() -> "Name is required"
-        trimmed.length > MAX_NAME_LENGTH -> "Name must be at most $MAX_NAME_LENGTH characters"
-        !trimmed.all { it.isLetter() || it == ' ' } -> "Name must contain only letters"
+        trimmed.isEmpty() -> ProfileNameError.REQUIRED
+        trimmed.length > MAX_NAME_LENGTH -> ProfileNameError.TOO_LONG
+        !trimmed.all { it.isLetter() || it == ' ' } -> ProfileNameError.INVALID_CHARS
         else -> null
     }
 }
 
-private fun validateAge(age: String): String? {
-    if (age.isBlank()) return null
+/** A blank age is allowed; a non-blank one must parse into [MIN_AGE]..[MAX_AGE]. */
+private fun hasAgeError(age: String): Boolean {
+    if (age.isBlank()) return false
     val parsed = age.toIntOrNull()
-    return if (parsed == null || parsed < MIN_AGE || parsed > MAX_AGE) {
-        "Age must be between $MIN_AGE and $MAX_AGE"
-    } else {
-        null
-    }
+    return parsed == null || parsed < MIN_AGE || parsed > MAX_AGE
 }
 

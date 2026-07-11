@@ -7,24 +7,25 @@ package dev.balaji.moonrose.logtrain.model
  * row, so it could never be safely refreshed once edited. Instead the user copies
  * one, which materializes ordinary program/routine/work-set rows they then own.
  *
+ * Samples carry no display names or summaries: each UI layer maps the stable
+ * [SampleProgram.id]/[SampleRoutine.id] keys to its own localized text, and the
+ * copy flow passes the names the user actually saw to
+ * ProgramRepository.addSampleProgram, which persists them.
+ *
  * [SampleWorkSet.exerciseName] must exactly match a seeded exercise name; seed
  * exercises are builtin and therefore cannot be renamed away from under us.
+ * (Exercise names are catalog data shown verbatim, not localized copy.)
  */
 data class SampleProgram(
-    /** Stable key for UI list identity; not persisted. */
+    /** Stable key: UI list identity and the localization key for name and summary; not persisted. */
     val id: String,
-    /** Must satisfy requireValidProgramName: letters, digits and spaces only. */
-    val name: String,
     val daysPerWeek: Int,
-    // Not "description": that collides with NSObject's auto-generated `description`
-    // on the Swift side, as Exercise's @ObjCName workaround documents.
-    val summary: String,
     val routines: List<SampleRoutine>,
 )
 
 data class SampleRoutine(
-    /** Must satisfy requireValidProgramName. */
-    val name: String,
+    /** Stable key: UI list identity and the localization key for the routine name. */
+    val id: String,
     val workSets: List<SampleWorkSet>,
 )
 
@@ -56,12 +57,10 @@ private fun sets(count: Int, reps: Int) = List(count) { SampleSet(targetReps = r
 
 private val fullBody3Day = SampleProgram(
     id = "full-body-3day",
-    name = "3 Day Full Body",
     daysPerWeek = 3,
-    summary = "Three full-body sessions a week. The simplest way to start.",
     routines = listOf(
         SampleRoutine(
-            "Full Body A",
+            "full-body-a",
             listOf(
                 SampleWorkSet("Barbell Back Squat", sets(3, 5)),
                 SampleWorkSet("Barbell Bench Press", sets(3, 5)),
@@ -71,7 +70,7 @@ private val fullBody3Day = SampleProgram(
             ),
         ),
         SampleRoutine(
-            "Full Body B",
+            "full-body-b",
             listOf(
                 SampleWorkSet("Conventional Deadlift", sets(3, 5)),
                 SampleWorkSet("Barbell Incline Bench Press", sets(3, 8)),
@@ -81,7 +80,7 @@ private val fullBody3Day = SampleProgram(
             ),
         ),
         SampleRoutine(
-            "Full Body C",
+            "full-body-c",
             listOf(
                 SampleWorkSet("Barbell Front Squat", sets(3, 5)),
                 SampleWorkSet("Dumbbell Bench Press", sets(3, 10)),
@@ -95,12 +94,10 @@ private val fullBody3Day = SampleProgram(
 
 private val upperLower4Day = SampleProgram(
     id = "upper-lower-4day",
-    name = "4 Day Upper Lower",
     daysPerWeek = 4,
-    summary = "Two upper-body and two lower-body days, alternating through the week.",
     routines = listOf(
         SampleRoutine(
-            "Upper A",
+            "upper-a",
             listOf(
                 SampleWorkSet("Barbell Bench Press", sets(4, 6)),
                 SampleWorkSet("Barbell Bent-Over Row", sets(4, 6)),
@@ -111,7 +108,7 @@ private val upperLower4Day = SampleProgram(
             ),
         ),
         SampleRoutine(
-            "Lower A",
+            "lower-a",
             listOf(
                 SampleWorkSet("Barbell Back Squat", sets(4, 6)),
                 SampleWorkSet("Romanian Deadlift", sets(3, 8)),
@@ -121,7 +118,7 @@ private val upperLower4Day = SampleProgram(
             ),
         ),
         SampleRoutine(
-            "Upper B",
+            "upper-b",
             listOf(
                 SampleWorkSet("Barbell Incline Bench Press", sets(4, 8)),
                 SampleWorkSet("Seated Cable Row", sets(4, 8)),
@@ -132,7 +129,7 @@ private val upperLower4Day = SampleProgram(
             ),
         ),
         SampleRoutine(
-            "Lower B",
+            "lower-b",
             listOf(
                 SampleWorkSet("Conventional Deadlift", sets(3, 5)),
                 SampleWorkSet("Barbell Front Squat", sets(3, 8)),
@@ -146,12 +143,10 @@ private val upperLower4Day = SampleProgram(
 
 private val pushPullLegs5Day = SampleProgram(
     id = "push-pull-legs-5day",
-    name = "5 Day Push Pull Legs",
     daysPerWeek = 5,
-    summary = "A push, pull and legs split, then an upper and lower day to finish the week.",
     routines = listOf(
         SampleRoutine(
-            "Push",
+            "push",
             listOf(
                 SampleWorkSet("Barbell Bench Press", sets(4, 6)),
                 SampleWorkSet("Barbell Incline Bench Press", sets(3, 8)),
@@ -162,7 +157,7 @@ private val pushPullLegs5Day = SampleProgram(
             ),
         ),
         SampleRoutine(
-            "Pull",
+            "pull",
             listOf(
                 SampleWorkSet("Conventional Deadlift", sets(3, 5)),
                 SampleWorkSet("Pull-Up", sets(4, 8)),
@@ -173,7 +168,7 @@ private val pushPullLegs5Day = SampleProgram(
             ),
         ),
         SampleRoutine(
-            "Legs",
+            "legs",
             listOf(
                 SampleWorkSet("Barbell Back Squat", sets(4, 6)),
                 SampleWorkSet("Romanian Deadlift", sets(3, 8)),
@@ -183,7 +178,7 @@ private val pushPullLegs5Day = SampleProgram(
             ),
         ),
         SampleRoutine(
-            "Upper",
+            "upper",
             listOf(
                 SampleWorkSet("Dumbbell Bench Press", sets(4, 10)),
                 SampleWorkSet("Lat Pulldown", sets(4, 10)),
@@ -194,7 +189,7 @@ private val pushPullLegs5Day = SampleProgram(
             ),
         ),
         SampleRoutine(
-            "Lower",
+            "lower",
             listOf(
                 SampleWorkSet("Barbell Front Squat", sets(4, 8)),
                 SampleWorkSet("Barbell Hip Thrust", sets(3, 10)),

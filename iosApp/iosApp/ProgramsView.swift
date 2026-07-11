@@ -1,6 +1,50 @@
 import SwiftUI
 import SharedUI
 
+/*
+ * English display text for the sample programs' language-neutral keys; the
+ * shared models carry only ids. Mirrors sharedUI's sampleProgramName /
+ * sampleProgramSummary / sampleRoutineName. Unknown ids fall back to the raw
+ * id so a sample added to sharedLogic without a mapping is visibly
+ * unlocalized, not silently mislabeled.
+ */
+
+private func sampleName(_ sample: SampleProgram) -> String {
+    switch sample.id {
+    case "full-body-3day": return "3 Day Full Body"
+    case "upper-lower-4day": return "4 Day Upper Lower"
+    case "push-pull-legs-5day": return "5 Day Push Pull Legs"
+    default: return sample.id
+    }
+}
+
+private func sampleSummary(_ sample: SampleProgram) -> String {
+    switch sample.id {
+    case "full-body-3day": return "Three full-body sessions a week. The simplest way to start."
+    case "upper-lower-4day": return "Two upper-body and two lower-body days, alternating through the week."
+    case "push-pull-legs-5day": return "A push, pull and legs split, then an upper and lower day to finish the week."
+    default: return sample.id
+    }
+}
+
+private func sampleRoutineName(_ routine: SampleRoutine) -> String {
+    switch routine.id {
+    case "full-body-a": return "Full Body A"
+    case "full-body-b": return "Full Body B"
+    case "full-body-c": return "Full Body C"
+    case "upper-a": return "Upper A"
+    case "lower-a": return "Lower A"
+    case "upper-b": return "Upper B"
+    case "lower-b": return "Lower B"
+    case "push": return "Push"
+    case "pull": return "Pull"
+    case "legs": return "Legs"
+    case "upper": return "Upper"
+    case "lower": return "Lower"
+    default: return routine.id
+    }
+}
+
 private struct RoutineTarget: Hashable {
     let routineId: Int64
     let title: String
@@ -174,9 +218,9 @@ struct ProgramsView: View {
             Button("Add") { copy(sample) }
             Button("Cancel", role: .cancel) {}
         } message: { sample in
-            Text("\"\(sample.name)\" will be copied into your programs, where you can edit it.")
+            Text("\"\(sampleName(sample))\" will be copied into your programs, where you can edit it.")
         }
-        .alert(routineInfo?.name ?? "", isPresented: Binding(
+        .alert(routineInfo.map(sampleRoutineName) ?? "", isPresented: Binding(
             get: { routineInfo != nil },
             set: { if !$0 { routineInfo = nil } }
         ), presenting: routineInfo) { _ in
@@ -286,9 +330,9 @@ struct ProgramsView: View {
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(sample.name)
+                    Text(sampleName(sample))
                         .foregroundStyle(Color.primary)
-                    Text("\(sample.daysPerWeek) days a week · \(sample.summary)")
+                    Text("\(sample.daysPerWeek) days a week · \(sampleSummary(sample))")
                         .font(.caption)
                         .foregroundStyle(Color.secondary)
                 }
@@ -301,12 +345,12 @@ struct ProgramsView: View {
         }
 
         if expandedSampleId == sample.id {
-            ForEach(sample.routines, id: \.name) { routine in
+            ForEach(sample.routines, id: \.id) { routine in
                 Button {
                     routineInfo = routine
                 } label: {
                     HStack {
-                        Text(routine.name)
+                        Text(sampleRoutineName(routine))
                             .foregroundStyle(Color.primary)
                         Spacer()
                         Text("\(routine.workSets.count) exercises")
@@ -339,7 +383,12 @@ struct ProgramsView: View {
     private func copy(_ sample: SampleProgram) {
         Task {
             do {
-                _ = try await ProgramRepository.shared.addSampleProgram(sample: sample)
+                // The English names shown for the sample's keys are what get persisted.
+                _ = try await ProgramRepository.shared.addSampleProgram(
+                    sample: sample,
+                    programName: sampleName(sample),
+                    routineNames: sample.routines.map(sampleRoutineName)
+                )
             } catch {
                 errorMessage = error.localizedDescription
             }

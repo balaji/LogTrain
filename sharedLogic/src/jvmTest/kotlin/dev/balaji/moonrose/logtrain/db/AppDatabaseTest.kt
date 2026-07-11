@@ -131,27 +131,19 @@ class AppDatabaseTest {
     }
 
     @Test
-    fun `sample program names pass program name validation`() {
-        for (sample in SamplePrograms.all) {
-            assertEquals(sample.name, requireValidProgramName(sample.name))
-            for (routine in sample.routines) {
-                assertEquals(routine.name, requireValidProgramName(routine.name))
-            }
-        }
-    }
-
-    @Test
     fun `copying a sample materializes the full program tree`() = runBlocking {
         seedProfile()
         val sample = SamplePrograms.all.first { it.daysPerWeek == 3 }
+        // The display names the UI would have shown for the sample's keys.
+        val routineNames = sample.routines.mapIndexed { i, _ -> "Routine ${i + 1}" }
 
-        val programId = db.insertSampleProgram(sample)
+        val programId = db.insertSampleProgram(sample, "Full Body", routineNames)
 
         val program = assertNotNull(db.programDao().findById(programId))
-        assertEquals(sample.name, program.name)
+        assertEquals("Full Body", program.name)
 
         val routines = db.routineDao().observeAll().first().filter { it.programId == programId }
-        assertEquals(sample.routines.map { it.name }, routines.map { it.name })
+        assertEquals(routineNames, routines.map { it.name })
         assertEquals(List(sample.routines.size) { it + 1 }, routines.map { it.position })
 
         routines.forEachIndexed { routineIdx, routine ->
@@ -179,9 +171,10 @@ class AppDatabaseTest {
     fun `copying the same sample twice yields two independent programs`() = runBlocking {
         seedProfile()
         val sample = SamplePrograms.all.first()
+        val routineNames = sample.routines.mapIndexed { i, _ -> "Routine ${i + 1}" }
 
-        val first = db.insertSampleProgram(sample)
-        val second = db.insertSampleProgram(sample)
+        val first = db.insertSampleProgram(sample, "Full Body", routineNames)
+        val second = db.insertSampleProgram(sample, "Full Body", routineNames)
 
         assertTrue(first != second)
         val routines = db.routineDao().observeAll().first()
@@ -199,12 +192,10 @@ class AppDatabaseTest {
         seedProfile()
         val broken = SampleProgram(
             id = "broken",
-            name = "Broken Sample",
             daysPerWeek = 1,
-            summary = "References an exercise that is not in the catalog.",
             routines = listOf(
                 SampleRoutine(
-                    "Day One",
+                    "day-one",
                     listOf(
                         SampleWorkSet("Barbell Bench Press", listOf(SampleSet(targetReps = 5))),
                         SampleWorkSet("No Such Exercise", listOf(SampleSet(targetReps = 5))),
@@ -213,7 +204,9 @@ class AppDatabaseTest {
             ),
         )
 
-        assertFailsWith<IllegalStateException> { db.insertSampleProgram(broken) }
+        assertFailsWith<IllegalStateException> {
+            db.insertSampleProgram(broken, "Broken Sample", listOf("Day One"))
+        }
         assertTrue(db.programDao().observeAll().first().isEmpty(), "no program should be written")
         assertTrue(db.routineDao().observeAll().first().isEmpty(), "no routine should be written")
     }

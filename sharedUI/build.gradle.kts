@@ -62,6 +62,10 @@ kotlin {
     }
 }
 
+compose.resources {
+    packageOfResClass = "dev.balaji.moonrose.logtrain.sharedui.resources"
+}
+
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
 }

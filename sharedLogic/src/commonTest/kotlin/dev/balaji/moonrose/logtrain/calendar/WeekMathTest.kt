@@ -2,7 +2,6 @@ package dev.balaji.moonrose.logtrain.calendar
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.datetime.LocalDate
 
@@ -99,7 +98,7 @@ class WeekMathTest {
     }
 
     @Test
-    fun buildWeeks_monthLabelOnlyOnFirstOfMonth() {
+    fun buildWeeks_daysCarryTheirMonthAcrossAMonthBoundary() {
         // Week containing Jul 1 2026 (a Wednesday): Sun Jun 28 .. Sat Jul 4.
         val weeks = WeekMath.buildWeeks(
             startEpochDay = epochDay(2026, 6, 28),
@@ -108,8 +107,15 @@ class WeekMathTest {
             todayEpochDay = epochDay(2026, 7, 1),
         )
         val days = weeks.single().days
-        assertEquals("Jul", days[3].monthLabel)
-        days.filterIndexed { index, _ -> index != 3 }.forEach { assertNull(it.monthLabel) }
+        assertEquals(listOf(6, 6, 6, 7, 7, 7, 7), days.map { it.monthOfYear })
+        // The UI labels the month on the 1st; only Jul 1 qualifies in this week.
+        assertEquals(listOf(3), days.withIndex().filter { it.value.dayOfMonth == 1 }.map { it.index })
+    }
+
+    @Test
+    fun dayParts_exposeCalendarComponents() {
+        assertEquals(DayParts(year = 2026, monthOfYear = 7, dayOfMonth = 6), WeekMath.dayParts(epochDay(2026, 7, 6)))
+        assertEquals(DayParts(year = 2025, monthOfYear = 12, dayOfMonth = 31), WeekMath.dayParts(epochDay(2025, 12, 31)))
     }
 
     @Test

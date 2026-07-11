@@ -4,6 +4,7 @@ import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import dev.balaji.moonrose.logtrain.calendar.WeekStart
 import dev.balaji.moonrose.logtrain.insights.BodyWeightTrend
+import dev.balaji.moonrose.logtrain.insights.InsightCard
 import dev.balaji.moonrose.logtrain.insights.SparkPoint
 import java.io.File
 import kotlin.test.AfterTest
@@ -94,7 +95,7 @@ class InsightsRepositoryTest {
     @Test
     fun `cards are empty with no history and body weight card appears when provided`() {
         assertTrue(
-            buildCards(emptyList(), emptyList(), bodyWeight = null, "kg", sunday, WeekStart.SUNDAY).isEmpty(),
+            buildCards(emptyList(), emptyList(), bodyWeight = null, sunday, WeekStart.SUNDAY).isEmpty(),
         )
 
         val trend = BodyWeightTrend(
@@ -104,10 +105,12 @@ class InsightsRepositoryTest {
             change30Days = -1.5,
             slopePerWeek = -0.35,
         )
-        val cards = buildCards(emptyList(), emptyList(), trend, "kg", sunday + 30, WeekStart.SUNDAY)
+        val cards = buildCards(emptyList(), emptyList(), trend, sunday + 30, WeekStart.SUNDAY)
         assertEquals(listOf("body_weight"), cards.map { it.id })
-        assertEquals("78.5 kg", cards.single().headline)
-        assertEquals("-1.5 kg in 30 days", cards.single().detail)
+        assertEquals(InsightCard.HEADLINE_LATEST_BODY_WEIGHT, cards.single().headlineKey)
+        assertEquals(listOf("78.5"), cards.single().headlineArgs)
+        assertEquals(InsightCard.DETAIL_CHANGE_30_DAYS, cards.single().detailKey)
+        assertEquals(listOf("-1.5"), cards.single().detailArgs)
         assertEquals("down", cards.single().trend)
     }
 
@@ -117,10 +120,12 @@ class InsightsRepositoryTest {
             set(sunday, weight = 100.0, reps = 5),
             set(sunday + 7, weight = 102.5, reps = 5),
         )
-        val cards = buildCards(sets, listOf(sunday, sunday + 7), null, "kg", sunday + 8, WeekStart.SUNDAY)
+        val cards = buildCards(sets, listOf(sunday, sunday + 7), null, sunday + 8, WeekStart.SUNDAY)
         assertEquals(listOf("weekly_volume", "frequency", "progression:1"), cards.map { it.id })
-        assertEquals("2-week streak", cards[1].headline)
-        assertTrue(cards[2].headline.endsWith("kg"))
+        assertEquals(InsightCard.HEADLINE_STREAK_WEEKS, cards[1].headlineKey)
+        assertEquals(listOf("2"), cards[1].headlineArgs)
+        assertEquals(InsightCard.HEADLINE_EST_1RM, cards[2].headlineKey)
+        assertEquals("Bench", cards[2].exerciseName)
     }
 
     @Test

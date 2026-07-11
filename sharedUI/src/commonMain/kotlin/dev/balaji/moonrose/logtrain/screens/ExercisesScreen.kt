@@ -63,6 +63,8 @@ import dev.balaji.moonrose.logtrain.navigation.ProfileRoute
 import dev.balaji.moonrose.logtrain.navigation.Route
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,13 +85,13 @@ fun ExercisesScreen(
         else -> Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Exercises") },
+                    title = { Text(stringResource(Res.string.tab_exercises)) },
                     navigationIcon = { ProfileTopBarButton(onClick = { onNavigate(ProfileRoute) }) },
                 )
             },
             floatingActionButton = {
                 FloatingActionButton(onClick = { onNavigate(ExerciseCreateRoute) }) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add Exercise")
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(Res.string.add_exercise_cd))
                 }
             },
         ) { padding ->
@@ -135,12 +137,12 @@ private fun ExercisesBody(
             value = query,
             onValueChange = { query = it },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            placeholder = { Text("Search exercises") },
+            placeholder = { Text(stringResource(Res.string.search_exercises)) },
             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
             trailingIcon = {
                 if (query.isNotEmpty()) {
                     IconButton(onClick = { query = "" }) {
-                        Icon(Icons.Filled.Clear, contentDescription = "Clear search")
+                        Icon(Icons.Filled.Clear, contentDescription = stringResource(Res.string.clear_search))
                     }
                 }
             },
@@ -149,7 +151,7 @@ private fun ExercisesBody(
 
         if (bodyParts.isNotEmpty()) {
             FilterChipRow(
-                label = "Body part",
+                label = stringResource(Res.string.body_part),
                 options = bodyParts,
                 selected = selectedBodyPart,
                 onSelect = { selectedBodyPart = if (selectedBodyPart == it) null else it },
@@ -157,7 +159,7 @@ private fun ExercisesBody(
         }
         if (equipmentOptions.isNotEmpty()) {
             FilterChipRow(
-                label = "Equipment",
+                label = stringResource(Res.string.equipment),
                 options = equipmentOptions,
                 selected = selectedEquipment,
                 onSelect = { selectedEquipment = if (selectedEquipment == it) null else it },
@@ -168,12 +170,12 @@ private fun ExercisesBody(
             exercises == null -> {}
             filtered.isEmpty() -> Box(modifier = Modifier.weight(1f)) {
                 CenteredMessage(PaddingValues(0.dp)) {
-                    Text("No exercises match your filters.")
+                    Text(stringResource(Res.string.no_exercises_match))
                 }
             }
             else -> LazyColumn(modifier = Modifier.weight(1f)) {
                 if (customExercises.isNotEmpty()) {
-                    item(key = "my-exercises-header") { SectionHeader("My Exercises") }
+                    item(key = "my-exercises-header") { SectionHeader(stringResource(Res.string.my_exercises)) }
                     items(customExercises, key = Exercise::id) { exercise ->
                         if (allowDelete) {
                             SwipeToDeleteRow(key = exercise.id, onDelete = { deleteTarget = exercise }) {
@@ -186,7 +188,7 @@ private fun ExercisesBody(
                     if (builtinExercises.isNotEmpty()) {
                         item(key = "all-exercises-header") {
                             Spacer(Modifier.height(24.dp))
-                            SectionHeader("All Exercises")
+                            SectionHeader(stringResource(Res.string.all_exercises))
                         }
                     }
                 }
@@ -198,14 +200,15 @@ private fun ExercisesBody(
     }
 
     deleteTarget?.let { exercise ->
+        val inUseMessage = stringResource(Res.string.exercise_in_use, exercise.name)
         ConfirmDeleteDialog(
-            title = "Delete exercise?",
-            text = "\"${exercise.name}\" will be permanently deleted.",
+            title = stringResource(Res.string.delete_exercise_title),
+            text = stringResource(Res.string.delete_exercise_message, exercise.name),
             onConfirm = {
                 deleteTarget = null
                 scope.launch {
                     if (ExerciseRepository.delete(exercise.id) == ExerciseDeleteError.InUse) {
-                        deleteError = "\"${exercise.name}\" is used by a routine or workout history and can't be deleted."
+                        deleteError = inUseMessage
                     }
                 }
             },
@@ -257,7 +260,7 @@ private fun SwipeToDeleteRow(
             }) {
                 Icon(
                     Icons.Filled.Delete,
-                    contentDescription = "Delete exercise",
+                    contentDescription = stringResource(Res.string.delete_exercise),
                     tint = MaterialTheme.colorScheme.onError,
                 )
             }
@@ -281,7 +284,7 @@ private fun ExerciseRow(exercise: Exercise, onOpen: (Exercise) -> Unit) {
         headlineContent = { Text(exercise.name) },
         supportingContent = {
             val details = listOfNotNull(exercise.bodyPart, exercise.equipment)
-                .map { it.replaceFirstChar(Char::uppercase) }
+                .map { exerciseCatalogLabel(it) }
             if (details.isNotEmpty()) Text(details.joinToString(" • "))
         },
         modifier = Modifier.fillMaxWidth().clickable { onOpen(exercise) },
@@ -305,7 +308,7 @@ private fun FilterChipRow(
             FilterChip(
                 selected = selected == option,
                 onClick = { onSelect(option) },
-                label = { Text(option.replaceFirstChar(Char::uppercase)) },
+                label = { Text(exerciseCatalogLabel(option)) },
             )
         }
     }

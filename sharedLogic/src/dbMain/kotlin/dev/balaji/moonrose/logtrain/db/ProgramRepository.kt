@@ -59,10 +59,15 @@ object ProgramRepository {
      * Materializes a [SampleProgram] into ordinary rows the user owns and can edit.
      * Returns the new program's id.
      *
+     * Samples carry only language-neutral keys, so the caller passes the localized
+     * [programName] and [routineNames] (aligned with [SampleProgram.routines]) it
+     * displayed; those are what get persisted.
+     *
      * Not named copySampleProgram: "copy" is an Objective-C method-family prefix, so
      * Kotlin/Native would export it to Swift as doCopySampleProgram.
      */
-    suspend fun addSampleProgram(sample: SampleProgram): Long = AppDb.db.insertSampleProgram(sample)
+    suspend fun addSampleProgram(sample: SampleProgram, programName: String, routineNames: List<String>): Long =
+        AppDb.db.insertSampleProgram(sample, programName, routineNames)
 }
 
 /**
@@ -72,9 +77,16 @@ object ProgramRepository {
  * Copying the same sample twice yields two independent programs with the same name,
  * which is what [ProgramRepository.createProgram] already allows for hand-made programs.
  */
-internal suspend fun AppDatabase.insertSampleProgram(sample: SampleProgram): Long {
-    val programName = requireValidProgramName(sample.name)
-    val routineNames = sample.routines.map { requireValidProgramName(it.name) }
+internal suspend fun AppDatabase.insertSampleProgram(
+    sample: SampleProgram,
+    programName: String,
+    routineNames: List<String>,
+): Long {
+    require(routineNames.size == sample.routines.size) {
+        "Sample \"${sample.id}\" has ${sample.routines.size} routines but ${routineNames.size} names were passed"
+    }
+    val validProgramName = requireValidProgramName(programName)
+    val validRoutineNames = routineNames.map { requireValidProgramName(it) }
 
     // Resolved before the transaction opens so an unknown name fails without writing
     // anything. Seed exercises are builtin, so this cannot fail for a correct sample;
@@ -85,7 +97,7 @@ internal suspend fun AppDatabase.insertSampleProgram(sample: SampleProgram): Lon
         .distinct()
         .associateWith { name ->
             checkNotNull(exerciseDao().findByName(name)) {
-                "Sample program \"${sample.name}\" references unknown exercise \"$name\""
+                "Sample program \"${sample.id}\" references unknown exercise \"$name\""
             }.id
         }
 
@@ -95,7 +107,7 @@ internal suspend fun AppDatabase.insertSampleProgram(sample: SampleProgram): Lon
             val programId = programDao().insert(
                 ProgramEntity(
                     profileId = PROFILE_ID,
-                    name = programName,
+                    name = validProgramName,
                     createdAt = now,
                     updatedAt = now,
                 ),
@@ -104,7 +116,7 @@ internal suspend fun AppDatabase.insertSampleProgram(sample: SampleProgram): Lon
                 val routineId = routineDao().insert(
                     RoutineEntity(
                         programId = programId,
-                        name = routineNames[routineIdx],
+                        name = validRoutineNames[routineIdx],
                         position = routineIdx + 1,
                         createdAt = now,
                         updatedAt = now,

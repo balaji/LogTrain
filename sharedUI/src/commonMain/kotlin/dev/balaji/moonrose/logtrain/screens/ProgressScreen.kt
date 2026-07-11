@@ -49,6 +49,8 @@ import dev.balaji.moonrose.logtrain.db.ProgressScreenState
 import dev.balaji.moonrose.logtrain.insights.InsightCard
 import dev.balaji.moonrose.logtrain.insights.SparkPoint
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
+import org.jetbrains.compose.resources.stringResource
+import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
 /** Progress tab: deterministic insight cards plus body-weight logging. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,7 +64,7 @@ fun ProgressScreen(onOpenProfile: () -> Unit) {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Progress") },
+                    title = { Text(stringResource(Res.string.tab_progress)) },
                     navigationIcon = { ProfileTopBarButton(onClick = onOpenProfile) },
                 )
             },
@@ -79,6 +81,7 @@ private fun ProgressContent(state: ProgressScreenState, modifier: Modifier = Mod
 
     if (uiState.loading) return
 
+    val unitLabel = weightUnitLabel(uiState.weightUnit)
     if (uiState.cards.isEmpty()) {
         EmptyProgress(onLogWeight = { showLogWeight = true }, modifier)
     } else {
@@ -90,19 +93,19 @@ private fun ProgressContent(state: ProgressScreenState, modifier: Modifier = Mod
             item(key = "log_weight") {
                 LogWeightRow(
                     latest = uiState.latestBodyWeight,
-                    unitLabel = uiState.weightUnitLabel,
+                    unitLabel = unitLabel,
                     onLogWeight = { showLogWeight = true },
                 )
             }
             items(count = uiState.cards.size, key = { uiState.cards[it].id }) { index ->
-                InsightCardRow(uiState.cards[index])
+                InsightCardRow(uiState.cards[index], unitLabel)
             }
         }
     }
 
     if (showLogWeight) {
         LogWeightDialog(
-            unitLabel = uiState.weightUnitLabel,
+            unitLabel = unitLabel,
             onConfirm = { text ->
                 state.logWeight(text)
                 showLogWeight = false
@@ -125,15 +128,15 @@ private fun EmptyProgress(onLogWeight: () -> Unit, modifier: Modifier = Modifier
             modifier = Modifier.size(48.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Text("No progress yet", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(Res.string.no_progress_yet), style = MaterialTheme.typography.titleMedium)
         Text(
-            "Insights appear after your first completed workout or logged weight.",
+            stringResource(Res.string.progress_empty_hint),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
         OutlinedButton(onClick = onLogWeight, modifier = Modifier.padding(top = 8.dp)) {
-            Text("Log body weight")
+            Text(stringResource(Res.string.log_body_weight))
         }
     }
 }
@@ -145,32 +148,32 @@ private fun LogWeightRow(latest: String, unitLabel: String, onLogWeight: () -> U
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text("Body weight", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(Res.string.body_weight), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
-                if (latest.isEmpty()) "Not logged yet" else "$latest $unitLabel",
+                if (latest.isEmpty()) stringResource(Res.string.not_logged_yet) else "$latest $unitLabel",
                 style = MaterialTheme.typography.titleMedium,
             )
         }
-        OutlinedButton(onClick = onLogWeight) { Text("Log weight") }
+        OutlinedButton(onClick = onLogWeight) { Text(stringResource(Res.string.log_weight)) }
     }
 }
 
 @Composable
-private fun InsightCardRow(card: InsightCard) {
+private fun InsightCardRow(card: InsightCard, unitLabel: String) {
     OutlinedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    card.title,
+                    insightCardTitle(card),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.weight(1f))
                 TrendIcon(card.trend)
             }
-            Text(card.headline, style = MaterialTheme.typography.titleLarge)
+            Text(insightHeadline(card, unitLabel), style = MaterialTheme.typography.titleLarge)
             Text(
-                card.detail,
+                insightDetail(card, unitLabel),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -186,13 +189,13 @@ private fun InsightCardRow(card: InsightCard) {
 
 @Composable
 private fun TrendIcon(trend: String) {
-    val (icon, tint) = when (trend) {
-        "up" -> Icons.AutoMirrored.Filled.TrendingUp to MaterialTheme.colorScheme.primary
-        "down" -> Icons.AutoMirrored.Filled.TrendingDown to MaterialTheme.colorScheme.tertiary
-        "flat" -> Icons.AutoMirrored.Filled.TrendingFlat to MaterialTheme.colorScheme.onSurfaceVariant
+    val (icon, tint, label) = when (trend) {
+        "up" -> Triple(Icons.AutoMirrored.Filled.TrendingUp, MaterialTheme.colorScheme.primary, stringResource(Res.string.trend_up))
+        "down" -> Triple(Icons.AutoMirrored.Filled.TrendingDown, MaterialTheme.colorScheme.tertiary, stringResource(Res.string.trend_down))
+        "flat" -> Triple(Icons.AutoMirrored.Filled.TrendingFlat, MaterialTheme.colorScheme.onSurfaceVariant, stringResource(Res.string.trend_flat))
         else -> return
     }
-    Icon(icon, contentDescription = trend, modifier = Modifier.size(20.dp), tint = tint)
+    Icon(icon, contentDescription = label, modifier = Modifier.size(20.dp), tint = tint)
 }
 
 @Composable
@@ -229,12 +232,12 @@ private fun LogWeightDialog(
     var text by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Log body weight") },
+        title = { Text(stringResource(Res.string.log_body_weight)) },
         text = {
             OutlinedTextField(
                 value = text,
                 onValueChange = { value -> text = value.filter { it.isDigit() || it == '.' } },
-                label = { Text("Weight") },
+                label = { Text(stringResource(Res.string.weight)) },
                 suffix = { Text(unitLabel) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -244,10 +247,10 @@ private fun LogWeightDialog(
             TextButton(
                 enabled = (text.toDoubleOrNull() ?: 0.0) > 0.0,
                 onClick = { onConfirm(text) },
-            ) { Text("Save") }
+            ) { Text(stringResource(Res.string.save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) }
         },
     )
 }

@@ -45,6 +45,8 @@ import dev.balaji.moonrose.logtrain.db.ExerciseFormUiState
 import dev.balaji.moonrose.logtrain.model.ExerciseType
 import dev.balaji.moonrose.logtrain.navigation.ExerciseDetailRoute
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
+import org.jetbrains.compose.resources.stringResource
+import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
 private val EXERCISE_TYPE_OPTIONS = ExerciseType.entries.map { it.value }
 
@@ -73,7 +75,7 @@ fun ExerciseDetailScreen(route: ExerciseDetailRoute, onGoBack: () -> Unit) {
                     title = { Text(route.title) },
                     navigationIcon = {
                         IconButton(onClick = onGoBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.back))
                         }
                     },
                 )
@@ -96,10 +98,10 @@ fun ExerciseCreateScreen(onGoBack: () -> Unit) {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("New Exercise") },
+                    title = { Text(stringResource(Res.string.new_exercise)) },
                     navigationIcon = {
                         IconButton(onClick = onGoBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.back))
                         }
                     },
                 )
@@ -132,7 +134,7 @@ private fun ExerciseDetailContent(route: ExerciseDetailRoute, modifier: Modifier
     var editing by remember(route.exerciseId) { mutableStateOf(false) }
 
     if (uiState.loading) {
-        CenteredMessage(PaddingValues(0.dp)) { Text("Loading…") }
+        CenteredMessage(PaddingValues(0.dp)) { Text(stringResource(Res.string.loading)) }
         return
     }
 
@@ -155,29 +157,29 @@ private fun ExerciseDetailContent(route: ExerciseDetailRoute, modifier: Modifier
 @Composable
 private fun ExerciseReadOnlyDetails(uiState: ExerciseFormUiState, onEdit: () -> Unit) {
     val uriHandler = LocalUriHandler.current
+    val searchQuery = stringResource(Res.string.describe_exercise_query, uiState.name)
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
-            "Search in Google",
+            stringResource(Res.string.search_in_google),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.primary,
             textDecoration = TextDecoration.Underline,
             modifier = Modifier.clickable {
                 uriHandler.openUri(
-                    "https://google.com/search?q=" +
-                        "Describe the exercise ${uiState.name}".replace(" ", "%20"),
+                    "https://google.com/search?q=" + searchQuery.replace(" ", "%20"),
                 )
             },
         )
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-        ExerciseField("Type", uiState.exerciseType?.replaceFirstChar(Char::uppercase))
+        ExerciseField(stringResource(Res.string.exercise_type), uiState.exerciseType?.let { exerciseCatalogLabel(it) })
         HorizontalDivider()
-        ExerciseField("Body part", uiState.bodyPart?.replaceFirstChar(Char::uppercase))
+        ExerciseField(stringResource(Res.string.body_part), uiState.bodyPart?.let { exerciseCatalogLabel(it) })
         HorizontalDivider()
-        ExerciseField("Equipment", uiState.equipment?.replaceFirstChar(Char::uppercase))
+        ExerciseField(stringResource(Res.string.equipment), uiState.equipment?.let { exerciseCatalogLabel(it) })
         HorizontalDivider()
         if (!uiState.builtin) {
             TextButton(onClick = onEdit, modifier = Modifier.align(Alignment.End)) {
-                Text("Edit")
+                Text(stringResource(Res.string.edit))
             }
         }
     }
@@ -216,14 +218,14 @@ private fun ExerciseEditForm(
         OutlinedTextField(
             value = uiState.name,
             onValueChange = formState::updateName,
-            label = { Text("Name") },
+            label = { Text(stringResource(Res.string.name)) },
             isError = uiState.nameError || uiState.duplicateNameError,
             supportingText = when {
                 uiState.nameError -> {
-                    { Text("Name is required") }
+                    { Text(stringResource(Res.string.name_required)) }
                 }
                 uiState.duplicateNameError -> {
-                    { Text("An exercise with this name already exists") }
+                    { Text(stringResource(Res.string.duplicate_exercise_name)) }
                 }
                 else -> null
             },
@@ -236,10 +238,10 @@ private fun ExerciseEditForm(
             onExpandedChange = { typeExpanded = it },
         ) {
             OutlinedTextField(
-                value = uiState.exerciseType?.replaceFirstChar(Char::uppercase) ?: "",
+                value = uiState.exerciseType?.let { exerciseCatalogLabel(it) } ?: "",
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Type") },
+                label = { Text(stringResource(Res.string.exercise_type)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded) },
                 modifier = Modifier.fillMaxWidth().menuAnchor(),
             )
@@ -249,7 +251,7 @@ private fun ExerciseEditForm(
             ) {
                 EXERCISE_TYPE_OPTIONS.forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option.replaceFirstChar(Char::uppercase)) },
+                        text = { Text(exerciseCatalogLabel(option)) },
                         onClick = {
                             formState.updateExerciseType(option)
                             typeExpanded = false
@@ -264,10 +266,10 @@ private fun ExerciseEditForm(
             onExpandedChange = { bodyPartExpanded = it },
         ) {
             OutlinedTextField(
-                value = uiState.bodyPart?.replaceFirstChar(Char::uppercase) ?: "",
+                value = uiState.bodyPart?.let { exerciseCatalogLabel(it) } ?: "",
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Body part") },
+                label = { Text(stringResource(Res.string.body_part)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = bodyPartExpanded) },
                 modifier = Modifier.fillMaxWidth().menuAnchor(),
             )
@@ -277,7 +279,7 @@ private fun ExerciseEditForm(
             ) {
                 BODY_PART_OPTIONS.forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option.replaceFirstChar(Char::uppercase)) },
+                        text = { Text(exerciseCatalogLabel(option)) },
                         onClick = {
                             formState.updateBodyPart(option)
                             bodyPartExpanded = false
@@ -292,10 +294,10 @@ private fun ExerciseEditForm(
             onExpandedChange = { equipmentExpanded = it },
         ) {
             OutlinedTextField(
-                value = uiState.equipment?.replaceFirstChar(Char::uppercase) ?: "",
+                value = uiState.equipment?.let { exerciseCatalogLabel(it) } ?: "",
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Equipment") },
+                label = { Text(stringResource(Res.string.equipment)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = equipmentExpanded) },
                 modifier = Modifier.fillMaxWidth().menuAnchor(),
             )
@@ -305,7 +307,7 @@ private fun ExerciseEditForm(
             ) {
                 EQUIPMENT_OPTIONS.forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option.replaceFirstChar(Char::uppercase)) },
+                        text = { Text(exerciseCatalogLabel(option)) },
                         onClick = {
                             formState.updateEquipment(option)
                             equipmentExpanded = false
@@ -320,7 +322,7 @@ private fun ExerciseEditForm(
             enabled = !uiState.saving,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Save")
+            Text(stringResource(Res.string.save))
         }
     }
 }

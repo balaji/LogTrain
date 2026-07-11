@@ -91,6 +91,8 @@ import dev.balaji.moonrose.logtrain.navigation.RoutineDetailRoute
 import dev.balaji.moonrose.logtrain.navigation.WorkoutSessionRoute
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import org.jetbrains.compose.resources.stringResource
+import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,7 +122,7 @@ fun RoutineDetailScreen(route: RoutineDetailRoute, onNavigate: (Route) -> Unit, 
                     title = { Text(uiState.name.ifBlank { route.title }) },
                     navigationIcon = {
                         IconButton(onClick = onGoBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.back))
                         }
                     },
                     actions = {
@@ -139,14 +141,14 @@ fun RoutineDetailScreen(route: RoutineDetailRoute, onNavigate: (Route) -> Unit, 
                                 } else {
                                     Icon(
                                         Icons.Default.Check,
-                                        contentDescription = "Save",
+                                        contentDescription = stringResource(Res.string.save),
                                         tint = MaterialTheme.colorScheme.primary,
                                     )
                                 }
                             }
                         } else {
                             IconButton(onClick = { isEditing = true }) {
-                                Icon(Icons.Default.Edit, contentDescription = "Edit")
+                                Icon(Icons.Default.Edit, contentDescription = stringResource(Res.string.edit))
                             }
                         }
                     },
@@ -162,7 +164,7 @@ fun RoutineDetailScreen(route: RoutineDetailRoute, onNavigate: (Route) -> Unit, 
                             ))
                         },
                     ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = "Start Workout")
+                        Icon(Icons.Default.PlayArrow, contentDescription = stringResource(Res.string.start_workout))
                     }
                 }
             },
@@ -244,7 +246,7 @@ private fun RoutineDetailBody(
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(Modifier.width(4.dp))
-                        Text("ADD EXERCISE")
+                        Text(stringResource(Res.string.add_exercise_caps))
                     }
                 }
             }
@@ -290,7 +292,7 @@ private fun RoutineReadOnlyBody(
         when {
             uiState.loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             uiState.workSets.isEmpty() -> Text(
-                "No exercises yet. Tap Edit to add exercises.",
+                stringResource(Res.string.routine_no_exercises),
                 modifier = Modifier.align(Alignment.Center).padding(16.dp),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -302,7 +304,7 @@ private fun RoutineReadOnlyBody(
                 uiState.workSets.forEach { workSet ->
                     item(key = workSet.id) {
                         Text(
-                            text = "${workSet.sets.size} x ${workSet.exercise.name}",
+                            text = stringResource(Res.string.sets_by_exercise, workSet.sets.size, workSet.exercise.name),
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -375,7 +377,7 @@ private fun ReorderOverlay(
     ) {
         Column {
             Text(
-                "Reorder exercises",
+                stringResource(Res.string.reorder_exercises),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             )
@@ -497,7 +499,7 @@ private fun ExerciseCard(
             }) {
                 Icon(
                     Icons.Default.Delete,
-                    contentDescription = "Delete exercise",
+                    contentDescription = stringResource(Res.string.delete_exercise),
                     tint = MaterialTheme.colorScheme.onError,
                 )
             }
@@ -547,19 +549,19 @@ private fun ExerciseCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "SET",
+                    stringResource(Res.string.column_set),
                     modifier = Modifier.width(40.dp),
                     style = MaterialTheme.typography.labelSmall,
                     textAlign = TextAlign.Center,
                 )
                 Text(
-                    "KG",
+                    stringResource(Res.string.column_kg),
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelSmall,
                     textAlign = TextAlign.Center,
                 )
                 Text(
-                    "REPS",
+                    stringResource(Res.string.column_reps),
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelSmall,
                     textAlign = TextAlign.Center,
@@ -579,7 +581,7 @@ private fun ExerciseCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        if (set.warmup) "W" else "$workingSetNumber",
+                        if (set.warmup) stringResource(Res.string.warmup_marker) else "$workingSetNumber",
                         modifier = Modifier
                             .width(40.dp)
                             .clickable { onToggleWarmup(setIdx) }
@@ -613,7 +615,7 @@ private fun ExerciseCard(
                     ) {
                         Icon(
                             Icons.Default.Clear,
-                            contentDescription = "Remove set",
+                            contentDescription = stringResource(Res.string.remove_set),
                             modifier = Modifier.size(16.dp),
                             tint = if (workSet.sets.size > 1) {
                                 MaterialTheme.colorScheme.onSurfaceVariant
@@ -633,7 +635,7 @@ private fun ExerciseCard(
                     .padding(horizontal = 8.dp),
             ) {
                 Text(
-                    "ADD SET",
+                    stringResource(Res.string.add_set_caps),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )

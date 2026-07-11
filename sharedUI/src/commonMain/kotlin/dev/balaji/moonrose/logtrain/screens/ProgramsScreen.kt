@@ -55,6 +55,9 @@ import dev.balaji.moonrose.logtrain.navigation.RoutineDetailRoute
 import dev.balaji.moonrose.logtrain.navigation.WorkoutSessionRoute
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
+import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
 private sealed interface ProgramDialog {
     data object Create : ProgramDialog
@@ -79,6 +82,8 @@ fun ProgramsScreen(onNavigate: (Route) -> Unit) {
     var expandedProgramId by remember { mutableStateOf<Long?>(null) }
     var expandedSampleId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val couldNotSaveMessage = stringResource(Res.string.could_not_save)
+    val emptyWorkoutTitle = stringResource(Res.string.empty_workout_title)
 
     fun toggleExpanded(program: Program) {
         expandedProgramId = if (expandedProgramId == program.id) null else program.id
@@ -95,7 +100,7 @@ fun ProgramsScreen(onNavigate: (Route) -> Unit) {
                 dialog = null
             } catch (e: Exception) {
                 dialog = null
-                actionError = e.message ?: "Could not save the change"
+                actionError = e.message ?: couldNotSaveMessage
             }
         }
     }
@@ -107,7 +112,7 @@ fun ProgramsScreen(onNavigate: (Route) -> Unit) {
             routinesByProgram = routinesByProgram,
             contentPadding = contentPadding,
             onStartEmptyWorkout = {
-                onNavigate(WorkoutSessionRoute(routineId = 0L, title = "Empty workout"))
+                onNavigate(WorkoutSessionRoute(routineId = 0L, title = emptyWorkoutTitle))
             },
             onToggle = ::toggleExpanded,
             onRename = { dialog = ProgramDialog.Rename(it) },
@@ -131,13 +136,13 @@ fun ProgramsScreen(onNavigate: (Route) -> Unit) {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Programs") },
+                    title = { Text(stringResource(Res.string.programs_title)) },
                     navigationIcon = { ProfileTopBarButton(onClick = { onNavigate(ProfileRoute) }) },
                 )
             },
             floatingActionButton = {
                 FloatingActionButton(onClick = { dialog = ProgramDialog.Create }) {
-                    Icon(Icons.Filled.Add, contentDescription = "New Program")
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(Res.string.new_program_cd))
                 }
             },
         ) { padding ->
@@ -147,26 +152,26 @@ fun ProgramsScreen(onNavigate: (Route) -> Unit) {
 
     when (val current = dialog) {
         ProgramDialog.Create -> NameEditDialog(
-            title = "New program",
-            confirmLabel = "Create",
+            title = stringResource(Res.string.new_program),
+            confirmLabel = stringResource(Res.string.create),
             onConfirm = { name -> runMutation { ProgramRepository.createProgram(name) } },
             onDismiss = { dialog = null },
         )
         is ProgramDialog.Rename -> NameEditDialog(
-            title = "Rename program",
+            title = stringResource(Res.string.rename_program),
             initialValue = current.program.name,
             onConfirm = { name -> runMutation { ProgramRepository.renameProgram(current.program.id, name) } },
             onDismiss = { dialog = null },
         )
         is ProgramDialog.Delete -> ConfirmDeleteDialog(
-            title = "Delete program?",
-            text = "\"${current.program.name}\" and all of its routines will be deleted.",
+            title = stringResource(Res.string.delete_program_title),
+            text = stringResource(Res.string.delete_program_message, current.program.name),
             onConfirm = { runMutation { ProgramRepository.deleteProgram(current.program.id) } },
             onDismiss = { dialog = null },
         )
         is ProgramDialog.CreateRoutine -> NameEditDialog(
-            title = "New routine",
-            confirmLabel = "Create",
+            title = stringResource(Res.string.new_routine),
+            confirmLabel = stringResource(Res.string.create),
             onConfirm = { name ->
                 scope.launch {
                     try {
@@ -175,30 +180,37 @@ fun ProgramsScreen(onNavigate: (Route) -> Unit) {
                         onNavigate(RoutineDetailRoute(routineId = routineId, title = name, isNew = true))
                     } catch (e: Exception) {
                         dialog = null
-                        actionError = e.message ?: "Could not save the change"
+                        actionError = e.message ?: couldNotSaveMessage
                     }
                 }
             },
             onDismiss = { dialog = null },
         )
         is ProgramDialog.RenameRoutine -> NameEditDialog(
-            title = "Rename routine",
+            title = stringResource(Res.string.rename_routine),
             initialValue = current.routine.name,
             onConfirm = { name -> runMutation { ProgramRepository.renameRoutine(current.routine.id, name) } },
             onDismiss = { dialog = null },
         )
         is ProgramDialog.DeleteRoutine -> ConfirmDeleteDialog(
-            title = "Delete routine?",
-            text = "\"${current.routine.name}\" will be deleted.",
+            title = stringResource(Res.string.delete_routine_title),
+            text = stringResource(Res.string.delete_routine_message, current.routine.name),
             onConfirm = { runMutation { ProgramRepository.deleteRoutine(current.routine.id) } },
             onDismiss = { dialog = null },
         )
-        is ProgramDialog.CopySample -> ConfirmCopyDialog(
-            title = "Add to your programs?",
-            text = "\"${current.sample.name}\" will be copied into your programs, where you can edit it.",
-            onConfirm = { runMutation { ProgramRepository.addSampleProgram(current.sample) } },
-            onDismiss = { dialog = null },
-        )
+        is ProgramDialog.CopySample -> {
+            // The localized names shown for the sample's keys are what get persisted.
+            val sampleName = sampleProgramName(current.sample)
+            val routineNames = current.sample.routines.map { sampleRoutineName(it) }
+            ConfirmCopyDialog(
+                title = stringResource(Res.string.add_sample_title),
+                text = stringResource(Res.string.add_sample_message, sampleName),
+                onConfirm = {
+                    runMutation { ProgramRepository.addSampleProgram(current.sample, sampleName, routineNames) }
+                },
+                onDismiss = { dialog = null },
+            )
+        }
         is ProgramDialog.ViewSampleRoutine -> SampleRoutineDialog(
             routine = current.routine,
             onDismiss = { dialog = null },
@@ -241,12 +253,12 @@ private fun ProgramsBody(
             Spacer(Modifier.height(24.dp))
         }
         item(key = "my-programs-header") {
-            SectionHeader("My Programs")
+            SectionHeader(stringResource(Res.string.my_programs))
         }
         if (programs.isEmpty()) {
             item(key = "empty-programs") {
                 Text(
-                    "No programs yet. Tap + to create one.",
+                    stringResource(Res.string.no_programs_yet),
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -271,7 +283,7 @@ private fun ProgramsBody(
                         item(key = "routines-empty-${program.id}") {
                             Column(modifier = Modifier.animateItem()) {
                                 Text(
-                                    "No routines yet. Tap + to add one.",
+                                    stringResource(Res.string.no_routines_yet),
                                     modifier = Modifier.fillMaxWidth()
                                         .background(MaterialTheme.colorScheme.surfaceContainer)
                                         .padding(16.dp),
@@ -307,7 +319,7 @@ private fun ProgramsBody(
 
         item(key = "sample-header") {
             Spacer(Modifier.height(24.dp))
-            SectionHeader("Sample Programs")
+            SectionHeader(stringResource(Res.string.sample_programs))
         }
         SamplePrograms.all.forEach { sample ->
             item(key = "sample-${sample.id}") {
@@ -322,7 +334,7 @@ private fun ProgramsBody(
             }
             if (sample.id == expandedSampleId) {
                 sample.routines.forEach { routine ->
-                    item(key = "sample-routine-${sample.id}-${routine.name}") {
+                    item(key = "sample-routine-${sample.id}-${routine.id}") {
                         Column(modifier = Modifier.animateItem()) {
                             SampleRoutineRow(routine, onClick = { onViewSampleRoutine(routine) })
                             HorizontalDivider()
@@ -351,7 +363,7 @@ private fun StartEmptyWorkoutRow(onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            "Start Empty Workout",
+            stringResource(Res.string.start_empty_workout),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.primary,
         )
@@ -371,14 +383,14 @@ private fun ProgramRow(
         actions = listOf(
             SwipeRevealAction(
                 icon = Icons.Filled.Edit,
-                contentDescription = "Edit program",
+                contentDescription = stringResource(Res.string.edit_program),
                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                 onClick = { onRename(program) },
             ),
             SwipeRevealAction(
                 icon = Icons.Filled.Delete,
-                contentDescription = "Delete program",
+                contentDescription = stringResource(Res.string.delete_program),
                 containerColor = MaterialTheme.colorScheme.error,
                 contentColor = MaterialTheme.colorScheme.onError,
                 onClick = { onDelete(program) },
@@ -388,7 +400,7 @@ private fun ProgramRow(
         trailingContent = {
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = if (expanded) "Collapse" else "Expand",
+                contentDescription = if (expanded) stringResource(Res.string.collapse) else stringResource(Res.string.expand),
                 modifier = Modifier.rotate(chevronRotation),
             )
         },
@@ -413,7 +425,7 @@ private fun AddRoutineRow(onClick: () -> Unit) {
             tint = MaterialTheme.colorScheme.primary,
         )
         Text(
-            "Add Routine",
+            stringResource(Res.string.add_routine),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.primary,
         )
@@ -431,14 +443,14 @@ private fun RoutineRow(
         actions = listOf(
             SwipeRevealAction(
                 icon = Icons.Filled.Edit,
-                contentDescription = "Edit routine",
+                contentDescription = stringResource(Res.string.edit_routine),
                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                 onClick = { onRename(routine) },
             ),
             SwipeRevealAction(
                 icon = Icons.Filled.Delete,
-                contentDescription = "Delete routine",
+                contentDescription = stringResource(Res.string.delete_routine),
                 containerColor = MaterialTheme.colorScheme.error,
                 contentColor = MaterialTheme.colorScheme.onError,
                 onClick = { onDelete(routine) },
@@ -449,7 +461,7 @@ private fun RoutineRow(
         trailingContent = {
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "Open routine",
+                contentDescription = stringResource(Res.string.open_routine),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },
@@ -489,16 +501,16 @@ private fun SampleProgramRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(sample.name, style = MaterialTheme.typography.bodyLarge)
+            Text(sampleProgramName(sample), style = MaterialTheme.typography.bodyLarge)
             Text(
-                "${sample.daysPerWeek} days a week · ${sample.summary}",
+                stringResource(Res.string.sample_days_summary, sample.daysPerWeek, sampleProgramSummary(sample)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         Icon(
             Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = if (expanded) "Collapse" else "Expand",
+            contentDescription = if (expanded) stringResource(Res.string.collapse) else stringResource(Res.string.expand),
             modifier = Modifier.rotate(chevronRotation),
         )
     }
@@ -514,9 +526,9 @@ private fun SampleRoutineRow(routine: SampleRoutine, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(routine.name, modifier = Modifier.padding(start = 16.dp))
+        Text(sampleRoutineName(routine), modifier = Modifier.padding(start = 16.dp))
         Text(
-            "${routine.workSets.size} exercises",
+            pluralStringResource(Res.plurals.exercise_count, routine.workSets.size, routine.workSets.size),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -539,7 +551,7 @@ private fun CopySampleRow(onClick: () -> Unit) {
             tint = MaterialTheme.colorScheme.primary,
         )
         Text(
-            "Copy to my programs",
+            stringResource(Res.string.copy_to_my_programs),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.primary,
         )

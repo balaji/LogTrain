@@ -10,7 +10,7 @@ struct ProgressTabView: View {
     @State private var uiState = ProgressUiState(
         loading: true,
         cards: [],
-        weightUnitLabel: "kg",
+        weightUnit: .metric,
         latestBodyWeight: "",
         savingWeight: false
     )
@@ -62,7 +62,7 @@ struct ProgressTabView: View {
             }
         }
         .alert("Log body weight", isPresented: $showLogWeight) {
-            TextField("Weight (\(uiState.weightUnitLabel))", text: $weightText)
+            TextField("Weight (\(unitLabel(uiState.weightUnit)))", text: $weightText)
                 .keyboardType(.decimalPad)
             Button("Save") {
                 state.logWeight(text: weightText)
@@ -92,7 +92,7 @@ struct ProgressTabView: View {
                             .foregroundStyle(.secondary)
                         Text(uiState.latestBodyWeight.isEmpty
                             ? "Not logged yet"
-                            : "\(uiState.latestBodyWeight) \(uiState.weightUnitLabel)")
+                            : "\(uiState.latestBodyWeight) \(unitLabel(uiState.weightUnit))")
                             .font(.headline)
                     }
                     Spacer()
@@ -102,28 +102,35 @@ struct ProgressTabView: View {
             }
             Section {
                 ForEach(uiState.cards, id: \.id) { card in
-                    InsightCardView(card: card)
+                    InsightCardView(card: card, unit: unitLabel(uiState.weightUnit))
                 }
             }
         }
     }
 }
 
+/// English label for the stored weights' unit; the shared logic only exposes
+/// the `WeightUnit` enum. Mirrors sharedUI's `weightUnitLabel`.
+private func unitLabel(_ unit: WeightUnit) -> String {
+    unit == .imperial ? "lb" : "kg"
+}
+
 private struct InsightCardView: View {
     let card: InsightCard
+    let unit: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(card.title)
+                Text(title)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Spacer()
                 trendIcon
             }
-            Text(card.headline)
+            Text(text(card.headlineKey, card.headlineArgs))
                 .font(.title3.weight(.semibold))
-            Text(card.detail)
+            Text(text(card.detailKey, card.detailArgs))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             if card.spark.count >= 2 {
@@ -132,6 +139,40 @@ private struct InsightCardView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private var title: String {
+        switch card.kind {
+        case "volume": return "Weekly volume"
+        case "frequency": return "Consistency"
+        case "body_weight": return "Body weight"
+        // progression/plateau cards are titled by the exercise name.
+        default: return card.exerciseName ?? ""
+        }
+    }
+
+    /// English templates for the language-neutral headline/detail keys the
+    /// shared logic emits; mirrors sharedUI's insightHeadline/insightDetail.
+    private func text(_ key: String, _ args: [String]) -> String {
+        switch key {
+        case "volume_this_week": return "\(args[0]) \(unit) this week"
+        case "streak_weeks": return "\(args[0])-week streak"
+        case "no_streak": return "No active streak"
+        case "plateau_at": return "Plateau at ~\(args[0]) \(unit)"
+        case "est_1rm": return "Est. 1RM \(args[0]) \(unit)"
+        case "latest_body_weight": return "\(args[0]) \(unit)"
+        case "pct_vs_4_week_avg": return "\(args[0])% vs 4-week average"
+        case "sets_in_sessions": return "\(args[0]) sets in \(args[1]) sessions"
+        case "workouts_30_days": return "\(args[0]) workouts in the last 30 days"
+        case "workouts_30_days_longest": return "\(args[0]) workouts in the last 30 days · longest streak \(args[1]) weeks"
+        case "flat_across_weeks": return "Est. 1RM flat across \(args[0]) weeks"
+        case "slope_per_week": return "\(args[0]) \(unit)/week over \(args[1]) weeks"
+        case "change_30_days": return "\(args[0]) \(unit) in 30 days"
+        case "log_regularly": return "Log regularly to see your trend"
+        // An unknown key means sharedLogic is newer than this view; show the
+        // bare values rather than nothing.
+        default: return args.joined(separator: " ")
+        }
     }
 
     @ViewBuilder
