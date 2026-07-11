@@ -26,8 +26,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import dev.balaji.moonrose.logtrain.db.ProfileFormState
 import dev.balaji.moonrose.logtrain.model.Profile
-
-private val GENDER_OPTIONS = listOf("Male", "Female", "Other", "Prefer not to say")
+import org.jetbrains.compose.resources.stringResource
+import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
 /**
  * Profile create/edit form, shared by the first-run setup flow and the
@@ -37,12 +37,18 @@ private val GENDER_OPTIONS = listOf("Male", "Female", "Other", "Prefer not to sa
 @Composable
 fun ProfileForm(
     initial: Profile? = null,
-    saveLabel: String = "Save",
+    saveLabel: String = stringResource(Res.string.save),
     onSaved: () -> Unit = {},
 ) {
     val formState = remember { ProfileFormState(initial) }
     val uiState by formState.uiState.collectAsState()
     var genderExpanded by remember { mutableStateOf(false) }
+    val genderOptions = listOf(
+        stringResource(Res.string.gender_male),
+        stringResource(Res.string.gender_female),
+        stringResource(Res.string.gender_other),
+        stringResource(Res.string.gender_prefer_not_to_say),
+    )
 
     Column(
         modifier = Modifier
@@ -55,10 +61,10 @@ fun ProfileForm(
         OutlinedTextField(
             value = uiState.name,
             onValueChange = formState::updateName,
-            label = { Text("Name") },
+            label = { Text(stringResource(Res.string.name)) },
             isError = uiState.nameError != null,
             supportingText = uiState.nameError?.let { error ->
-                { Text(error) }
+                { Text(profileNameErrorText(error)) }
             },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
@@ -66,10 +72,12 @@ fun ProfileForm(
         OutlinedTextField(
             value = uiState.age,
             onValueChange = formState::updateAge,
-            label = { Text("Age") },
-            isError = uiState.ageError != null,
-            supportingText = uiState.ageError?.let { error ->
-                { Text(error) }
+            label = { Text(stringResource(Res.string.age)) },
+            isError = uiState.ageError,
+            supportingText = if (uiState.ageError) {
+                { Text(profileAgeErrorText()) }
+            } else {
+                null
             },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
@@ -83,7 +91,7 @@ fun ProfileForm(
                 value = uiState.gender ?: "",
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Gender") },
+                label = { Text(stringResource(Res.string.gender)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = genderExpanded) },
                 modifier = Modifier.fillMaxWidth().menuAnchor(),
             )
@@ -91,7 +99,7 @@ fun ProfileForm(
                 expanded = genderExpanded,
                 onDismissRequest = { genderExpanded = false },
             ) {
-                GENDER_OPTIONS.forEach { option ->
+                genderOptions.forEach { option ->
                     DropdownMenuItem(
                         text = { Text(option) },
                         onClick = {
@@ -105,7 +113,7 @@ fun ProfileForm(
         OutlinedTextField(
             value = uiState.weight,
             onValueChange = formState::updateWeight,
-            label = { Text("Weight (kg)") },
+            label = { Text(stringResource(Res.string.weight_kg_label)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
@@ -113,7 +121,7 @@ fun ProfileForm(
         OutlinedTextField(
             value = uiState.height,
             onValueChange = formState::updateHeight,
-            label = { Text("Height (cm)") },
+            label = { Text(stringResource(Res.string.height_cm_label)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),

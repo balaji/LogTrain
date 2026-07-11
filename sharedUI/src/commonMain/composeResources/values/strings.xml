@@ -1,0 +1,268 @@
+<resources>
+    <!-- App -->
+    <string name="app_name">LogTrain</string>
+    <string name="app_tagline">Track your workouts, all on your device.</string>
+
+    <!-- Common actions -->
+    <string name="back">Back</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="save">Save</string>
+    <string name="edit">Edit</string>
+    <string name="add">Add</string>
+    <string name="ok">OK</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="create">Create</string>
+    <string name="loading">Loading…</string>
+    <string name="collapse">Collapse</string>
+    <string name="expand">Expand</string>
+    <string name="name">Name</string>
+    <string name="something_went_wrong">Something went wrong</string>
+    <string name="could_not_save">Could not save the change</string>
+
+    <!-- Tabs -->
+    <string name="tab_exercises">Exercises</string>
+    <string name="tab_workouts">Workouts</string>
+    <string name="tab_history">History</string>
+    <string name="tab_progress">Progress</string>
+
+    <!-- Active session / workout dialogs -->
+    <string name="discard_workout_title">Discard workout?</string>
+    <string name="discard_workout_message">This workout and all logged sets will be deleted.</string>
+    <string name="discard">Discard</string>
+    <string name="nothing_to_save_title">Nothing to save</string>
+    <string name="nothing_to_save_message">There are no completed sets to save. Discard?</string>
+    <string name="discard_workout">Discard workout</string>
+    <string name="finish_workout">Finish workout</string>
+
+    <!-- Workout session / routine editor -->
+    <string name="add_exercise_caps">ADD EXERCISE</string>
+    <string name="add_set_caps">ADD SET</string>
+    <string name="reorder_exercises">Reorder exercises</string>
+    <string name="column_set">SET</string>
+    <string name="column_kg">KG</string>
+    <string name="column_reps">REPS</string>
+    <string name="warmup_marker">W</string>
+    <string name="delete_exercise">Delete exercise</string>
+    <string name="remove_set">Remove set</string>
+    <string name="start_workout">Start Workout</string>
+    <string name="routine_no_exercises">No exercises yet. Tap Edit to add exercises.</string>
+    <string name="sets_by_exercise">%1$d x %2$s</string>
+
+    <!-- Programs -->
+    <string name="programs_title">Programs</string>
+    <string name="empty_workout_title">Empty workout</string>
+    <string name="new_program_cd">New Program</string>
+    <string name="new_program">New program</string>
+    <string name="rename_program">Rename program</string>
+    <string name="delete_program_title">Delete program?</string>
+    <string name="delete_program_message">\"%1$s\" and all of its routines will be deleted.</string>
+    <string name="new_routine">New routine</string>
+    <string name="rename_routine">Rename routine</string>
+    <string name="delete_routine_title">Delete routine?</string>
+    <string name="delete_routine_message">\"%1$s\" will be deleted.</string>
+    <string name="add_sample_title">Add to your programs?</string>
+    <string name="add_sample_message">\"%1$s\" will be copied into your programs, where you can edit it.</string>
+    <string name="start_empty_workout">Start Empty Workout</string>
+    <string name="my_programs">My Programs</string>
+    <string name="no_programs_yet">No programs yet. Tap + to create one.</string>
+    <string name="no_routines_yet">No routines yet. Tap + to add one.</string>
+    <string name="sample_programs">Sample Programs</string>
+    <string name="edit_program">Edit program</string>
+    <string name="delete_program">Delete program</string>
+    <string name="edit_routine">Edit routine</string>
+    <string name="delete_routine">Delete routine</string>
+    <string name="open_routine">Open routine</string>
+    <string name="add_routine">Add Routine</string>
+    <string name="sample_days_summary">%1$d days a week · %2$s</string>
+    <string name="copy_to_my_programs">Copy to my programs</string>
+    <plurals name="exercise_count">
+        <item quantity="one">%1$d exercise</item>
+        <item quantity="other">%1$d exercises</item>
+    </plurals>
+
+    <!-- Exercises -->
+    <string name="add_exercise_cd">Add Exercise</string>
+    <string name="search_exercises">Search exercises</string>
+    <string name="clear_search">Clear search</string>
+    <string name="body_part">Body part</string>
+    <string name="equipment">Equipment</string>
+    <string name="no_exercises_match">No exercises match your filters.</string>
+    <string name="my_exercises">My Exercises</string>
+    <string name="all_exercises">All Exercises</string>
+    <string name="delete_exercise_title">Delete exercise?</string>
+    <string name="delete_exercise_message">\"%1$s\" will be permanently deleted.</string>
+    <string name="exercise_in_use">\"%1$s\" is used by a routine or workout history and can\'t be deleted.</string>
+
+    <!-- Exercise detail -->
+    <string name="new_exercise">New Exercise</string>
+    <string name="search_in_google">Search in Google</string>
+    <string name="describe_exercise_query">Describe the exercise %1$s</string>
+    <string name="exercise_type">Type</string>
+    <string name="name_required">Name is required</string>
+    <string name="duplicate_exercise_name">An exercise with this name already exists</string>
+
+    <!-- Profile -->
+    <string name="profile">Profile</string>
+    <string name="age">Age</string>
+    <string name="gender">Gender</string>
+    <string name="weight">Weight</string>
+    <string name="height">Height</string>
+    <string name="weight_kg_value">%1$s kg</string>
+    <string name="height_cm_value">%1$s cm</string>
+    <string name="weight_kg_label">Weight (kg)</string>
+    <string name="height_cm_label">Height (cm)</string>
+    <string name="gender_male">Male</string>
+    <string name="gender_female">Female</string>
+    <string name="gender_other">Other</string>
+    <string name="gender_prefer_not_to_say">Prefer not to say</string>
+    <string name="create_a_profile">Create a Profile</string>
+    <string name="create_profile">Create Profile</string>
+
+    <!-- Settings -->
+    <string name="settings">Settings</string>
+    <string name="week_starts_on">Week starts on</string>
+    <string name="appearance">Appearance</string>
+    <string name="weight_units">Weight units</string>
+    <string name="weekday_sun_short">Sun</string>
+    <string name="weekday_mon_short">Mon</string>
+    <string name="weekday_tue_short">Tue</string>
+    <string name="weekday_wed_short">Wed</string>
+    <string name="weekday_thu_short">Thu</string>
+    <string name="weekday_fri_short">Fri</string>
+    <string name="weekday_sat_short">Sat</string>
+    <string name="appearance_light">Light</string>
+    <string name="appearance_dark">Dark</string>
+    <string name="appearance_system">System</string>
+    <string name="units_metric">Metric</string>
+    <string name="units_imperial">Imperial</string>
+
+    <!-- Developer tools -->
+    <string name="developer">Developer</string>
+    <string name="test_data">Test data</string>
+    <string name="generate">Generate</string>
+    <string name="generating">Generating…</string>
+    <string name="deleting">Deleting…</string>
+    <string name="generate_test_data_title">Generate test data</string>
+    <string name="generate_test_data_message">Fills the calendar with roughly three workouts a week and regular weigh-ins, ending today.</string>
+    <string name="days_of_history">Days of history</string>
+    <string name="delete_test_data_title">Delete test data</string>
+    <string name="delete_test_data_message">Removes all %1$d generated workouts and their weigh-ins. Your own logged data is untouched.</string>
+
+    <!-- Progress -->
+    <string name="no_progress_yet">No progress yet</string>
+    <string name="progress_empty_hint">Insights appear after your first completed workout or logged weight.</string>
+    <string name="log_body_weight">Log body weight</string>
+    <string name="body_weight">Body weight</string>
+    <string name="not_logged_yet">Not logged yet</string>
+    <string name="log_weight">Log weight</string>
+    <string name="trend_up">Trending up</string>
+    <string name="trend_down">Trending down</string>
+    <string name="trend_flat">Flat</string>
+
+    <!-- Calendar / history -->
+    <string name="show_calendar">Show calendar</string>
+    <string name="show_workout_history">Show workout history</string>
+    <string name="week_number_abbrev">Wk</string>
+    <string name="no_completed_workouts">No completed workouts</string>
+
+    <!-- Day detail -->
+    <string name="no_workouts_this_day">No completed workouts on this day</string>
+    <string name="workout">Workout</string>
+    <string name="warm_up">Warm-up</string>
+    <string name="set_number">Set %1$d</string>
+    <string name="reps_value">%1$s reps</string>
+
+    <!-- Weight units -->
+    <string name="unit_kg">kg</string>
+    <string name="unit_lb">lb</string>
+
+    <!-- Months (short) -->
+    <string name="month_jan_short">Jan</string>
+    <string name="month_feb_short">Feb</string>
+    <string name="month_mar_short">Mar</string>
+    <string name="month_apr_short">Apr</string>
+    <string name="month_may_short">May</string>
+    <string name="month_jun_short">Jun</string>
+    <string name="month_jul_short">Jul</string>
+    <string name="month_aug_short">Aug</string>
+    <string name="month_sep_short">Sep</string>
+    <string name="month_oct_short">Oct</string>
+    <string name="month_nov_short">Nov</string>
+    <string name="month_dec_short">Dec</string>
+    <!-- e.g. "Jul 7, 2026": month abbreviation, day, year -->
+    <string name="day_title">%1$s %2$s, %3$s</string>
+
+    <!-- Insight cards (args are pre-formatted numbers from sharedLogic) -->
+    <string name="insight_title_volume">Weekly volume</string>
+    <string name="insight_title_frequency">Consistency</string>
+    <string name="insight_volume_this_week">%1$s %2$s this week</string>
+    <string name="insight_streak_weeks">%1$s-week streak</string>
+    <string name="insight_no_streak">No active streak</string>
+    <string name="insight_plateau_at">Plateau at ~%1$s %2$s</string>
+    <string name="insight_est_1rm">Est. 1RM %1$s %2$s</string>
+    <string name="insight_latest_body_weight">%1$s %2$s</string>
+    <string name="insight_pct_vs_4_week_avg">%1$s% vs 4-week average</string>
+    <string name="insight_sets_in_sessions">%1$s sets in %2$s sessions</string>
+    <string name="insight_workouts_30_days">%1$s workouts in the last 30 days</string>
+    <string name="insight_workouts_30_days_longest">%1$s workouts in the last 30 days · longest streak %2$s weeks</string>
+    <string name="insight_flat_across_weeks">Est. 1RM flat across %1$s weeks</string>
+    <string name="insight_slope_per_week">%1$s %2$s/week over %3$s weeks</string>
+    <string name="insight_change_30_days">%1$s %2$s in 30 days</string>
+    <string name="insight_log_regularly">Log regularly to see your trend</string>
+
+    <!-- Profile validation -->
+    <string name="profile_name_too_long">Name must be at most %1$s characters</string>
+    <string name="profile_name_letters_only">Name must contain only letters</string>
+    <string name="profile_age_range">Age must be between %1$s and %2$s</string>
+
+    <!-- Sample programs -->
+    <string name="sample_full_body_3day_name">3 Day Full Body</string>
+    <string name="sample_full_body_3day_summary">Three full-body sessions a week. The simplest way to start.</string>
+    <string name="sample_upper_lower_4day_name">4 Day Upper Lower</string>
+    <string name="sample_upper_lower_4day_summary">Two upper-body and two lower-body days, alternating through the week.</string>
+    <string name="sample_push_pull_legs_5day_name">5 Day Push Pull Legs</string>
+    <string name="sample_push_pull_legs_5day_summary">A push, pull and legs split, then an upper and lower day to finish the week.</string>
+    <string name="sample_routine_full_body_a">Full Body A</string>
+    <string name="sample_routine_full_body_b">Full Body B</string>
+    <string name="sample_routine_full_body_c">Full Body C</string>
+    <string name="sample_routine_upper_a">Upper A</string>
+    <string name="sample_routine_lower_a">Lower A</string>
+    <string name="sample_routine_upper_b">Upper B</string>
+    <string name="sample_routine_lower_b">Lower B</string>
+    <string name="sample_routine_push">Push</string>
+    <string name="sample_routine_pull">Pull</string>
+    <string name="sample_routine_legs">Legs</string>
+    <string name="sample_routine_upper">Upper</string>
+    <string name="sample_routine_lower">Lower</string>
+
+    <!-- Exercise catalog keys (lowercase DB values → display labels) -->
+    <string name="body_part_back">Back</string>
+    <string name="body_part_biceps">Biceps</string>
+    <string name="body_part_calves">Calves</string>
+    <string name="body_part_chest">Chest</string>
+    <string name="body_part_core">Core</string>
+    <string name="body_part_forearms">Forearms</string>
+    <string name="body_part_full_body">Full body</string>
+    <string name="body_part_glutes">Glutes</string>
+    <string name="body_part_hamstrings">Hamstrings</string>
+    <string name="body_part_shoulders">Shoulders</string>
+    <string name="body_part_thighs">Thighs</string>
+    <string name="body_part_triceps">Triceps</string>
+    <string name="equipment_machine">Machine</string>
+    <string name="equipment_body_weight">Body weight</string>
+    <string name="equipment_cable">Cable</string>
+    <string name="equipment_barbell">Barbell</string>
+    <string name="equipment_smith_machine">Smith machine</string>
+    <string name="equipment_dumbbell">Dumbbell</string>
+    <string name="equipment_kettlebell">Kettlebell</string>
+    <string name="equipment_other">Other</string>
+    <string name="equipment_band">Band</string>
+    <string name="exercise_type_strength">Strength</string>
+    <string name="exercise_type_duration">Duration</string>
+    <string name="exercise_type_distance">Distance</string>
+    <string name="exercise_type_reps_duration">Reps and duration</string>
+    <string name="exercise_type_distance_duration">Distance and duration</string>
+    <string name="exercise_type_reps_distance">Reps and distance</string>
+</resources>

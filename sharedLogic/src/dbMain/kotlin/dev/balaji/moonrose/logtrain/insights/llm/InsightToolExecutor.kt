@@ -6,7 +6,7 @@ import dev.balaji.moonrose.logtrain.db.InsightsRepository
 import dev.balaji.moonrose.logtrain.db.ProfileRepository
 import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
 import dev.balaji.moonrose.logtrain.insights.InsightMath.formatNumber
-import dev.balaji.moonrose.logtrain.insights.label
+import dev.balaji.moonrose.logtrain.model.WeightUnit
 import kotlinx.coroutines.flow.first
 
 data class InsightToolSpec(val name: String, val description: String)
@@ -65,14 +65,17 @@ object InsightToolExecutor {
     }
 
     private suspend fun unitLabel(): String =
-        UserSettingsRepository.settings.first().weightUnit.label
+        when (UserSettingsRepository.settings.first().weightUnit) {
+            WeightUnit.METRIC -> "kg"
+            WeightUnit.IMPERIAL -> "lb"
+        }
 
     private suspend fun weeklyVolume(weeks: Int): String {
         val unit = unitLabel()
         val points = InsightsRepository.weeklyVolume(weeks.coerceIn(1, 12))
         if (points.all { it.setCount == 0 }) return "No completed workouts in this period."
         return points.joinToString("\n") { p ->
-            "week of ${WeekMath.formatDayTitle(p.weekStartEpochDay)}: " +
+            "week of ${dayTitle(p.weekStartEpochDay)}: " +
                 "${formatNumber(p.totalVolume, 0)} $unit, ${p.setCount} sets, ${p.sessionCount} sessions"
         }
     }
@@ -83,7 +86,7 @@ object InsightToolExecutor {
         if (prs.isEmpty()) return noDataFor(exerciseName)
         return prs.joinToString("\n") { pr ->
             "${pr.exerciseName}: ${formatNumber(pr.weight)} $unit x ${pr.reps} " +
-                "(est. 1RM ${formatNumber(pr.est1Rm)} $unit) on ${WeekMath.formatDayTitle(pr.epochDay)}"
+                "(est. 1RM ${formatNumber(pr.est1Rm)} $unit) on ${dayTitle(pr.epochDay)}"
         }
     }
 
@@ -92,7 +95,7 @@ object InsightToolExecutor {
         val p = InsightsRepository.exerciseProgression(exerciseName)
             ?: return noDataFor(exerciseName)
         val series = p.weeklyBest1Rm.joinToString("\n") {
-            "week of ${WeekMath.formatDayTitle(it.epochDay)}: est. 1RM ${formatNumber(it.value)} $unit"
+            "week of ${dayTitle(it.epochDay)}: est. 1RM ${formatNumber(it.value)} $unit"
         }
         val trend = when {
             p.plateau -> "trend: plateau"
@@ -119,7 +122,7 @@ object InsightToolExecutor {
             ?: return "No body-weight entries logged in this period."
         val sign = if (trend.change30Days >= 0) "+" else ""
         return "latest: ${formatNumber(trend.latest)} $unit " +
-            "on ${WeekMath.formatDayTitle(trend.latestEpochDay)}\n" +
+            "on ${dayTitle(trend.latestEpochDay)}\n" +
             "30-day change: $sign${formatNumber(trend.change30Days)} $unit\n" +
             "trend: ${formatNumber(trend.slopePerWeek, 2)} $unit/week over ${trend.points.size} entries"
     }
@@ -146,3 +149,16 @@ object InsightToolExecutor {
         return if (known.isEmpty()) prefix else "$prefix Exercises with history: ${known.joinToString(", ")}."
     }
 }
+
+/**
+ * English "Jul 7, 2026", fine here because this text is consumed by the
+ * language model rather than shown in the UI; the UI layers localize dates
+ * themselves from [WeekMath.dayParts].
+ */
+private fun dayTitle(epochDay: Long): String {
+    val parts = WeekMath.dayParts(epochDay)
+    return "${MONTH_ABBREVIATIONS[parts.monthOfYear - 1]} ${parts.dayOfMonth}, ${parts.year}"
+}
+
+private val MONTH_ABBREVIATIONS =
+    listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")

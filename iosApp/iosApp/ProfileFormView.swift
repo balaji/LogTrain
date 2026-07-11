@@ -3,6 +3,18 @@ import SharedUI
 
 private let genderOptions = ["Male", "Female", "Other", "Prefer not to say"]
 
+/// English messages for the language-neutral validation errors the shared
+/// form state emits; mirrors sharedUI's profileNameErrorText. The length
+/// bound matches MAX_NAME_LENGTH in the shared ProfileFormState.
+private func nameErrorText(_ error: ProfileNameError) -> String {
+    switch error {
+    case .required: return "Name is required"
+    case .tooLong: return "Name must be at most 50 characters"
+    case .invalidChars: return "Name must contain only letters"
+    default: return "Invalid name"
+    }
+}
+
 private enum ProfileFormField: Hashable {
     case name, age, weight, height
 }
@@ -35,7 +47,7 @@ struct ProfileFormView: View {
                 .focused($focusedField, equals: .name)
 
                 if let nameError = uiState.nameError {
-                    Text(nameError)
+                    Text(nameErrorText(nameError))
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
@@ -47,8 +59,9 @@ struct ProfileFormView: View {
                 .keyboardType(.numberPad)
                 .focused($focusedField, equals: .age)
 
-                if let ageError = uiState.ageError {
-                    Text(ageError)
+                if uiState.ageError {
+                    // Bounds match MIN_AGE/MAX_AGE in the shared ProfileFormState.
+                    Text("Age must be between 1 and 120")
                         .font(.caption)
                         .foregroundStyle(.red)
                 }

@@ -2,7 +2,7 @@ package dev.balaji.moonrose.logtrain.db
 
 import dev.balaji.moonrose.logtrain.insights.InsightCard
 import dev.balaji.moonrose.logtrain.insights.InsightMath
-import dev.balaji.moonrose.logtrain.insights.label
+import dev.balaji.moonrose.logtrain.model.WeightUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,8 +14,8 @@ import kotlinx.coroutines.launch
 data class ProgressUiState(
     val loading: Boolean = true,
     val cards: List<InsightCard> = emptyList(),
-    /** Display label for stored weights ("kg"/"lb"), from user settings. */
-    val weightUnitLabel: String = "kg",
+    /** Unit of the stored weights, from user settings; the UI supplies its localized label. */
+    val weightUnit: WeightUnit = WeightUnit.METRIC,
     /** Pre-formatted latest logged body weight; empty when nothing is logged. */
     val latestBodyWeight: String = "",
     val savingWeight: Boolean = false,
@@ -40,7 +40,7 @@ class ProgressScreenState {
                 ProgressUiState(
                     loading = false,
                     cards = cards,
-                    weightUnitLabel = settings.weightUnit.label,
+                    weightUnit = settings.weightUnit,
                     latestBodyWeight = entries.firstOrNull()
                         ?.let { InsightMath.formatNumber(it.weight) }
                         .orEmpty(),

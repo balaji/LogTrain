@@ -109,6 +109,14 @@ private struct WeekRowView: View {
     }
 }
 
+/// English month abbreviation for a 1-based month; the shared calendar model
+/// only carries the month number. Mirrors sharedUI's monthAbbreviation.
+private func monthAbbreviation(_ monthOfYear: Int32) -> String {
+    let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    let index = Int(monthOfYear) - 1
+    return months.indices.contains(index) ? months[index] : " "
+}
+
 private struct DayCellView: View {
     let day: CalendarDay
 
@@ -130,7 +138,7 @@ private struct DayCellView: View {
     private var dayContent: some View {
         VStack(spacing: 2) {
             // Blank placeholder keeps row heights uniform.
-            Text(day.monthLabel ?? " ")
+            Text(day.dayOfMonth == 1 ? monthAbbreviation(day.monthOfYear) : " ")
                 .font(.caption2)
                 .foregroundStyle(.tint)
             Text("\(day.dayOfMonth)")

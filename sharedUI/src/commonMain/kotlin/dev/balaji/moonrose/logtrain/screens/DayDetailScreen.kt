@@ -31,18 +31,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import dev.balaji.moonrose.logtrain.calendar.WeekMath
 import dev.balaji.moonrose.logtrain.db.DayDetailState
 import dev.balaji.moonrose.logtrain.db.DayDetailUiState
 import dev.balaji.moonrose.logtrain.db.DaySession
 import dev.balaji.moonrose.logtrain.db.DaySessionExercise
 import dev.balaji.moonrose.logtrain.navigation.DayDetailRoute
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
+import org.jetbrains.compose.resources.stringResource
+import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DayDetailScreen(route: DayDetailRoute, onGoBack: () -> Unit) {
-    val title = remember(route.epochDay) { WeekMath.formatDayTitle(route.epochDay) }
+    val title = formatDayTitle(route.epochDay)
     if (LocalUseNativeNavigation.current) {
         DayDetailContent(
             route = route,
@@ -55,7 +56,7 @@ fun DayDetailScreen(route: DayDetailRoute, onGoBack: () -> Unit) {
                     title = { Text(title) },
                     navigationIcon = {
                         IconButton(onClick = onGoBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.back))
                         }
                     },
                 )
@@ -77,7 +78,7 @@ private fun DayDetailContent(route: DayDetailRoute, modifier: Modifier = Modifie
     }
 
     if (uiState.sessions.isEmpty()) {
-        CenteredMessage(PaddingValues(0.dp)) { Text("No completed workouts on this day") }
+        CenteredMessage(PaddingValues(0.dp)) { Text(stringResource(Res.string.no_workouts_this_day)) }
         return
     }
 
@@ -96,7 +97,7 @@ private fun DayDetailContent(route: DayDetailRoute, modifier: Modifier = Modifie
 private fun SessionSummaryCard(session: DaySession) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            session.routineName ?: "Workout",
+            session.routineName ?: stringResource(Res.string.workout),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.primary,
         )
@@ -116,7 +117,7 @@ private fun ExerciseSummaryRow(exercise: DaySessionExercise) {
             if (!set.warmup) workingSetNumber++
             Row(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    if (set.warmup) "Warm-up" else "Set $workingSetNumber",
+                    if (set.warmup) stringResource(Res.string.warm_up) else stringResource(Res.string.set_number, workingSetNumber),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
@@ -125,8 +126,8 @@ private fun ExerciseSummaryRow(exercise: DaySessionExercise) {
                 val reps = set.actualReps.ifBlank { set.targetReps }
                 Text(
                     listOfNotNull(
-                        weight.takeIf { it.isNotBlank() }?.let { "$it kg" },
-                        reps.takeIf { it.isNotBlank() }?.let { "$it reps" },
+                        weight.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.weight_kg_value, it) },
+                        reps.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.reps_value, it) },
                     ).joinToString(" · ").ifBlank { "—" },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

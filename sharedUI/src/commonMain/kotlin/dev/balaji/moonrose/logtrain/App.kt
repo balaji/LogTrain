@@ -51,6 +51,8 @@ import dev.balaji.moonrose.logtrain.screens.ProfileSetupFlow
 import dev.balaji.moonrose.logtrain.screens.formatElapsed
 import dev.balaji.moonrose.logtrain.screens.rememberElapsedSeconds
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
 private data class TabSpec(val route: TopLevelRoute, val icon: ImageVector)
 
@@ -147,8 +149,8 @@ private fun MainTabs() {
                                     currentTab = tab.route
                                 }
                             },
-                            icon = { Icon(tab.icon, contentDescription = tab.route.title) },
-                            label = { Text(tab.route.title) },
+                            icon = { Icon(tab.icon, contentDescription = topLevelTabTitle(tab.route)) },
+                            label = { Text(topLevelTabTitle(tab.route)) },
                         )
                     }
                 }
@@ -173,8 +175,8 @@ private fun MainTabs() {
         val session = activeSession
         AlertDialog(
             onDismissRequest = { showDiscardConfirm = false },
-            title = { Text("Discard workout?") },
-            text = { Text("This workout and all logged sets will be deleted.") },
+            title = { Text(stringResource(Res.string.discard_workout_title)) },
+            text = { Text(stringResource(Res.string.discard_workout_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     showDiscardConfirm = false
@@ -183,12 +185,12 @@ private fun MainTabs() {
                         scope.launch { WorkoutSessionRepository.discard(session.sessionId) }
                     }
                 }) {
-                    Text("Discard", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(Res.string.discard), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDiscardConfirm = false }) {
-                    Text("Cancel")
+                    Text(stringResource(Res.string.cancel))
                 }
             },
         )
@@ -198,8 +200,8 @@ private fun MainTabs() {
         val session = activeSession
         AlertDialog(
             onDismissRequest = { showNothingToSave = false },
-            title = { Text("Nothing to save") },
-            text = { Text("There are no completed sets to save. Discard?") },
+            title = { Text(stringResource(Res.string.nothing_to_save_title)) },
+            text = { Text(stringResource(Res.string.nothing_to_save_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     showNothingToSave = false
@@ -208,12 +210,12 @@ private fun MainTabs() {
                         scope.launch { WorkoutSessionRepository.discard(session.sessionId) }
                     }
                 }) {
-                    Text("Yes", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(Res.string.yes), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showNothingToSave = false }) {
-                    Text("No")
+                    Text(stringResource(Res.string.no))
                 }
             },
         )
@@ -263,16 +265,31 @@ private fun ActiveSessionOverlay(
         IconButton(onClick = onDiscard) {
             Icon(
                 Icons.Default.Close,
-                contentDescription = "Discard workout",
+                contentDescription = stringResource(Res.string.discard_workout),
                 tint = MaterialTheme.colorScheme.error,
             )
         }
         IconButton(onClick = onComplete) {
             Icon(
                 Icons.Default.Check,
-                contentDescription = "Finish workout",
+                contentDescription = stringResource(Res.string.finish_workout),
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
     }
 }
+
+/**
+ * Tab labels resolve through string resources here rather than [Route.title]
+ * so they localize; the route titles remain the language-neutral fallback
+ * used by the iOS SwiftUI shell.
+ */
+@Composable
+private fun topLevelTabTitle(route: TopLevelRoute): String = stringResource(
+    when (route) {
+        ExercisesRoute -> Res.string.tab_exercises
+        WorkoutsRoute -> Res.string.tab_workouts
+        CalendarRoute -> Res.string.tab_history
+        ProgressRoute -> Res.string.tab_progress
+    },
+)

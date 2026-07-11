@@ -51,6 +51,8 @@ import dev.balaji.moonrose.logtrain.model.WeightUnit
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import dev.balaji.moonrose.logtrain.notifications.rememberNotificationPermissionRequester
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,10 +63,10 @@ fun ProfileScreen(onGoBack: () -> Unit) {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Profile") },
+                    title = { Text(stringResource(Res.string.profile)) },
                     navigationIcon = {
                         IconButton(onClick = onGoBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.back))
                         }
                     },
                 )
@@ -82,7 +84,7 @@ fun ProfileScreen(onGoBack: () -> Unit) {
 @Composable
 fun ProfileTopBarButton(onClick: () -> Unit) {
     IconButton(onClick = onClick) {
-        Icon(Icons.Filled.AccountCircle, contentDescription = "Profile")
+        Icon(Icons.Filled.AccountCircle, contentDescription = stringResource(Res.string.profile))
     }
 }
 
@@ -108,18 +110,18 @@ private fun ProfileContent(modifier: Modifier = Modifier) {
 @Composable
 private fun ProfileDetails(profile: Profile, onEdit: () -> Unit) {
     Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        ProfileField("Name", profile.name)
+        ProfileField(stringResource(Res.string.name), profile.name)
         HorizontalDivider()
-        ProfileField("Age", profile.age?.toString())
+        ProfileField(stringResource(Res.string.age), profile.age?.toString())
         HorizontalDivider()
-        ProfileField("Gender", profile.gender)
+        ProfileField(stringResource(Res.string.gender), profile.gender)
         HorizontalDivider()
-        ProfileField("Weight", profile.weight?.let { "$it kg" })
+        ProfileField(stringResource(Res.string.weight), profile.weight?.let { stringResource(Res.string.weight_kg_value, it.toString()) })
         HorizontalDivider()
-        ProfileField("Height", profile.height?.let { "$it cm" })
+        ProfileField(stringResource(Res.string.height), profile.height?.let { stringResource(Res.string.height_cm_value, it.toString()) })
         HorizontalDivider()
         TextButton(onClick = onEdit, modifier = Modifier.align(Alignment.End)) {
-            Text("Edit")
+            Text(stringResource(Res.string.edit))
         }
         SettingsSection()
     }
@@ -138,20 +140,20 @@ private fun SettingsSection() {
     val current = settings ?: return
 
     Text(
-        "Settings",
+        stringResource(Res.string.settings),
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(top = 24.dp, bottom = 4.dp),
     )
-    SettingRow("Week starts on", WeekStart.entries, current.weekStart, ::weekStartLabel) {
+    SettingRow(stringResource(Res.string.week_starts_on), WeekStart.entries, current.weekStart, { weekStartLabel(it) }) {
         scope.launch { UserSettingsRepository.setWeekStart(it) }
     }
     HorizontalDivider()
-    SettingRow("Appearance", Appearance.entries, current.appearance, ::appearanceLabel) {
+    SettingRow(stringResource(Res.string.appearance), Appearance.entries, current.appearance, { appearanceLabel(it) }) {
         scope.launch { UserSettingsRepository.setAppearance(it) }
     }
     HorizontalDivider()
-    SettingRow("Weight units", WeightUnit.entries, current.weightUnit, ::weightUnitLabel) {
+    SettingRow(stringResource(Res.string.weight_units), WeightUnit.entries, current.weightUnit, { weightUnitSettingLabel(it) }) {
         scope.launch { UserSettingsRepository.setWeightUnit(it) }
     }
     HorizontalDivider()
@@ -177,7 +179,7 @@ private fun DeveloperSection() {
     var working by remember { mutableStateOf(false) }
 
     Text(
-        "Developer",
+        stringResource(Res.string.developer),
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(top = 24.dp, bottom = 4.dp),
@@ -187,16 +189,16 @@ private fun DeveloperSection() {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("Test data", style = MaterialTheme.typography.bodyLarge)
+        Text(stringResource(Res.string.test_data), style = MaterialTheme.typography.bodyLarge)
         Row {
             TextButton(enabled = !working, onClick = { showGenerateDialog = true }) {
-                Text("Generate")
+                Text(stringResource(Res.string.generate))
             }
             TextButton(
                 enabled = !working && testSessionCount > 0,
                 onClick = { showDeleteDialog = true },
             ) {
-                Text("Delete")
+                Text(stringResource(Res.string.delete))
             }
         }
     }
@@ -207,17 +209,14 @@ private fun DeveloperSection() {
         val days = daysText.toIntOrNull()?.takeIf { it > 0 }
         AlertDialog(
             onDismissRequest = { if (!working) showGenerateDialog = false },
-            title = { Text("Generate test data") },
+            title = { Text(stringResource(Res.string.generate_test_data_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        "Fills the calendar with roughly three workouts a week " +
-                            "and regular weigh-ins, ending today.",
-                    )
+                    Text(stringResource(Res.string.generate_test_data_message))
                     OutlinedTextField(
                         value = daysText,
                         onValueChange = { daysText = it.filter(Char::isDigit).take(4) },
-                        label = { Text("Days of history") },
+                        label = { Text(stringResource(Res.string.days_of_history)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     )
@@ -238,12 +237,12 @@ private fun DeveloperSection() {
                         }
                     },
                 ) {
-                    Text(if (working) "Generating…" else "Generate")
+                    Text(if (working) stringResource(Res.string.generating) else stringResource(Res.string.generate))
                 }
             },
             dismissButton = {
                 TextButton(enabled = !working, onClick = { showGenerateDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(Res.string.cancel))
                 }
             },
         )
@@ -252,12 +251,9 @@ private fun DeveloperSection() {
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { if (!working) showDeleteDialog = false },
-            title = { Text("Delete test data") },
+            title = { Text(stringResource(Res.string.delete_test_data_title)) },
             text = {
-                Text(
-                    "Removes all $testSessionCount generated workouts and their " +
-                        "weigh-ins. Your own logged data is untouched.",
-                )
+                Text(stringResource(Res.string.delete_test_data_message, testSessionCount))
             },
             confirmButton = {
                 TextButton(
@@ -274,12 +270,12 @@ private fun DeveloperSection() {
                         }
                     },
                 ) {
-                    Text(if (working) "Deleting…" else "Delete")
+                    Text(if (working) stringResource(Res.string.deleting) else stringResource(Res.string.delete))
                 }
             },
             dismissButton = {
                 TextButton(enabled = !working, onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(Res.string.cancel))
                 }
             },
         )
@@ -291,7 +287,7 @@ private fun <T> SettingRow(
     label: String,
     options: List<T>,
     selected: T,
-    optionLabel: (T) -> String,
+    optionLabel: @Composable (T) -> String,
     onSelect: (T) -> Unit,
 ) {
     Row(
@@ -315,6 +311,14 @@ private fun <T> SettingRow(
 }
 
 @Composable
+private fun weekStartLabel(weekStart: WeekStart) = stringResource(
+    when (weekStart) {
+        WeekStart.SUNDAY -> Res.string.weekday_sun_short
+        WeekStart.MONDAY -> Res.string.weekday_mon_short
+    },
+)
+
+@Composable
 private fun SettingSwitchRow(
     label: String,
     checked: Boolean,
@@ -330,21 +334,24 @@ private fun SettingSwitchRow(
     }
 }
 
-private fun weekStartLabel(weekStart: WeekStart) = when (weekStart) {
-    WeekStart.SUNDAY -> "Sun"
-    WeekStart.MONDAY -> "Mon"
-}
+@Composable
+private fun appearanceLabel(appearance: Appearance) = stringResource(
+    when (appearance) {
+        Appearance.LIGHT -> Res.string.appearance_light
+        Appearance.DARK -> Res.string.appearance_dark
+        Appearance.SYSTEM -> Res.string.appearance_system
+    },
+)
 
-private fun appearanceLabel(appearance: Appearance) = when (appearance) {
-    Appearance.LIGHT -> "Light"
-    Appearance.DARK -> "Dark"
-    Appearance.SYSTEM -> "System"
-}
-
-private fun weightUnitLabel(weightUnit: WeightUnit) = when (weightUnit) {
-    WeightUnit.METRIC -> "Metric"
-    WeightUnit.IMPERIAL -> "Imperial"
-}
+// Not named weightUnitLabel: that helper (LogicLabels.kt) is the "kg"/"lb"
+// value label, while this is the setting option's name.
+@Composable
+private fun weightUnitSettingLabel(weightUnit: WeightUnit) = stringResource(
+    when (weightUnit) {
+        WeightUnit.METRIC -> Res.string.units_metric
+        WeightUnit.IMPERIAL -> Res.string.units_imperial
+    },
+)
 
 @Composable
 private fun ProfileField(label: String, value: String?) {

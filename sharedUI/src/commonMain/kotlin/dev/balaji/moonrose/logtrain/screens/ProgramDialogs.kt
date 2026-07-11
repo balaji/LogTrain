@@ -22,12 +22,14 @@ import dev.balaji.moonrose.logtrain.db.filterProgramName
 import dev.balaji.moonrose.logtrain.model.SampleRoutine
 import dev.balaji.moonrose.logtrain.navigation.LocalNativeAlertPresenter
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
+import org.jetbrains.compose.resources.stringResource
+import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
 @Composable
 internal fun NameEditDialog(
     title: String,
     initialValue: String = "",
-    confirmLabel: String = "Save",
+    confirmLabel: String = stringResource(Res.string.save),
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -53,7 +55,7 @@ internal fun NameEditDialog(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = filterProgramName(it) },
-                label = { Text("Name") },
+                label = { Text(stringResource(Res.string.name)) },
                 singleLine = true,
             )
         },
@@ -63,7 +65,7 @@ internal fun NameEditDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) }
         },
     )
 }
@@ -77,11 +79,12 @@ internal fun ConfirmDeleteDialog(
 ) {
     val nativePresenter = LocalNativeAlertPresenter.current
     if (LocalUseNativeNavigation.current && nativePresenter != null) {
+        val deleteLabel = stringResource(Res.string.delete)
         LaunchedEffect(Unit) {
             nativePresenter.presentConfirm(
                 title = title,
                 message = text,
-                confirmLabel = "Delete",
+                confirmLabel = deleteLabel,
                 destructive = true,
                 onConfirm = onConfirm,
                 onCancel = onDismiss,
@@ -95,10 +98,10 @@ internal fun ConfirmDeleteDialog(
         title = { Text(title) },
         text = { Text(text) },
         confirmButton = {
-            TextButton(onClick = onConfirm) { Text("Delete") }
+            TextButton(onClick = onConfirm) { Text(stringResource(Res.string.delete)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) }
         },
     )
 }
@@ -112,11 +115,12 @@ internal fun ConfirmCopyDialog(
 ) {
     val nativePresenter = LocalNativeAlertPresenter.current
     if (LocalUseNativeNavigation.current && nativePresenter != null) {
+        val addLabel = stringResource(Res.string.add)
         LaunchedEffect(Unit) {
             nativePresenter.presentConfirm(
                 title = title,
                 message = text,
-                confirmLabel = "Add",
+                confirmLabel = addLabel,
                 destructive = false,
                 onConfirm = onConfirm,
                 onCancel = onDismiss,
@@ -130,10 +134,10 @@ internal fun ConfirmCopyDialog(
         title = { Text(title) },
         text = { Text(text) },
         confirmButton = {
-            TextButton(onClick = onConfirm) { Text("Add") }
+            TextButton(onClick = onConfirm) { Text(stringResource(Res.string.add)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) }
         },
     )
 }
@@ -141,11 +145,12 @@ internal fun ConfirmCopyDialog(
 /** Read-only listing of a sample routine's exercises and their set schemes. */
 @Composable
 internal fun SampleRoutineDialog(routine: SampleRoutine, onDismiss: () -> Unit) {
+    val routineName = sampleRoutineName(routine)
     val nativePresenter = LocalNativeAlertPresenter.current
     if (LocalUseNativeNavigation.current && nativePresenter != null) {
         LaunchedEffect(Unit) {
             nativePresenter.presentInfo(
-                title = routine.name,
+                title = routineName,
                 message = routine.workSets.joinToString("\n") { "${it.exerciseName} — ${it.repsSummary}" },
                 onDismiss = onDismiss,
             )
@@ -155,7 +160,7 @@ internal fun SampleRoutineDialog(routine: SampleRoutine, onDismiss: () -> Unit) 
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(routine.name) },
+        title = { Text(routineName) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 routine.workSets.forEach { workSet ->
@@ -178,7 +183,7 @@ internal fun SampleRoutineDialog(routine: SampleRoutine, onDismiss: () -> Unit) 
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("OK") }
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.ok)) }
         },
     )
 }
@@ -187,9 +192,10 @@ internal fun SampleRoutineDialog(routine: SampleRoutine, onDismiss: () -> Unit) 
 internal fun ErrorDialog(message: String, onDismiss: () -> Unit) {
     val nativePresenter = LocalNativeAlertPresenter.current
     if (LocalUseNativeNavigation.current && nativePresenter != null) {
+        val errorTitle = stringResource(Res.string.something_went_wrong)
         LaunchedEffect(Unit) {
             nativePresenter.presentInfo(
-                title = "Something went wrong",
+                title = errorTitle,
                 message = message,
                 onDismiss = onDismiss,
             )
@@ -199,10 +205,10 @@ internal fun ErrorDialog(message: String, onDismiss: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Something went wrong") },
+        title = { Text(stringResource(Res.string.something_went_wrong)) },
         text = { Text(message) },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("OK") }
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.ok)) }
         },
     )
 }

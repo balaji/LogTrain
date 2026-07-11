@@ -16,6 +16,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
+import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
 /**
  * First-run gate shown until a local profile exists. Replaces the old sign-in
@@ -32,8 +34,8 @@ fun ProfileSetupFlow() {
             modifier = Modifier.fillMaxSize().padding(top = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("Create a Profile", style = MaterialTheme.typography.headlineSmall)
-            ProfileForm(saveLabel = "Create Profile")
+            Text(stringResource(Res.string.create_a_profile), style = MaterialTheme.typography.headlineSmall)
+            ProfileForm(saveLabel = stringResource(Res.string.create_profile))
         }
     } else {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -41,13 +43,13 @@ fun ProfileSetupFlow() {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("LogTrain", style = MaterialTheme.typography.headlineLarge)
+                Text(stringResource(Res.string.app_name), style = MaterialTheme.typography.headlineLarge)
                 Text(
-                    "Track your workouts, all on your device.",
+                    stringResource(Res.string.app_tagline),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 TextButton(onClick = { showForm = true }) {
-                    Text("Create a Profile")
+                    Text(stringResource(Res.string.create_a_profile))
                 }
             }
         }

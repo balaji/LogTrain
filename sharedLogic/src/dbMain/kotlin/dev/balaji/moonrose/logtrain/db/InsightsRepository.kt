@@ -10,7 +10,6 @@ import dev.balaji.moonrose.logtrain.insights.InsightMath
 import dev.balaji.moonrose.logtrain.insights.SparkPoint
 import dev.balaji.moonrose.logtrain.insights.TrainingFrequency
 import dev.balaji.moonrose.logtrain.insights.WeeklyVolumePoint
-import dev.balaji.moonrose.logtrain.insights.label
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.Flow
@@ -94,7 +93,6 @@ object InsightsRepository {
                 sets = rows.map { it.toSetPoint(zone) },
                 sessionDays = performedAt.map { millisToEpochDay(it, zone) },
                 bodyWeight = trendFrom(weightEntries.filter { it.epochDay >= today - 90 }, today),
-                unitLabel = settings.weightUnit.label,
                 todayEpochDay = today,
                 weekStart = settings.weekStart,
             )
@@ -220,47 +218,50 @@ internal fun buildCards(
     sets: List<SetPoint>,
     sessionDays: List<Long>,
     bodyWeight: BodyWeightTrend?,
-    unitLabel: String,
     todayEpochDay: Long,
     weekStart: WeekStart,
 ): List<InsightCard> {
     val cards = mutableListOf<InsightCard>()
 
     if (sessionDays.isNotEmpty()) {
-        cards += volumeCard(sets, unitLabel, todayEpochDay, weekStart)
+        cards += volumeCard(sets, todayEpochDay, weekStart)
         cards += frequencyCard(sessionDays, todayEpochDay, weekStart)
-        cards += progressionCards(sets, unitLabel, todayEpochDay, weekStart)
+        cards += progressionCards(sets, todayEpochDay, weekStart)
     }
-    if (bodyWeight != null) cards += bodyWeightCard(bodyWeight, unitLabel)
+    if (bodyWeight != null) cards += bodyWeightCard(bodyWeight)
     return cards
 }
 
 private fun volumeCard(
     sets: List<SetPoint>,
-    unitLabel: String,
     todayEpochDay: Long,
     weekStart: WeekStart,
 ): InsightCard {
     val weeklies = weeklyVolumeFrom(sets, weeks = 8, todayEpochDay, weekStart)
     val thisWeek = weeklies.last()
     val priorAvg = weeklies.dropLast(1).takeLast(4).map { it.totalVolume }.average()
-    val detail: String
+    val detailKey: String
+    val detailArgs: List<String>
     val trend: String
     if (priorAvg > 0) {
         val pct = (thisWeek.totalVolume - priorAvg) / priorAvg * 100
         val sign = if (pct >= 0) "+" else ""
-        detail = "$sign${InsightMath.formatNumber(pct, 0)}% vs 4-week average"
+        detailKey = InsightCard.DETAIL_PCT_VS_4_WEEK_AVG
+        detailArgs = listOf("$sign${InsightMath.formatNumber(pct, 0)}")
         trend = if (pct >= 5) "up" else if (pct <= -5) "down" else "flat"
     } else {
-        detail = "${thisWeek.setCount} sets in ${thisWeek.sessionCount} sessions"
+        detailKey = InsightCard.DETAIL_SETS_IN_SESSIONS
+        detailArgs = listOf("${thisWeek.setCount}", "${thisWeek.sessionCount}")
         trend = "none"
     }
     return InsightCard(
         id = "weekly_volume",
         kind = "volume",
-        title = "Weekly volume",
-        headline = "${InsightMath.formatNumber(thisWeek.totalVolume, 0)} $unitLabel this week",
-        detail = detail,
+        exerciseName = null,
+        headlineKey = InsightCard.HEADLINE_VOLUME_THIS_WEEK,
+        headlineArgs = listOf(InsightMath.formatNumber(thisWeek.totalVolume, 0)),
+        detailKey = detailKey,
+        detailArgs = detailArgs,
         trend = trend,
         spark = weeklies.map { SparkPoint(it.weekStartEpochDay, it.totalVolume) },
     )
@@ -268,18 +269,23 @@ private fun volumeCard(
 
 private fun frequencyCard(sessionDays: List<Long>, todayEpochDay: Long, weekStart: WeekStart): InsightCard {
     val freq = frequencyFrom(sessionDays, todayEpochDay, weekStart)
-    val headline = when {
-        freq.currentStreakWeeks > 1 -> "${freq.currentStreakWeeks}-week streak"
-        freq.currentStreakWeeks == 1 -> "1-week streak"
-        else -> "No active streak"
-    }
+    val streaking = freq.currentStreakWeeks >= 1
     return InsightCard(
         id = "frequency",
         kind = "frequency",
-        title = "Consistency",
-        headline = headline,
-        detail = "${freq.sessionsLast30Days} workouts in the last 30 days" +
-            (if (freq.longestStreakWeeks > 1) " · longest streak ${freq.longestStreakWeeks} weeks" else ""),
+        exerciseName = null,
+        headlineKey = if (streaking) InsightCard.HEADLINE_STREAK_WEEKS else InsightCard.HEADLINE_NO_STREAK,
+        headlineArgs = if (streaking) listOf("${freq.currentStreakWeeks}") else emptyList(),
+        detailKey = if (freq.longestStreakWeeks > 1) {
+            InsightCard.DETAIL_WORKOUTS_30_DAYS_LONGEST
+        } else {
+            InsightCard.DETAIL_WORKOUTS_30_DAYS
+        },
+        detailArgs = if (freq.longestStreakWeeks > 1) {
+            listOf("${freq.sessionsLast30Days}", "${freq.longestStreakWeeks}")
+        } else {
+            listOf("${freq.sessionsLast30Days}")
+        },
         trend = "none",
         spark = emptyList(),
     )
@@ -288,7 +294,6 @@ private fun frequencyCard(sessionDays: List<Long>, todayEpochDay: Long, weekStar
 /** One card per top-volume exercise (max 3) that has at least two weeks of history. */
 private fun progressionCards(
     sets: List<SetPoint>,
-    unitLabel: String,
     todayEpochDay: Long,
     weekStart: WeekStart,
 ): List<InsightCard> {
@@ -308,9 +313,11 @@ private fun progressionCards(
                 InsightCard(
                     id = "progression:${p.exerciseId}",
                     kind = "plateau",
-                    title = p.exerciseName,
-                    headline = "Plateau at ~${InsightMath.formatNumber(latest)} $unitLabel",
-                    detail = "Est. 1RM flat across $weeksSpanned weeks",
+                    exerciseName = p.exerciseName,
+                    headlineKey = InsightCard.HEADLINE_PLATEAU_AT,
+                    headlineArgs = listOf(InsightMath.formatNumber(latest)),
+                    detailKey = InsightCard.DETAIL_FLAT_ACROSS_WEEKS,
+                    detailArgs = listOf("$weeksSpanned"),
                     trend = "flat",
                     spark = p.weeklyBest1Rm,
                 )
@@ -319,9 +326,11 @@ private fun progressionCards(
                 InsightCard(
                     id = "progression:${p.exerciseId}",
                     kind = "progression",
-                    title = p.exerciseName,
-                    headline = "Est. 1RM ${InsightMath.formatNumber(latest)} $unitLabel",
-                    detail = "$sign${InsightMath.formatNumber(p.slopePerWeek)} $unitLabel/week over $weeksSpanned weeks",
+                    exerciseName = p.exerciseName,
+                    headlineKey = InsightCard.HEADLINE_EST_1RM,
+                    headlineArgs = listOf(InsightMath.formatNumber(latest)),
+                    detailKey = InsightCard.DETAIL_SLOPE_PER_WEEK,
+                    detailArgs = listOf("$sign${InsightMath.formatNumber(p.slopePerWeek)}", "$weeksSpanned"),
                     trend = if (p.slopePerWeek >= 0) "up" else "down",
                     spark = p.weeklyBest1Rm,
                 )
@@ -329,18 +338,17 @@ private fun progressionCards(
         }
 }
 
-private fun bodyWeightCard(trend: BodyWeightTrend, unitLabel: String): InsightCard {
+private fun bodyWeightCard(trend: BodyWeightTrend): InsightCard {
     val sign = if (trend.change30Days >= 0) "+" else ""
+    val hasHistory = trend.points.size > 1
     return InsightCard(
         id = "body_weight",
         kind = "body_weight",
-        title = "Body weight",
-        headline = "${InsightMath.formatNumber(trend.latest)} $unitLabel",
-        detail = if (trend.points.size > 1) {
-            "$sign${InsightMath.formatNumber(trend.change30Days)} $unitLabel in 30 days"
-        } else {
-            "Log regularly to see your trend"
-        },
+        exerciseName = null,
+        headlineKey = InsightCard.HEADLINE_LATEST_BODY_WEIGHT,
+        headlineArgs = listOf(InsightMath.formatNumber(trend.latest)),
+        detailKey = if (hasHistory) InsightCard.DETAIL_CHANGE_30_DAYS else InsightCard.DETAIL_LOG_REGULARLY,
+        detailArgs = if (hasHistory) listOf("$sign${InsightMath.formatNumber(trend.change30Days)}") else emptyList(),
         trend = when {
             trend.points.size < 2 -> "none"
             trend.slopePerWeek > 0.05 -> "up"
