@@ -26,6 +26,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -48,6 +49,7 @@ import dev.balaji.moonrose.logtrain.model.Appearance
 import dev.balaji.moonrose.logtrain.model.Profile
 import dev.balaji.moonrose.logtrain.model.WeightUnit
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
+import dev.balaji.moonrose.logtrain.notifications.rememberNotificationPermissionRequester
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -132,6 +134,7 @@ private fun ProfileDetails(profile: Profile, onEdit: () -> Unit) {
 private fun SettingsSection() {
     val settings by UserSettingsRepository.settings.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
+    val requestNotificationPermission = rememberNotificationPermissionRequester()
     val current = settings ?: return
 
     Text(
@@ -150,6 +153,11 @@ private fun SettingsSection() {
     HorizontalDivider()
     SettingRow("Weight units", WeightUnit.entries, current.weightUnit, ::weightUnitLabel) {
         scope.launch { UserSettingsRepository.setWeightUnit(it) }
+    }
+    HorizontalDivider()
+    SettingSwitchRow("Send notifications", current.notificationsEnabled) { enabled ->
+        if (enabled) requestNotificationPermission()
+        scope.launch { UserSettingsRepository.setNotificationsEnabled(enabled) }
     }
     HorizontalDivider()
     DeveloperSection()
@@ -303,6 +311,22 @@ private fun <T> SettingRow(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SettingSwitchRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 

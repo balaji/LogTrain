@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.map
 internal const val SETTING_WEEK_START = "week_start"
 internal const val SETTING_APPEARANCE = "appearance"
 internal const val SETTING_WEIGHT_UNIT = "weight_unit"
+internal const val SETTING_NOTIFICATIONS_ENABLED = "notifications_enabled"
 
 object UserSettingsRepository {
     val settings: Flow<UserSettings> =
@@ -20,6 +21,9 @@ object UserSettingsRepository {
     suspend fun setAppearance(appearance: Appearance) = set(SETTING_APPEARANCE, appearance.value)
 
     suspend fun setWeightUnit(weightUnit: WeightUnit) = set(SETTING_WEIGHT_UNIT, weightUnit.value)
+
+    suspend fun setNotificationsEnabled(enabled: Boolean) =
+        set(SETTING_NOTIFICATIONS_ENABLED, enabled.toString())
 
     private suspend fun set(key: String, value: String) {
         val now = nowMillis()
@@ -42,5 +46,6 @@ internal fun List<UserSettingEntity>.toUserSettings(): UserSettings {
         weekStart = WeekStart.fromValue(byKey[SETTING_WEEK_START]),
         appearance = Appearance.fromValue(byKey[SETTING_APPEARANCE]),
         weightUnit = WeightUnit.fromValue(byKey[SETTING_WEIGHT_UNIT]),
+        notificationsEnabled = byKey[SETTING_NOTIFICATIONS_ENABLED].toBoolean(),
     )
 }
