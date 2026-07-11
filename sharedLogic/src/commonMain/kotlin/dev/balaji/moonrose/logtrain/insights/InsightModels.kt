@@ -53,7 +53,11 @@ data class InsightCard(
     val detailArgs: List<String>,
     /** "up" | "down" | "flat" | "none". */
     val trend: String,
-    /** Sparkline series, oldest first; empty when the card has no chart. */
+    /**
+     * Sparkline series, oldest first; empty when the card has no chart. For
+     * "frequency" cards the points are sessions per week (one per week,
+     * zero-filled) and the UIs render them as bars instead of a line.
+     */
     val spark: List<SparkPoint>,
     /**
      * Named lines for progression cards (1–3 entries; [spark] duplicates the

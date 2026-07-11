@@ -249,6 +249,28 @@ internal fun progressionFrom(
     )
 }
 
+/**
+ * Completed sessions per week, oldest first, covering exactly [weeks] weeks up
+ * to the current one; weeks without sessions carry a zero so the consistency
+ * bars keep a fixed time axis.
+ */
+internal fun weeklySessionCountsFrom(
+    sessionDays: List<Long>,
+    weeks: Int,
+    todayEpochDay: Long,
+    weekStart: WeekStart,
+): List<SparkPoint> {
+    val firstWeekStart = WeekMath.weekStartOnOrBefore(todayEpochDay, weekStart) - 7L * (weeks - 1)
+    val byWeek = sessionDays
+        .filter { it >= firstWeekStart }
+        .groupingBy { WeekMath.weekStartOnOrBefore(it, weekStart) }
+        .eachCount()
+    return (0 until weeks).map { i ->
+        val weekStartDay = firstWeekStart + 7L * i
+        SparkPoint(weekStartDay, (byWeek[weekStartDay] ?: 0).toDouble())
+    }
+}
+
 internal fun frequencyFrom(
     sessionDays: List<Long>,
     todayEpochDay: Long,
@@ -381,7 +403,9 @@ private fun frequencyCard(sessionDays: List<Long>, todayEpochDay: Long, weekStar
             listOf("${freq.sessionsLast30Days}")
         },
         trend = "none",
-        spark = emptyList(),
+        // Sessions per week for the consistency bars, unlike the other kinds'
+        // line sparks; matches the 12-week window of avgPerWeek12w.
+        spark = weeklySessionCountsFrom(sessionDays, weeks = 12, todayEpochDay, weekStart),
     )
 }
 

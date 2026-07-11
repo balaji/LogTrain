@@ -110,6 +110,19 @@ class InsightsRepositoryTest {
     }
 
     @Test
+    fun `weekly session counts zero-fill weeks and honor the window`() {
+        val today = sunday + 15
+        val sessionDays = listOf(
+            sunday, sunday + 1, // week 0: two sessions
+            sunday + 14,        // week 2: one session
+            sunday - 7,         // before the window
+        )
+        val counts = weeklySessionCountsFrom(sessionDays, weeks = 3, today, WeekStart.SUNDAY)
+        assertEquals(listOf(sunday, sunday + 7, sunday + 14), counts.map { it.epochDay })
+        assertEquals(listOf(2.0, 0.0, 1.0), counts.map { it.value })
+    }
+
+    @Test
     fun `cards are empty with no history and body weight card appears when provided`() {
         assertTrue(
             buildCards(emptyList(), emptyList(), bodyWeight = null, sunday, WeekStart.SUNDAY).isEmpty(),
@@ -141,6 +154,10 @@ class InsightsRepositoryTest {
         assertEquals(listOf("weekly_volume", "frequency", "progression:slot0"), cards.map { it.id })
         assertEquals(InsightCard.HEADLINE_STREAK_WEEKS, cards[1].headlineKey)
         assertEquals(listOf("2"), cards[1].headlineArgs)
+        // Consistency bars: sessions per week over 12 zero-filled weeks.
+        assertEquals(12, cards[1].spark.size)
+        assertEquals(0.0, cards[1].spark.first().value)
+        assertEquals(listOf(1.0, 1.0), cards[1].spark.takeLast(2).map { it.value })
         assertEquals(InsightCard.HEADLINE_EST_1RM, cards[2].headlineKey)
         assertEquals("Bench", cards[2].exerciseName)
         // The single series mirrors the classic card.

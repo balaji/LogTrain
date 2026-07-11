@@ -51,7 +51,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -234,7 +236,12 @@ private fun InsightCardRow(card: InsightCard, unitLabel: String) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (card.spark.size >= 2) {
+            if (card.kind == "frequency" && card.spark.isNotEmpty()) {
+                WeeklyVisitBars(
+                    card.spark,
+                    Modifier.fillMaxWidth().height(40.dp).padding(top = 12.dp),
+                )
+            } else if (card.spark.size >= 2) {
                 Sparkline(
                     card.spark,
                     Modifier.fillMaxWidth().height(40.dp).padding(top = 12.dp),
@@ -451,6 +458,43 @@ private fun TrendIcon(trend: String) {
         else -> return
     }
     Icon(icon, contentDescription = label, modifier = Modifier.size(20.dp), tint = tint)
+}
+
+/**
+ * Sessions per week as bars from a zero baseline, one slot per week (zero
+ * weeks stay as visible gaps in the fixed time axis). Zero-count weeks keep a
+ * faint track so an empty week reads as "no visits", not "no data".
+ */
+@Composable
+private fun WeeklyVisitBars(points: List<SparkPoint>, modifier: Modifier = Modifier) {
+    val barColor = MaterialTheme.colorScheme.primary
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
+    Canvas(modifier) {
+        val maxCount = points.maxOf { it.value }.coerceAtLeast(1.0)
+        val slot = size.width / points.size
+        val gap = 2.dp.toPx()
+        val barWidth = (slot - gap).coerceAtLeast(1f)
+        val corner = CornerRadius(2.dp.toPx())
+        points.forEachIndexed { i, p ->
+            val left = i * slot + gap / 2
+            val trackHeight = 2.dp.toPx()
+            drawRoundRect(
+                trackColor,
+                topLeft = Offset(left, size.height - trackHeight),
+                size = Size(barWidth, trackHeight),
+                cornerRadius = corner,
+            )
+            val barHeight = (p.value / maxCount).toFloat() * size.height
+            if (barHeight > 0f) {
+                drawRoundRect(
+                    barColor,
+                    topLeft = Offset(left, size.height - barHeight),
+                    size = Size(barWidth, barHeight),
+                    cornerRadius = corner,
+                )
+            }
+        }
+    }
 }
 
 @Composable

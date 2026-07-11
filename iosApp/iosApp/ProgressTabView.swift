@@ -391,7 +391,10 @@ private struct InsightCardView: View {
             Text(insightText(card.detailKey, card.detailArgs, unit))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            if card.spark.count >= 2 {
+            if card.kind == "frequency", !card.spark.isEmpty {
+                weeklyVisitBars
+                    .padding(.top, 8)
+            } else if card.spark.count >= 2 {
                 sparkline
                     .padding(.top, 8)
             }
@@ -411,6 +414,24 @@ private struct InsightCardView: View {
         // progression/plateau cards are titled by the exercise name.
         default: return card.exerciseName ?? ""
         }
+    }
+
+    /// Sessions per week as bars from a zero baseline, one slot per week
+    /// (zero weeks keep their slot in the fixed time axis); mirrors
+    /// sharedUI's WeeklyVisitBars. Week starts are plotted as categories so
+    /// every bar gets an even slot without x-domain arithmetic.
+    private var weeklyVisitBars: some View {
+        Chart(card.spark, id: \.epochDay) { point in
+            BarMark(
+                x: .value("Week", String(point.epochDay)),
+                y: .value("Visits", point.value)
+            )
+            .cornerRadius(2)
+        }
+        .chartXAxis(.hidden)
+        .chartYAxis(.hidden)
+        .chartYScale(domain: 0...Swift.max(card.spark.map(\.value).max() ?? 1, 1))
+        .frame(height: 40)
     }
 
     private var sparkline: some View {
