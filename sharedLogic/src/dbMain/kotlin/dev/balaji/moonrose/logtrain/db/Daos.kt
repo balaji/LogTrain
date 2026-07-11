@@ -179,6 +179,15 @@ interface BodyMetricDao {
 }
 
 @Dao
+interface AiInsightCacheDao {
+    @Query("SELECT * FROM ai_insight_cache WHERE card_id = :cardId")
+    suspend fun find(cardId: String): AiInsightCacheEntity?
+
+    @Upsert
+    suspend fun upsert(entry: AiInsightCacheEntity)
+}
+
+@Dao
 interface WorkoutSessionDao {
     @Query("SELECT * FROM workout_sessions ORDER BY performed_at DESC")
     fun observeAll(): Flow<List<WorkoutSessionEntity>>

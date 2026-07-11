@@ -2,11 +2,14 @@ import SwiftUI
 import SharedUI
 import Charts
 
-/// Progress tab: deterministic insight cards computed in shared Kotlin, plus
-/// body-weight logging. Named to avoid clashing with SwiftUI's own
-/// `ProgressView`.
+/// Progress tab: insight cards computed in shared Kotlin, each narrated by
+/// the on-device model when Apple Intelligence is available, plus body-weight
+/// logging. Named to avoid clashing with SwiftUI's own `ProgressView`.
 struct ProgressTabView: View {
     @State private var state = ProgressScreenState()
+    @State private var narrationState = InsightNarrationState(
+        provider: FoundationModelInsightProvider()
+    )
     @State private var uiState = ProgressUiState(
         loading: true,
         cards: [],
@@ -14,16 +17,9 @@ struct ProgressTabView: View {
         latestBodyWeight: "",
         savingWeight: false
     )
+    @State private var narrations: [String: CardNarration] = [:]
     @State private var showLogWeight = false
-    @State private var showChat = false
     @State private var weightText = ""
-
-    /// Chat entry only appears when the on-device model exists (or is still
-    /// downloading); ineligible devices keep the cards-only experience.
-    private let chatAvailability = FoundationModelChatProvider.availabilityString()
-    private var chatEnabled: Bool {
-        chatAvailability == "available" || chatAvailability == "model_downloading"
-    }
 
     var body: some View {
         Group {
@@ -40,19 +36,14 @@ struct ProgressTabView: View {
                 uiState = value
             }
         }
-        .navigationDestination(isPresented: $showChat) {
-            ProgressChatView()
-        }
-        .toolbar {
-            if chatEnabled {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showChat = true
-                    } label: {
-                        Label("Ask about your training", systemImage: "sparkles")
-                    }
+        .task {
+            for await value in narrationState.narrations {
+                withAnimation(.easeIn(duration: 0.3)) {
+                    narrations = value
                 }
             }
+        }
+        .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     showLogWeight = true
@@ -102,7 +93,11 @@ struct ProgressTabView: View {
             }
             Section {
                 ForEach(uiState.cards, id: \.id) { card in
-                    InsightCardView(card: card, unit: unitLabel(uiState.weightUnit))
+                    InsightCardView(
+                        card: card,
+                        unit: unitLabel(uiState.weightUnit),
+                        narration: narrations[card.id]
+                    )
                 }
             }
         }
@@ -118,6 +113,10 @@ private func unitLabel(_ unit: WeightUnit) -> String {
 private struct InsightCardView: View {
     let card: InsightCard
     let unit: String
+    /// Nil when the on-device model is unavailable or this card has no
+    /// narration; the card then renders numbers-only.
+    let narration: CardNarration?
+    @State private var pulse = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -135,6 +134,10 @@ private struct InsightCardView: View {
                 .foregroundStyle(.secondary)
             if card.spark.count >= 2 {
                 sparkline
+                    .padding(.top, 8)
+            }
+            if let narration, narration.status != "failed" {
+                aiInsight(narration)
                     .padding(.top, 8)
             }
         }
@@ -172,6 +175,32 @@ private struct InsightCardView: View {
         // An unknown key means sharedLogic is newer than this view; show the
         // bare values rather than nothing.
         default: return args.joined(separator: " ")
+        }
+    }
+
+    @ViewBuilder
+    private func aiInsight(_ narration: CardNarration) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Image(systemName: "sparkles")
+                .font(.caption)
+                .foregroundStyle(.tint)
+                .padding(.top, 2)
+            if narration.status == "loading" {
+                Text("Reading your training data and writing a note about this trend.")
+                    .font(.footnote)
+                    .redacted(reason: .placeholder)
+                    .opacity(pulse ? 0.4 : 0.9)
+                    .animation(
+                        .easeInOut(duration: 0.9).repeatForever(autoreverses: true),
+                        value: pulse
+                    )
+                    .onAppear { pulse = true }
+            } else {
+                Text(narration.text)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .transition(.opacity)
+            }
         }
     }
 
