@@ -183,6 +183,21 @@ data class BodyMetricEntity(
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )
 
+/**
+ * Cached LLM narration for one insight card. card_id is the card's logical
+ * id ("weekly_volume", "progression:<exerciseId>", ...), not a row reference,
+ * so there is no foreign key; stale rows are harmless and get overwritten.
+ * stats_hash fingerprints the prompt (and thus the underlying numbers) the
+ * text was generated from — a mismatch means the narration must regenerate.
+ */
+@Entity(tableName = "ai_insight_cache")
+data class AiInsightCacheEntity(
+    @PrimaryKey @ColumnInfo(name = "card_id") val cardId: String,
+    @ColumnInfo(name = "stats_hash") val statsHash: String,
+    val text: String,
+    @ColumnInfo(name = "generated_at") val generatedAt: Long,
+)
+
 @Entity(
     tableName = "workout_session_details",
     foreignKeys = [

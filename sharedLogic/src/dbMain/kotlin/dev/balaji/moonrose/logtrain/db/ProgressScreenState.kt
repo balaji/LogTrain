@@ -23,7 +23,8 @@ data class ProgressUiState(
 
 /**
  * State for the Progress tab: insight cards plus the log-weight entry point.
- * Chat-free by design — the iOS chat screen owns its own ProgressChatState.
+ * Provider-free by design — platforms with an on-device model construct a
+ * separate InsightNarrationState and join it to these cards by id.
  */
 class ProgressScreenState {
     private val _uiState = MutableStateFlow(ProgressUiState())

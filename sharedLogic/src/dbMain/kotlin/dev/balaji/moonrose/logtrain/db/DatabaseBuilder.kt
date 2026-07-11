@@ -43,12 +43,23 @@ internal val MIGRATION_10_11 = object : Migration(10, 11) {
     }
 }
 
+internal val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(
+            "CREATE TABLE IF NOT EXISTS `ai_insight_cache` (" +
+                "`card_id` TEXT NOT NULL, `stats_hash` TEXT NOT NULL, " +
+                "`text` TEXT NOT NULL, `generated_at` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`card_id`))",
+        )
+    }
+}
+
 fun createDatabase(): AppDatabase =
     databaseBuilder()
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
         .addCallback(ExerciseSeedCallback)
-        .addMigrations(MIGRATION_9_10, MIGRATION_10_11)
+        .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
         // Pre-release safety net for schema history older than v9.
         .fallbackToDestructiveMigration(dropAllTables = true)
         .build()

@@ -18,6 +18,7 @@ import androidx.room.TypeConverters
         WorkoutSessionDetailEntity::class,
         UserSettingEntity::class,
         BodyMetricEntity::class,
+        AiInsightCacheEntity::class,
     ],
     // v6: seed exercises reclassified into the new exercise types.
     // v7: warmup flag on work_set_details and workout_session_details.
@@ -25,7 +26,8 @@ import androidx.room.TypeConverters
     // v9: user_settings KV table; week_starts_monday moved off profile.
     // v10: body_metrics weight time-series for Progress insights.
     // v11: test_data flag on workout_sessions and body_metrics for generated demo data.
-    version = 11,
+    // v12: ai_insight_cache table for LLM-narrated insight card text.
+    version = 12,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -41,6 +43,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun workoutSessionDetailDao(): WorkoutSessionDetailDao
     abstract fun userSettingDao(): UserSettingDao
     abstract fun bodyMetricDao(): BodyMetricDao
+    abstract fun aiInsightCacheDao(): AiInsightCacheDao
 }
 
 // Room's KSP processor generates the per-platform actuals.
