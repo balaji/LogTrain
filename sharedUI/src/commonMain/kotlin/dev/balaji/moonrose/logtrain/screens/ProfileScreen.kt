@@ -26,6 +26,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -48,6 +49,7 @@ import dev.balaji.moonrose.logtrain.model.Appearance
 import dev.balaji.moonrose.logtrain.model.Profile
 import dev.balaji.moonrose.logtrain.model.WeightUnit
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
+import dev.balaji.moonrose.logtrain.notifications.rememberNotificationPermissionRequester
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import dev.balaji.moonrose.logtrain.sharedui.resources.*
@@ -134,6 +136,7 @@ private fun ProfileDetails(profile: Profile, onEdit: () -> Unit) {
 private fun SettingsSection() {
     val settings by UserSettingsRepository.settings.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
+    val requestNotificationPermission = rememberNotificationPermissionRequester()
     val current = settings ?: return
 
     Text(
@@ -152,6 +155,11 @@ private fun SettingsSection() {
     HorizontalDivider()
     SettingRow(stringResource(Res.string.weight_units), WeightUnit.entries, current.weightUnit, { weightUnitSettingLabel(it) }) {
         scope.launch { UserSettingsRepository.setWeightUnit(it) }
+    }
+    HorizontalDivider()
+    SettingSwitchRow("Send notifications", current.notificationsEnabled) { enabled ->
+        if (enabled) requestNotificationPermission()
+        scope.launch { UserSettingsRepository.setNotificationsEnabled(enabled) }
     }
     HorizontalDivider()
     DeveloperSection()
@@ -309,6 +317,22 @@ private fun weekStartLabel(weekStart: WeekStart) = stringResource(
         WeekStart.MONDAY -> Res.string.weekday_mon_short
     },
 )
+
+@Composable
+private fun SettingSwitchRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
 
 @Composable
 private fun appearanceLabel(appearance: Appearance) = stringResource(

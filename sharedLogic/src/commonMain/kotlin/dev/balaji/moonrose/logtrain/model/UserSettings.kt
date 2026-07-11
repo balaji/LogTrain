@@ -42,4 +42,10 @@ data class UserSettings(
     val weekStart: WeekStart = WeekStart.SUNDAY,
     val appearance: Appearance = Appearance.SYSTEM,
     val weightUnit: WeightUnit = WeightUnit.METRIC,
+    /**
+     * Whether the user opted in to notifications. Off by default; enabling
+     * it triggers the OS permission prompt. Stored preference only for now;
+     * nothing sends notifications yet.
+     */
+    val notificationsEnabled: Boolean = false,
 )

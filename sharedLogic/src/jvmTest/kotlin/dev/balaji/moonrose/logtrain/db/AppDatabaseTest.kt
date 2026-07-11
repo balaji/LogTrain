@@ -219,11 +219,13 @@ class AppDatabaseTest {
         db.userSettingDao().upsert(UserSettingEntity(SETTING_WEEK_START, WeekStart.MONDAY.value, now, now))
         db.userSettingDao().upsert(UserSettingEntity(SETTING_APPEARANCE, Appearance.DARK.value, now, now))
         db.userSettingDao().upsert(UserSettingEntity(SETTING_WEIGHT_UNIT, WeightUnit.IMPERIAL.value, now, now))
+        db.userSettingDao().upsert(UserSettingEntity(SETTING_NOTIFICATIONS_ENABLED, "true", now, now))
 
         val settings = db.userSettingDao().observeAll().first().toUserSettings()
         assertEquals(WeekStart.MONDAY, settings.weekStart)
         assertEquals(Appearance.DARK, settings.appearance)
         assertEquals(WeightUnit.IMPERIAL, settings.weightUnit)
+        assertEquals(true, settings.notificationsEnabled)
     }
 
     @Test

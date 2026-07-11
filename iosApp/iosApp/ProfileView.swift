@@ -1,5 +1,6 @@
 import SwiftUI
 import SharedUI
+import UserNotifications
 
 /// Native SwiftUI replacement for the Compose `ProfileScreen`: shows the
 /// saved profile with an Edit link that swaps in `ProfileFormView`.
@@ -52,6 +53,16 @@ struct ProfileView: View {
                                     Text("Metric").tag(WeightUnit.metric)
                                     Text("Imperial").tag(WeightUnit.imperial)
                                 }
+                                // Opting in also asks the OS for notification
+                                // permission; the stored flag is the user's
+                                // intent, the grant lives with the system.
+                                Toggle("Send notifications", isOn: settingBinding(settings.notificationsEnabled, save: { enabled in
+                                    if enabled {
+                                        _ = try? await UNUserNotificationCenter.current()
+                                            .requestAuthorization(options: [.alert, .badge, .sound])
+                                    }
+                                    try await UserSettingsRepository.shared.setNotificationsEnabled(enabled: enabled)
+                                }))
                             }
                         }
                         // Test-data tooling for development. Kept in release
