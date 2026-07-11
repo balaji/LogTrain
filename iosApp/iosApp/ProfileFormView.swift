@@ -1,10 +1,9 @@
 import SwiftUI
 import SharedUI
 
-// Stored to the profile as displayed, matching the Compose form's behavior.
-private let genderOptions = [
-    L10n.genderMale, L10n.genderFemale, L10n.genderOther, L10n.genderPreferNotToSay,
-]
+// Language-neutral keys persisted in profile.gender; matches GENDER_KEYS in
+// the shared ProfileFormState. L10n.genderLabel maps them for display.
+private let genderOptions = ["male", "female", "other", "prefer_not_to_say"]
 
 /// Localized messages for the language-neutral validation errors the shared
 /// form state emits; mirrors sharedUI's profileNameErrorText. The length
@@ -75,7 +74,7 @@ struct ProfileFormView: View {
                 )) {
                     Text(L10n.select).tag("")
                     ForEach(genderOptions, id: \.self) { option in
-                        Text(option).tag(option)
+                        Text(L10n.genderLabel(option)).tag(option)
                     }
                 }
 

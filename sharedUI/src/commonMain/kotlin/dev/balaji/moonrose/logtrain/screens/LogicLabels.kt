@@ -127,6 +127,20 @@ internal fun insightDetail(card: InsightCard, unitLabel: String): String {
     }
 }
 
+/**
+ * Display label for a language-neutral gender key stored in profile.gender
+ * (see GENDER_KEYS). Unknown values — e.g. saved by a newer app version —
+ * are shown verbatim rather than hidden.
+ */
+@Composable
+internal fun genderLabel(key: String): String = when (key) {
+    "male" -> stringResource(Res.string.gender_male)
+    "female" -> stringResource(Res.string.gender_female)
+    "other" -> stringResource(Res.string.gender_other)
+    "prefer_not_to_say" -> stringResource(Res.string.gender_prefer_not_to_say)
+    else -> key
+}
+
 @Composable
 internal fun profileNameErrorText(error: ProfileNameError): String = when (error) {
     ProfileNameError.REQUIRED -> stringResource(Res.string.name_required)

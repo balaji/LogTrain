@@ -169,6 +169,18 @@ enum L10n {
     static let genderFemale = String(localized: "gender_female", defaultValue: "Female")
     static let genderOther = String(localized: "gender_other", defaultValue: "Other")
     static let genderPreferNotToSay = String(localized: "gender_prefer_not_to_say", defaultValue: "Prefer not to say")
+    /// Display label for a language-neutral gender key stored in
+    /// profile.gender (GENDER_KEYS in the shared ProfileFormState); mirrors
+    /// sharedUI's genderLabel. Unknown values are shown verbatim.
+    static func genderLabel(_ key: String) -> String {
+        switch key {
+        case "male": return genderMale
+        case "female": return genderFemale
+        case "other": return genderOther
+        case "prefer_not_to_say": return genderPreferNotToSay
+        default: return key
+        }
+    }
     static let createAProfile = String(localized: "create_a_profile", defaultValue: "Create a Profile")
     static let createProfile = String(localized: "create_profile", defaultValue: "Create Profile")
 
