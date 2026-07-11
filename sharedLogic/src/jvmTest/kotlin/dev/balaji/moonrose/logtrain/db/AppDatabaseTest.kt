@@ -270,6 +270,87 @@ class AppDatabaseTest {
         assertTrue(decoded.all { it.exercises.size == 3 })
     }
 
+    @Test
+    fun `bar weights round-trip and decode leniently`() {
+        val weights = mapOf(
+            BarWeightKey(1L, WeightUnit.METRIC) to 15.0,
+            BarWeightKey(1L, WeightUnit.IMPERIAL) to 45.0,
+            BarWeightKey(7L, WeightUnit.METRIC) to 20.0,
+        )
+        assertEquals(weights, decodeBarWeights(encodeBarWeights(weights)))
+
+        assertTrue(decodeBarWeights(null).isEmpty())
+        assertTrue(decodeBarWeights("").isEmpty())
+        // Malformed records are dropped, valid ones kept.
+        val valid = encodeBarWeights(mapOf(BarWeightKey(3L, WeightUnit.METRIC) to 25.0))
+        val mixed = listOf("garbage", valid, "9\u001Fstone\u001F20", "1\u001Fmetric\u001Fheavy")
+            .joinToString("\u001E")
+        assertEquals(mapOf(BarWeightKey(3L, WeightUnit.METRIC) to 25.0), decodeBarWeights(mixed))
+    }
+
+    @Test
+    fun `previous sets come from the latest completed session containing the exercise`() = runBlocking {
+        seedProfile()
+        val now = nowMillis()
+        val bench = assertNotNull(db.exerciseDao().findByName("Barbell Bench Press"))
+        val other = db.exerciseDao().insert(
+            ExerciseEntity(
+                name = "Test Movement", description = null, exerciseType = null,
+                bodyPart = null, otherBodyParts = null, equipment = null,
+                createdAt = now, updatedAt = now,
+            ),
+        )
+
+        suspend fun insertSession(performedAt: Long, completedAt: Long?): Long =
+            db.workoutSessionDao().insert(
+                WorkoutSessionEntity(
+                    profileId = PROFILE_ID, routineId = null, performedAt = performedAt,
+                    completedAt = completedAt, createdAt = now, updatedAt = now,
+                ),
+            )
+
+        suspend fun insertSet(sessionId: Long, exerciseId: Long, position: Int, weight: Double?, reps: Int?) {
+            db.workoutSessionDetailDao().insert(
+                WorkoutSessionDetailEntity(
+                    workoutSessionId = sessionId, workSetDetailId = null, exerciseId = exerciseId,
+                    position = position, targetWeight = null, targetReps = null, targetDuration = null,
+                    actualWeight = weight, actualReps = reps, actualDuration = null,
+                    completed = true, createdAt = now, updatedAt = now,
+                ),
+            )
+        }
+
+        // Older completed session: must be superseded by the newer one.
+        val old = insertSession(performedAt = 1000, completedAt = 1500)
+        insertSet(old, bench.id, position = 1, weight = 40.0, reps = 10)
+
+        val latest = insertSession(performedAt = 2000, completedAt = 2500)
+        insertSet(latest, bench.id, position = 1, weight = 50.0, reps = 5)
+        insertSet(latest, other, position = 2, weight = 20.0, reps = 12)
+        insertSet(latest, bench.id, position = 3, weight = 55.0, reps = 3)
+
+        // Newer but in progress: must not be picked up.
+        val inProgress = insertSession(performedAt = 3000, completedAt = null)
+        insertSet(inProgress, bench.id, position = 1, weight = 60.0, reps = 1)
+
+        val previous = db.workoutSessionDetailDao().getLatestCompletedSets(PROFILE_ID, bench.id)
+        assertEquals(listOf(50.0 to 5, 55.0 to 3), previous.map { it.actualWeight to it.actualReps })
+
+        // Only the requested exercise's sets from that session.
+        val otherPrevious = db.workoutSessionDetailDao().getLatestCompletedSets(PROFILE_ID, other)
+        assertEquals(listOf(20.0 to 12), otherPrevious.map { it.actualWeight to it.actualReps })
+
+        // An exercise never performed has no previous sets.
+        val fresh = db.exerciseDao().insert(
+            ExerciseEntity(
+                name = "Never Done", description = null, exerciseType = null,
+                bodyPart = null, otherBodyParts = null, equipment = null,
+                createdAt = now, updatedAt = now,
+            ),
+        )
+        assertTrue(db.workoutSessionDetailDao().getLatestCompletedSets(PROFILE_ID, fresh).isEmpty())
+    }
+
     private suspend fun seedProfile() {
         val now = nowMillis()
         db.profileDao().upsert(

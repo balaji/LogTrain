@@ -121,6 +121,11 @@ private fun ProgressContent(state: ProgressScreenState, modifier: Modifier = Mod
                     onLogWeight = { showLogWeight = true },
                 )
             }
+            if (uiState.bodyPartBreakdown.isNotEmpty()) {
+                item(key = "body_parts") {
+                    BodyPartBreakdownCard(uiState.bodyPartBreakdown)
+                }
+            }
             val lastProgressionIndex = uiState.cards.indexOfLast { it.kind in PROGRESSION_KINDS }
             uiState.cards.forEachIndexed { index, card ->
                 item(key = card.id) {
@@ -152,11 +157,6 @@ private fun ProgressContent(state: ProgressScreenState, modifier: Modifier = Mod
                             }
                         }
                     }
-                }
-            }
-            if (uiState.bodyPartBreakdown.isNotEmpty()) {
-                item(key = "body_parts") {
-                    BodyPartBreakdownCard(uiState.bodyPartBreakdown)
                 }
             }
         }
@@ -461,20 +461,24 @@ private fun TrendIcon(trend: String) {
 }
 
 /**
- * Sessions per week as bars from a zero baseline, one slot per week (zero
- * weeks stay as visible gaps in the fixed time axis). Zero-count weeks keep a
- * faint track so an empty week reads as "no visits", not "no data".
+ * Sessions per week as a stack of one segment per visit, one slot per week
+ * (zero weeks stay as visible gaps in the fixed time axis). Segmenting the
+ * bar makes the count directly countable at a glance instead of requiring a
+ * height comparison. Zero-count weeks keep a faint track so an empty week
+ * reads as "no visits", not "no data".
  */
 @Composable
 private fun WeeklyVisitBars(points: List<SparkPoint>, modifier: Modifier = Modifier) {
     val barColor = MaterialTheme.colorScheme.primary
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
     Canvas(modifier) {
-        val maxCount = points.maxOf { it.value }.coerceAtLeast(1.0)
+        val maxCount = points.maxOf { it.value }.coerceAtLeast(1.0).toInt()
         val slot = size.width / points.size
         val gap = 2.dp.toPx()
         val barWidth = (slot - gap).coerceAtLeast(1f)
         val corner = CornerRadius(2.dp.toPx())
+        val segmentGap = 2.dp.toPx()
+        val segmentHeight = (size.height - (maxCount - 1) * segmentGap) / maxCount
         points.forEachIndexed { i, p ->
             val left = i * slot + gap / 2
             val trackHeight = 2.dp.toPx()
@@ -484,12 +488,13 @@ private fun WeeklyVisitBars(points: List<SparkPoint>, modifier: Modifier = Modif
                 size = Size(barWidth, trackHeight),
                 cornerRadius = corner,
             )
-            val barHeight = (p.value / maxCount).toFloat() * size.height
-            if (barHeight > 0f) {
+            val count = p.value.toInt()
+            for (segment in 0 until count) {
+                val top = size.height - (segment + 1) * segmentHeight - segment * segmentGap
                 drawRoundRect(
                     barColor,
-                    topLeft = Offset(left, size.height - barHeight),
-                    size = Size(barWidth, barHeight),
+                    topLeft = Offset(left, top),
+                    size = Size(barWidth, segmentHeight),
                     cornerRadius = corner,
                 )
             }

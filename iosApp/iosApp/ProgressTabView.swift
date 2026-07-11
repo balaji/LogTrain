@@ -99,6 +99,11 @@ struct ProgressTabView: View {
                         .buttonStyle(.bordered)
                 }
             }
+            if !uiState.bodyPartBreakdown.isEmpty {
+                Section {
+                    BodyPartBreakdownCard(slices: uiState.bodyPartBreakdown)
+                }
+            }
             // One section per insight, like the profile screen's groups —
             // except the progression cards, which share a single section.
             ForEach(leadingCards, id: \.id) { card in
@@ -141,11 +146,6 @@ struct ProgressTabView: View {
                         unit: unitLabel(uiState.weightUnit),
                         narration: narrations[card.id]
                     )
-                }
-            }
-            if !uiState.bodyPartBreakdown.isEmpty {
-                Section {
-                    BodyPartBreakdownCard(slices: uiState.bodyPartBreakdown)
                 }
             }
         }
@@ -370,6 +370,13 @@ private struct InsightNarrationView: View {
     }
 }
 
+/// One visit within a week's consistency bar, stacked with its siblings.
+private struct WeeklyVisitSegment: Identifiable {
+    let weekKey: String
+    let index: Int
+    var id: String { "\(weekKey):\(index)" }
+}
+
 private struct InsightCardView: View {
     let card: InsightCard
     let unit: String
@@ -416,22 +423,35 @@ private struct InsightCardView: View {
         }
     }
 
-    /// Sessions per week as bars from a zero baseline, one slot per week
-    /// (zero weeks keep their slot in the fixed time axis); mirrors
-    /// sharedUI's WeeklyVisitBars. Week starts are plotted as categories so
-    /// every bar gets an even slot without x-domain arithmetic.
+    /// Sessions per week as a stack of one segment per visit, one slot per
+    /// week (zero weeks keep their slot in the fixed time axis, via an
+    /// explicit x-domain since they contribute no segments); mirrors
+    /// sharedUI's WeeklyVisitBars. Segmenting the bar makes the count
+    /// directly countable instead of requiring a height comparison.
     private var weeklyVisitBars: some View {
-        Chart(card.spark, id: \.epochDay) { point in
+        let weekKeys = card.spark.map { String($0.epochDay) }
+        let maxCount = Swift.max(card.spark.map(\.value).max() ?? 1, 1)
+        return Chart(weeklyVisitSegments) { segment in
             BarMark(
-                x: .value("Week", String(point.epochDay)),
-                y: .value("Visits", point.value)
+                x: .value("Week", segment.weekKey),
+                yStart: .value("Start", Double(segment.index) + 0.08),
+                yEnd: .value("End", Double(segment.index) + 0.92)
             )
             .cornerRadius(2)
         }
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
-        .chartYScale(domain: 0...Swift.max(card.spark.map(\.value).max() ?? 1, 1))
+        .chartXScale(domain: weekKeys)
+        .chartYScale(domain: 0...maxCount)
         .frame(height: 40)
+    }
+
+    private var weeklyVisitSegments: [WeeklyVisitSegment] {
+        card.spark.flatMap { point in
+            (0..<Int(point.value)).map { index in
+                WeeklyVisitSegment(weekKey: String(point.epochDay), index: index)
+            }
+        }
     }
 
     private var sparkline: some View {

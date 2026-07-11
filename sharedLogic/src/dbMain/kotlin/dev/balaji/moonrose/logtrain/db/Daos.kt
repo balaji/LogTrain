@@ -14,6 +14,12 @@ data class CompletedSessionRow(
     @ColumnInfo(name = "routine_name") val routineName: String?,
 )
 
+/** Projection for the session screen's "Previous" column: one logged set. */
+data class PreviousSetRow(
+    @ColumnInfo(name = "actual_weight") val actualWeight: Double?,
+    @ColumnInfo(name = "actual_reps") val actualReps: Int?,
+)
+
 /** Projection for insights: one row per completed working set in a completed session. */
 data class CompletedSetRow(
     @ColumnInfo(name = "performed_at") val performedAt: Long,
@@ -312,6 +318,24 @@ interface WorkoutSessionDetailDao {
             "ORDER BY s.performed_at",
     )
     suspend fun getCompletedSets(profileId: Long, startMillis: Long): List<CompletedSetRow>
+
+    /**
+     * Sets of the most recent completed session that includes the exercise, in
+     * position order — the source for the session screen's "Previous" column.
+     */
+    @Query(
+        "SELECT d.actual_weight AS actual_weight, d.actual_reps AS actual_reps " +
+            "FROM workout_session_details d " +
+            "JOIN workout_sessions s ON s.id = d.workout_session_id " +
+            "WHERE d.exercise_id = :exerciseId AND s.id = (" +
+            "SELECT s2.id FROM workout_sessions s2 " +
+            "JOIN workout_session_details d2 ON d2.workout_session_id = s2.id " +
+            "WHERE s2.profile_id = :profileId AND s2.completed_at IS NOT NULL " +
+            "AND d2.exercise_id = :exerciseId " +
+            "ORDER BY s2.performed_at DESC LIMIT 1) " +
+            "ORDER BY d.position",
+    )
+    suspend fun getLatestCompletedSets(profileId: Long, exerciseId: Long): List<PreviousSetRow>
 
     @Insert
     suspend fun insert(detail: WorkoutSessionDetailEntity): Long

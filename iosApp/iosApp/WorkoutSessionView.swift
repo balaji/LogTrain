@@ -23,6 +23,9 @@ struct WorkoutSessionView: View {
     @State private var showNothingToSave = false
     @State private var ownSessionObserved = false
     @State private var reorder = ExerciseReorderModel()
+    @State private var plateKeyboard: BarbellKeyboardState?
+    @State private var plateNumericMode = false
+    @State private var weightUnit: WeightUnit = .metric
 
     private var sessionStartDate: Date? {
         guard uiState.startedAt > 0 else { return nil }
@@ -44,6 +47,12 @@ struct WorkoutSessionView: View {
         }
         .task { await bootstrap() }
         .task { await followActiveSession() }
+        .task(id: plateKeyboard != nil) { await followPlateKeyboard() }
+        .task {
+            for await settings in UserSettingsRepository.shared.settings {
+                weightUnit = settings.weightUnit
+            }
+        }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { WorkoutSessionPresentation.shared.sessionScreenDidAppear() }
@@ -64,6 +73,13 @@ struct WorkoutSessionView: View {
             if formState != nil {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .destructive) {
+                        // The plate keyboard's weight field is a raw UIKit
+                        // UITextField (opaque to SwiftUI's focus system), so
+                        // presenting .alert() while it's still first
+                        // responder can leave the alert stuck behind the
+                        // custom keyboard, unresponsive to taps. Resign
+                        // first responder first so the alert always shows on top.
+                        dismissKeyboard()
                         showDiscardConfirm = true
                     } label: {
                         Image(systemName: "xmark")
@@ -72,6 +88,7 @@ struct WorkoutSessionView: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
+                        dismissKeyboard()
                         if uiState.hasCompletedSets {
                             // Dismissal happens via followActiveSession() once
                             // the session leaves the in-progress state.
@@ -125,6 +142,14 @@ struct WorkoutSessionView: View {
         }
     }
 
+    /// Resigns whatever text field is currently first responder — including
+    /// the plate keyboard's UIKit-backed field, which SwiftUI's own focus
+    /// system doesn't know about and so won't resign on its own before an
+    /// `.alert()` presents.
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+
     private func bootstrap() async {
         // `.task` restarts on every appearance (tab switches included); only
         // the first run may create/resume a session. Re-running resumeOrStart
@@ -134,7 +159,9 @@ struct WorkoutSessionView: View {
             do {
                 let id = try await WorkoutSessionRepository.shared.resumeOrStart(routineId: routineId)
                 sessionId = id.int64Value
-                formState = WorkoutSessionFormState(sessionId: id.int64Value)
+                let state = WorkoutSessionFormState(sessionId: id.int64Value)
+                formState = state
+                plateKeyboard = BarbellKeyboardState(formState: state)
             } catch {
                 // Bootstrap failure is fatal for this screen; falling back to
                 // dismiss is friendlier than showing a broken state.
@@ -145,6 +172,15 @@ struct WorkoutSessionView: View {
         guard let formState else { return }
         for await value in formState.uiState {
             uiState = value
+        }
+    }
+
+    /// Mirrors the plate keyboard's mode so each `PlateWeightField` swaps
+    /// between the plate panel and the system decimal pad.
+    private func followPlateKeyboard() async {
+        guard let plateKeyboard else { return }
+        for await state in plateKeyboard.uiState {
+            plateNumericMode = state.numericMode
         }
     }
 
@@ -174,29 +210,41 @@ struct WorkoutSessionView: View {
                     SessionExerciseSection(
                         exIndex: exIndex,
                         exercise: exercise,
-                        formState: formState
+                        formState: formState,
+                        plateKeyboard: plateKeyboard,
+                        plateNumericMode: plateNumericMode,
+                        weightUnit: weightUnit
                     )
                 } header: {
-                    Text(exercise.exercise.name)
-                        .font(.headline)
-                        .foregroundStyle(Color.accentColor)
+                    HStack {
+                        Text(exercise.exercise.name)
+                            .font(.headline)
+                            .foregroundStyle(Color.accentColor)
+                            .textCase(nil)
+                            .reorderHandle(
+                                onStart: { startY in
+                                    withAnimation(.easeOut(duration: 0.15)) {
+                                        reorder.begin(index: exIndex, fingerY: startY)
+                                    }
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                },
+                                onChanged: { y in reorder.update(fingerY: y) },
+                                onEnded: { commitReorder() }
+                            )
+                        Spacer()
+                        Menu {
+                            Button(role: .destructive) {
+                                formState.removeExercise(exerciseIndex: Int32(exIndex))
+                            } label: {
+                                Label("Delete Exercise", systemImage: "trash")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                                .foregroundStyle(.secondary)
+                                // Enlarges the tap target without growing the header.
+                                .contentShape(Rectangle())
+                        }
                         .textCase(nil)
-                        .reorderHandle(
-                            onStart: { startY in
-                                withAnimation(.easeOut(duration: 0.15)) {
-                                    reorder.begin(index: exIndex, fingerY: startY)
-                                }
-                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                            },
-                            onChanged: { y in reorder.update(fingerY: y) },
-                            onEnded: { commitReorder() }
-                        )
-                }
-                .swipeActions(edge: .trailing) {
-                    Button(role: .destructive) {
-                        formState.removeExercise(exerciseIndex: Int32(exIndex))
-                    } label: {
-                        Label("Delete", systemImage: "trash")
                     }
                 }
             }
@@ -228,6 +276,9 @@ private struct SessionExerciseSection: View {
     let exIndex: Int
     let exercise: DraftSessionExercise
     let formState: WorkoutSessionFormState
+    let plateKeyboard: BarbellKeyboardState?
+    let plateNumericMode: Bool
+    let weightUnit: WeightUnit
 
     private var setsCount: Int { Int(exercise.sets.count) }
 
@@ -237,103 +288,64 @@ private struct SessionExerciseSection: View {
         return "\(workingNumber)"
     }
 
+    private func previousLabel(_ setIdx: Int) -> String? {
+        guard setIdx < exercise.previousSets.count else { return nil }
+        let value = exercise.previousSets[setIdx]
+        return value.isEmpty ? nil : value
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
+        Group {
+            HStack(spacing: 8) {
                 Text("SET").frame(width: 28)
-                Text("KG").frame(maxWidth: .infinity)
+                Text("PREVIOUS").frame(maxWidth: .infinity)
+                Text(weightUnit == .imperial ? "LB" : "KG").frame(maxWidth: .infinity)
                 Text("REPS").frame(maxWidth: .infinity)
-                Spacer().frame(width: 36)
-                Spacer().frame(width: 24)
+                Spacer().frame(width: 28)
             }
             .font(.caption)
             .foregroundStyle(.secondary)
+            .listRowSeparator(.hidden)
 
             ForEach(Array(exercise.sets.enumerated()), id: \.offset) { setIdx, set in
-                HStack(spacing: 8) {
-                    // Warm-up sets show "W" and don't consume a working-set
-                    // number; tapping the number toggles warm-up, matching
-                    // sharedUI's Android behavior.
-                    Button {
-                        formState.toggleWarmup(
+                SessionSetRow(
+                    setLabel: setNumberLabel(setIdx),
+                    previous: previousLabel(setIdx),
+                    set: set,
+                    plateKeyboard: exercise.usesPlateKeyboard ? plateKeyboard : nil,
+                    plateNumericMode: plateNumericMode,
+                    onOpenPlateKeypad: {
+                        plateKeyboard?.open(
                             exerciseIndex: Int32(exIndex),
-                            setIndex: Int32(setIdx)
+                            setIndex: Int32(setIdx),
+                            exerciseId: exercise.exercise.id,
+                            currentValue: set.actualWeight
                         )
-                    } label: {
-                        Text(setNumberLabel(setIdx))
-                            .foregroundStyle(set.warmup ? Color.orange : Color.secondary)
+                    },
+                    onToggleWarmup: {
+                        formState.toggleWarmup(exerciseIndex: Int32(exIndex), setIndex: Int32(setIdx))
+                    },
+                    onWeightChange: {
+                        formState.updateActualWeight(exerciseIndex: Int32(exIndex), setIndex: Int32(setIdx), value: $0)
+                    },
+                    onRepsChange: {
+                        formState.updateActualReps(exerciseIndex: Int32(exIndex), setIndex: Int32(setIdx), value: $0)
+                    },
+                    onToggleCompleted: {
+                        formState.toggleCompleted(exerciseIndex: Int32(exIndex), setIndex: Int32(setIdx))
                     }
-                    .buttonStyle(.borderless)
-                    .frame(width: 28)
-
-                    TextField(
-                        set.targetWeight.isEmpty ? "0" : set.targetWeight,
-                        text: Binding(
-                            get: { set.actualWeight },
-                            set: { formState.updateActualWeight(
-                                exerciseIndex: Int32(exIndex),
-                                setIndex: Int32(setIdx),
-                                value: $0
-                            ) }
-                        )
-                    )
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-
-                    TextField(
-                        set.targetReps.isEmpty ? "0" : set.targetReps,
-                        text: Binding(
-                            get: { set.actualReps },
-                            set: { formState.updateActualReps(
-                                exerciseIndex: Int32(exIndex),
-                                setIndex: Int32(setIdx),
-                                value: $0
-                            ) }
-                        )
-                    )
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-
-                    // A set needs at least one rep before it can be completed;
-                    // stays enabled while checked so stale rows can be unchecked.
-                    let canComplete = set.completed || (Int(set.actualReps) ?? 0) > 0
-                    Button {
-                        formState.toggleCompleted(
-                            exerciseIndex: Int32(exIndex),
-                            setIndex: Int32(setIdx)
-                        )
-                    } label: {
-                        Image(systemName: set.completed ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(
-                                set.completed
-                                    ? Color.accentColor
-                                    : Color.secondary.opacity(canComplete ? 1 : 0.3)
-                            )
+                )
+                .listRowSeparator(.hidden)
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    // The last remaining set can't be deleted; delete the
+                    // exercise instead via its kebab menu.
+                    if setsCount > 1 {
+                        Button(role: .destructive) {
+                            formState.removeSet(exerciseIndex: Int32(exIndex), setIndex: Int32(setIdx))
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
                     }
-                    .buttonStyle(.borderless)
-                    .disabled(!canComplete)
-                    .frame(width: 24)
-
-                    Button {
-                        formState.removeSet(
-                            exerciseIndex: Int32(exIndex),
-                            setIndex: Int32(setIdx)
-                        )
-                    } label: {
-                        Image(systemName: "minus.circle")
-                            .foregroundStyle(setsCount > 1 ? Color.secondary : Color.secondary.opacity(0.3))
-                    }
-                    .buttonStyle(.borderless)
-                    .disabled(setsCount <= 1)
-                    .frame(width: 32)
                 }
             }
 
@@ -343,11 +355,107 @@ private struct SessionExerciseSection: View {
                 Label("Add Set", systemImage: "plus")
                     .font(.subheadline)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
             }
             .buttonStyle(.borderless)
             .foregroundStyle(Color.accentColor)
+            .listRowSeparator(.hidden)
         }
-        .padding(.vertical, 4)
+    }
+}
+
+/// One set row: warm-up/number toggle, previous performance, weight and reps
+/// inputs, and a completion checkbox. Turns green and briefly pops when checked.
+private struct SessionSetRow: View {
+    let setLabel: String
+    let previous: String?
+    let set: DraftSessionSet
+    /// Non-nil only for barbell exercises; switches the weight input to the
+    /// custom plate keyboard.
+    let plateKeyboard: BarbellKeyboardState?
+    let plateNumericMode: Bool
+    let onOpenPlateKeypad: () -> Void
+    let onToggleWarmup: () -> Void
+    let onWeightChange: (String) -> Void
+    let onRepsChange: (String) -> Void
+    let onToggleCompleted: () -> Void
+
+    @State private var pop = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            // Warm-up sets show "W" and don't consume a working-set number;
+            // tapping the number toggles warm-up, matching sharedUI.
+            Button(action: onToggleWarmup) {
+                Text(setLabel)
+                    .foregroundStyle(set.warmup ? Color.orange : Color.secondary)
+            }
+            .buttonStyle(.borderless)
+            .frame(width: 28)
+
+            Text(previous ?? "—")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity)
+
+            Group {
+                if let plateKeyboard {
+                    PlateWeightField(
+                        placeholder: set.targetWeight.isEmpty ? "0" : set.targetWeight,
+                        text: set.actualWeight,
+                        numericMode: plateNumericMode,
+                        keyboard: plateKeyboard,
+                        onOpen: onOpenPlateKeypad,
+                        onTextChange: onWeightChange
+                    )
+                } else {
+                    TextField(
+                        set.targetWeight.isEmpty ? "0" : set.targetWeight,
+                        text: Binding(get: { set.actualWeight }, set: onWeightChange)
+                    )
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.center)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+
+            TextField(
+                set.targetReps.isEmpty ? "0" : set.targetReps,
+                text: Binding(get: { set.actualReps }, set: onRepsChange)
+            )
+            .keyboardType(.numberPad)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+
+            // A set needs at least one rep before it can be completed;
+            // stays enabled while checked so stale rows can be unchecked.
+            let canComplete = set.completed || (Int(set.actualReps) ?? 0) > 0
+            Button(action: onToggleCompleted) {
+                Image(systemName: set.completed ? "checkmark.square.fill" : "square")
+                    .foregroundStyle(
+                        set.completed
+                            ? Color.green
+                            : Color.secondary.opacity(canComplete ? 1 : 0.3)
+                    )
+            }
+            .buttonStyle(.borderless)
+            .disabled(!canComplete)
+            .frame(width: 28)
+        }
+        .scaleEffect(pop ? 1.04 : 1)
+        .listRowBackground(set.completed ? Color.green.opacity(0.15) : nil)
+        .onChange(of: set.completed) { _, completed in
+            guard completed else { return }
+            withAnimation(.easeOut(duration: 0.12)) { pop = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                withAnimation(.easeOut(duration: 0.18)) { pop = false }
+            }
+        }
     }
 }

@@ -1,7 +1,10 @@
 package dev.balaji.moonrose.logtrain.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -20,6 +23,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,13 +41,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -67,6 +74,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -82,10 +90,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.focus.onFocusChanged
+import dev.balaji.moonrose.logtrain.db.BarbellKeyboardState
 import dev.balaji.moonrose.logtrain.db.DraftSessionExercise
+import dev.balaji.moonrose.logtrain.db.DraftSessionSet
+import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
 import dev.balaji.moonrose.logtrain.db.WorkoutSessionFormState
 import dev.balaji.moonrose.logtrain.db.WorkoutSessionRepository
 import dev.balaji.moonrose.logtrain.db.WorkoutSessionUiState
+import dev.balaji.moonrose.logtrain.model.UserSettings
+import dev.balaji.moonrose.logtrain.model.WeightUnit
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import dev.balaji.moonrose.logtrain.navigation.WorkoutSessionRoute
 import kotlinx.coroutines.launch
@@ -257,56 +271,77 @@ private fun WorkoutSessionBody(
     val rowHeight = 56.dp
     val rowHeightPx = with(LocalDensity.current) { rowHeight.toPx() }
     val haptics = LocalHapticFeedback.current
+    val plateKeyboard = remember(formState) { BarbellKeyboardState(formState) }
+    val plateState by plateKeyboard.uiState.collectAsState()
+    val settings by UserSettingsRepository.settings.collectAsState(initial = UserSettings())
 
     Box(modifier = modifier.fillMaxSize()) {
         when {
             uiState.loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 16.dp),
-            ) {
-                itemsIndexed(uiState.exercises, key = { _, ex -> ex.id }) { exIndex, exercise ->
-                    SessionExerciseCard(
-                        exercise = exercise,
-                        exIndex = exIndex,
-                        onAddSet = { formState.addSet(exIndex) },
-                        onRemoveSet = { setIdx -> formState.removeSet(exIndex, setIdx) },
-                        onUpdateWeight = { setIdx, v -> formState.updateActualWeight(exIndex, setIdx, v) },
-                        onUpdateReps = { setIdx, v -> formState.updateActualReps(exIndex, setIdx, v) },
-                        onToggleWarmup = { setIdx -> formState.toggleWarmup(exIndex, setIdx) },
-                        onToggleCompleted = { setIdx -> formState.toggleCompleted(exIndex, setIdx) },
-                        onDelete = { formState.removeExercise(exIndex) },
-                        onReorderStart = { startRootY ->
-                            reorder.activeIndex = exIndex
-                            reorder.lastActiveIndex = exIndex
-                            reorder.fingerRootY = startRootY
-                            reorder.startFingerY = startRootY
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        },
-                        onReorderDrag = { dy -> reorder.fingerRootY += dy },
-                        onReorderEnd = {
-                            val from = reorder.activeIndex
-                            val to = reorder.targetIndex(rowHeightPx, uiState.exercises.size)
-                            reorder.activeIndex = null
-                            if (from != null && to != null && from != to) {
-                                formState.moveExercise(from, to)
-                            }
-                        },
-                        onReorderCancel = { reorder.activeIndex = null },
-                    )
+            else -> Column(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    contentPadding = PaddingValues(bottom = 16.dp),
+                ) {
+                    itemsIndexed(uiState.exercises, key = { _, ex -> ex.id }) { exIndex, exercise ->
+                        SessionExerciseCard(
+                            exercise = exercise,
+                            exIndex = exIndex,
+                            weightUnit = settings.weightUnit,
+                            // Which of this card's sets the plate keypad is
+                            // editing, or null when it targets another card.
+                            plateKeypadSetIndex = plateState.setIndex.takeIf {
+                                plateState.visible && plateState.exerciseIndex == exIndex
+                            },
+                            onOpenPlateKeypad = { setIdx, currentValue ->
+                                plateKeyboard.open(exIndex, setIdx, exercise.exercise.id, currentValue)
+                            },
+                            // A focused text field brings up the system IME;
+                            // never stack it under the plate panel.
+                            onFieldFocused = { plateKeyboard.close() },
+                            onAddSet = { formState.addSet(exIndex) },
+                            onRemoveSet = { setIdx -> formState.removeSet(exIndex, setIdx) },
+                            onUpdateWeight = { setIdx, v -> formState.updateActualWeight(exIndex, setIdx, v) },
+                            onUpdateReps = { setIdx, v -> formState.updateActualReps(exIndex, setIdx, v) },
+                            onToggleWarmup = { setIdx -> formState.toggleWarmup(exIndex, setIdx) },
+                            onToggleCompleted = { setIdx -> formState.toggleCompleted(exIndex, setIdx) },
+                            onDelete = { formState.removeExercise(exIndex) },
+                            onReorderStart = { startRootY ->
+                                reorder.activeIndex = exIndex
+                                reorder.lastActiveIndex = exIndex
+                                reorder.fingerRootY = startRootY
+                                reorder.startFingerY = startRootY
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            },
+                            onReorderDrag = { dy -> reorder.fingerRootY += dy },
+                            onReorderEnd = {
+                                val from = reorder.activeIndex
+                                val to = reorder.targetIndex(rowHeightPx, uiState.exercises.size)
+                                reorder.activeIndex = null
+                                if (from != null && to != null && from != to) {
+                                    formState.moveExercise(from, to)
+                                }
+                            },
+                            onReorderCancel = { reorder.activeIndex = null },
+                        )
+                    }
+
+                    item {
+                        TextButton(
+                            onClick = { showPicker = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                            Spacer(Modifier.width(4.dp))
+                            Text(stringResource(Res.string.add_exercise_caps))
+                        }
+                    }
                 }
 
-                item {
-                    TextButton(
-                        onClick = { showPicker = true },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null)
-                        Spacer(Modifier.width(4.dp))
-                        Text(stringResource(Res.string.add_exercise_caps))
-                    }
+                AnimatedVisibility(visible = plateState.visible) {
+                    BarbellPlateKeypad(state = plateState, keyboard = plateKeyboard)
                 }
             }
         }
@@ -460,6 +495,10 @@ private fun SessionReorderRow(name: String, rowHeight: Dp, modifier: Modifier = 
 private fun SessionExerciseCard(
     exercise: DraftSessionExercise,
     exIndex: Int,
+    weightUnit: WeightUnit,
+    plateKeypadSetIndex: Int?,
+    onOpenPlateKeypad: (Int, String) -> Unit,
+    onFieldFocused: () -> Unit,
     onAddSet: () -> Unit,
     onRemoveSet: (Int) -> Unit,
     onUpdateWeight: (Int, String) -> Unit,
@@ -472,6 +511,159 @@ private fun SessionExerciseCard(
     onReorderEnd: () -> Unit,
     onReorderCancel: () -> Unit,
 ) {
+    var headerRootY by remember { mutableFloatStateOf(0f) }
+    var showMenu by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .onGloballyPositioned { headerRootY = it.positionInRoot().y }
+                .pointerInput(exIndex) {
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = { offset -> onReorderStart(headerRootY + offset.y) },
+                        onDrag = { change, delta ->
+                            change.consume()
+                            onReorderDrag(delta.y)
+                        },
+                        onDragEnd = { onReorderEnd() },
+                        onDragCancel = { onReorderCancel() },
+                    )
+                }
+                .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = exercise.exercise.name,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f),
+            )
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = stringResource(Res.string.exercise_options),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(Res.string.delete_exercise),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        },
+                        onClick = {
+                            showMenu = false
+                            onDelete()
+                        },
+                    )
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(Res.string.column_set),
+                modifier = Modifier.width(32.dp),
+                style = MaterialTheme.typography.labelSmall,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                stringResource(Res.string.column_previous),
+                modifier = Modifier.weight(1.2f),
+                style = MaterialTheme.typography.labelSmall,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                stringResource(
+                    when (weightUnit) {
+                        WeightUnit.METRIC -> Res.string.column_kg
+                        WeightUnit.IMPERIAL -> Res.string.column_lb
+                    },
+                ),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.labelSmall,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                stringResource(Res.string.column_reps),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.labelSmall,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.width(40.dp))
+        }
+
+        // Warm-up sets show "W" and don't consume a working-set number;
+        // tapping the number cell toggles warm-up on the fly.
+        var workingSetNumber = 0
+        exercise.sets.forEachIndexed { setIdx, set ->
+            if (!set.warmup) workingSetNumber++
+            SessionSetRow(
+                set = set,
+                setLabel = if (set.warmup) stringResource(Res.string.warmup_marker) else "$workingSetNumber",
+                previous = exercise.previousSets.getOrNull(setIdx)?.takeIf { it.isNotBlank() },
+                canDelete = exercise.sets.size > 1,
+                usesPlateKeypad = exercise.usesPlateKeyboard,
+                plateKeypadActive = plateKeypadSetIndex == setIdx,
+                onOpenPlateKeypad = { onOpenPlateKeypad(setIdx, set.actualWeight) },
+                onFieldFocused = onFieldFocused,
+                onDelete = { onRemoveSet(setIdx) },
+                onToggleWarmup = { onToggleWarmup(setIdx) },
+                onUpdateWeight = { onUpdateWeight(setIdx, it) },
+                onUpdateReps = { onUpdateReps(setIdx, it) },
+                onToggleCompleted = { onToggleCompleted(setIdx) },
+            )
+        }
+
+        TextButton(
+            onClick = onAddSet,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
+        ) {
+            Text(
+                stringResource(Res.string.add_set_caps),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+    }
+}
+
+@Composable
+private fun SessionSetRow(
+    set: DraftSessionSet,
+    setLabel: String,
+    previous: String?,
+    canDelete: Boolean,
+    usesPlateKeypad: Boolean,
+    plateKeypadActive: Boolean,
+    onOpenPlateKeypad: () -> Unit,
+    onFieldFocused: () -> Unit,
+    onDelete: () -> Unit,
+    onToggleWarmup: () -> Unit,
+    onUpdateWeight: (String) -> Unit,
+    onUpdateReps: (String) -> Unit,
+    onToggleCompleted: () -> Unit,
+) {
     val scope = rememberCoroutineScope()
     val actionWidth = 72.dp
     val actionWidthPx = with(LocalDensity.current) { actionWidth.toPx() }
@@ -481,175 +673,166 @@ private fun SessionExerciseCard(
             SessionSwipeAnchor.Open at -actionWidthPx
         }
     }
-    val swipeState = remember(exIndex) {
+    val swipeState = remember {
         AnchoredDraggableState(initialValue = SessionSwipeAnchor.Closed, anchors = anchors)
     }
-    var headerRootY by remember { mutableFloatStateOf(0f) }
+
+    val rowTint by animateColorAsState(
+        if (set.completed) CompletedGreen.copy(alpha = 0.20f) else Color.Transparent,
+    )
+    // Brief scale pop when the row transitions to completed, as a visual cue.
+    val popScale = remember { Animatable(1f) }
+    var completedSeen by remember { mutableStateOf(set.completed) }
+    LaunchedEffect(set.completed) {
+        if (set.completed && !completedSeen) {
+            popScale.animateTo(1.04f, tween(durationMillis = 110))
+            popScale.animateTo(1f, tween(durationMillis = 160))
+        }
+        completedSeen = set.completed
+    }
 
     Box(modifier = Modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .width(actionWidth)
                 .matchParentSize()
                 .background(MaterialTheme.colorScheme.error),
-            contentAlignment = Alignment.Center,
+            contentAlignment = Alignment.CenterEnd,
         ) {
-            IconButton(onClick = {
-                scope.launch { swipeState.animateTo(SessionSwipeAnchor.Closed) }
-                onDelete()
-            }) {
+            IconButton(
+                onClick = {
+                    scope.launch { swipeState.animateTo(SessionSwipeAnchor.Closed) }
+                    onDelete()
+                },
+                modifier = Modifier.width(actionWidth).fillMaxHeight(),
+            ) {
                 Icon(
                     Icons.Default.Delete,
-                    contentDescription = stringResource(Res.string.delete_exercise),
+                    contentDescription = stringResource(Res.string.remove_set),
                     tint = MaterialTheme.colorScheme.onError,
                 )
             }
         }
 
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(swipeState.requireOffset().roundToInt(), 0) }
-                .anchoredDraggable(swipeState, Orientation.Horizontal)
-                .background(MaterialTheme.colorScheme.surface),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onGloballyPositioned { headerRootY = it.positionInRoot().y }
-                    .pointerInput(exIndex) {
-                        detectDragGesturesAfterLongPress(
-                            onDragStart = { offset -> onReorderStart(headerRootY + offset.y) },
-                            onDrag = { change, delta ->
-                                change.consume()
-                                onReorderDrag(delta.y)
-                            },
-                            onDragEnd = { onReorderEnd() },
-                            onDragCancel = { onReorderCancel() },
-                        )
-                    }
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = exercise.exercise.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    stringResource(Res.string.column_set),
-                    modifier = Modifier.width(32.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    textAlign = TextAlign.Center,
-                )
-                Text(
-                    stringResource(Res.string.column_kg),
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelSmall,
-                    textAlign = TextAlign.Center,
-                )
-                Text(
-                    stringResource(Res.string.column_reps),
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelSmall,
-                    textAlign = TextAlign.Center,
-                )
-                Spacer(Modifier.width(40.dp))
-                Spacer(Modifier.width(40.dp))
-            }
-
-            // Warm-up sets show "W" and don't consume a working-set number;
-            // tapping the number cell toggles warm-up on the fly.
-            var workingSetNumber = 0
-            exercise.sets.forEachIndexed { setIdx, set ->
-                if (!set.warmup) workingSetNumber++
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        if (set.warmup) stringResource(Res.string.warmup_marker) else "$workingSetNumber",
-                        modifier = Modifier
-                            .width(32.dp)
-                            .clickable { onToggleWarmup(setIdx) }
-                            .padding(vertical = 8.dp),
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (set.warmup) {
-                            MaterialTheme.colorScheme.tertiary
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
-                    )
-                    CompactActualInput(
-                        value = set.actualWeight,
-                        target = set.targetWeight,
-                        onValueChange = { onUpdateWeight(setIdx, it) },
-                        keyboardType = KeyboardType.Decimal,
-                        modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
-                    )
-                    CompactActualInput(
-                        value = set.actualReps,
-                        target = set.targetReps,
-                        onValueChange = { onUpdateReps(setIdx, it) },
-                        keyboardType = KeyboardType.Number,
-                        modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
-                    )
-                    Checkbox(
-                        checked = set.completed,
-                        onCheckedChange = { onToggleCompleted(setIdx) },
-                        // A set needs at least one rep before it can be
-                        // completed; completed stays enabled so stale rows can
-                        // still be unchecked.
-                        enabled = set.completed || (set.actualReps.toIntOrNull() ?: 0) > 0,
-                        modifier = Modifier.size(40.dp),
-                    )
-                    IconButton(
-                        onClick = { onRemoveSet(setIdx) },
-                        modifier = Modifier.size(40.dp),
-                        enabled = exercise.sets.size > 1,
-                    ) {
-                        Icon(
-                            Icons.Default.Clear,
-                            contentDescription = stringResource(Res.string.remove_set),
-                            modifier = Modifier.size(16.dp),
-                            tint = if (exercise.sets.size > 1) {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                            },
-                        )
-                    }
+                .then(if (canDelete) Modifier.anchoredDraggable(swipeState, Orientation.Horizontal) else Modifier)
+                .graphicsLayer {
+                    scaleX = popScale.value
+                    scaleY = popScale.value
                 }
-            }
-
-            TextButton(
-                onClick = onAddSet,
+                .background(MaterialTheme.colorScheme.surface)
+                .background(rowTint)
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                setLabel,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-            ) {
-                Text(
-                    stringResource(Res.string.add_set_caps),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
+                    .width(32.dp)
+                    .clickable { onToggleWarmup() }
+                    .padding(vertical = 8.dp),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (set.warmup) {
+                    MaterialTheme.colorScheme.tertiary
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+            )
+            Text(
+                previous ?: "—",
+                modifier = Modifier.weight(1.2f).padding(horizontal = 4.dp),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (usesPlateKeypad) {
+                // Not a text field: the plate keypad drives the value, so
+                // there is no system IME to fight with (and desktop behaves
+                // identically).
+                PlateWeightCell(
+                    value = set.actualWeight,
+                    target = set.targetWeight,
+                    active = plateKeypadActive,
+                    onClick = onOpenPlateKeypad,
+                    modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
+                )
+            } else {
+                CompactActualInput(
+                    value = set.actualWeight,
+                    target = set.targetWeight,
+                    onValueChange = onUpdateWeight,
+                    keyboardType = KeyboardType.Decimal,
+                    onFocused = onFieldFocused,
+                    modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
                 )
             }
-
-            HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+            CompactActualInput(
+                value = set.actualReps,
+                target = set.targetReps,
+                onValueChange = onUpdateReps,
+                keyboardType = KeyboardType.Number,
+                onFocused = onFieldFocused,
+                modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
+            )
+            Checkbox(
+                checked = set.completed,
+                onCheckedChange = { onToggleCompleted() },
+                // A set needs at least one rep before it can be
+                // completed; completed stays enabled so stale rows can
+                // still be unchecked.
+                enabled = set.completed || (set.actualReps.toIntOrNull() ?: 0) > 0,
+                colors = CheckboxDefaults.colors(checkedColor = CompletedGreen),
+                modifier = Modifier.size(40.dp),
+            )
         }
+    }
+}
+
+/** Green shared by the completed-row tint and the checked checkbox. */
+private val CompletedGreen = Color(0xFF43A047)
+
+/**
+ * Weight cell for barbell exercises. Styled like [CompactActualInput] but a
+ * plain clickable — tapping it opens the plate keypad instead of an IME.
+ */
+@Composable
+private fun PlateWeightCell(
+    value: String,
+    target: String,
+    active: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .border(
+                width = 1.dp,
+                color = if (active) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.outline
+                },
+                shape = RoundedCornerShape(4.dp),
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            value.ifEmpty { target.ifBlank { "0" } },
+            style = TextStyle(
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center,
+                color = if (value.isEmpty()) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+            ),
+        )
     }
 }
 
@@ -660,13 +843,18 @@ private fun CompactActualInput(
     onValueChange: (String) -> Unit,
     keyboardType: KeyboardType,
     modifier: Modifier = Modifier,
+    onFocused: (() -> Unit)? = null,
 ) {
     // Target shows as the placeholder so the user sees what they were aiming
     // for without it being submitted as their actual value.
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier,
+        modifier = if (onFocused == null) {
+            modifier
+        } else {
+            modifier.onFocusChanged { if (it.isFocused) onFocused() }
+        },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         textStyle = TextStyle(

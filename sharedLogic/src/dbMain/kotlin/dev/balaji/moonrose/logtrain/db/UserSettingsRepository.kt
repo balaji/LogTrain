@@ -13,6 +13,7 @@ internal const val SETTING_APPEARANCE = "appearance"
 internal const val SETTING_WEIGHT_UNIT = "weight_unit"
 internal const val SETTING_NOTIFICATIONS_ENABLED = "notifications_enabled"
 internal const val SETTING_PROGRESSION_CARDS = "progression_cards"
+internal const val SETTING_BARBELL_BAR_WEIGHTS = "barbell_bar_weights"
 
 internal const val MAX_PROGRESSION_CARDS = 3
 internal const val MAX_PROGRESSION_EXERCISES = 3
@@ -38,6 +39,22 @@ object UserSettingsRepository {
 
     suspend fun setProgressionCards(configs: List<ProgressionCardConfig>) =
         set(SETTING_PROGRESSION_CARDS, encodeProgressionCards(configs))
+
+    /**
+     * Last bar weight the user picked on the plate keyboard for [exerciseId],
+     * or null if never chosen. Keyed by unit too, so a remembered 20 kg is
+     * never read back as 20 lb.
+     */
+    suspend fun barWeightFor(exerciseId: Long, unit: WeightUnit): Double? =
+        decodeBarWeights(AppDb.db.userSettingDao().find(SETTING_BARBELL_BAR_WEIGHTS)?.value)[
+            BarWeightKey(exerciseId, unit),
+        ]
+
+    suspend fun setBarWeight(exerciseId: Long, unit: WeightUnit, weight: Double) {
+        val current = decodeBarWeights(AppDb.db.userSettingDao().find(SETTING_BARBELL_BAR_WEIGHTS)?.value)
+        val updated = current + (BarWeightKey(exerciseId, unit) to weight)
+        set(SETTING_BARBELL_BAR_WEIGHTS, encodeBarWeights(updated))
+    }
 
     private suspend fun set(key: String, value: String) {
         val now = nowMillis()
@@ -74,6 +91,29 @@ internal fun encodeProgressionCards(configs: List<ProgressionCardConfig>): Strin
             (listOf(axis) + config.exercises.take(MAX_PROGRESSION_EXERCISES))
                 .joinToString(FIELD_SEPARATOR.toString())
         }
+
+internal data class BarWeightKey(val exerciseId: Long, val unit: WeightUnit)
+
+internal fun encodeBarWeights(weights: Map<BarWeightKey, Double>): String =
+    weights.entries.joinToString(CARD_SEPARATOR.toString()) { (key, weight) ->
+        listOf(key.exerciseId.toString(), key.unit.value, weight.toString())
+            .joinToString(FIELD_SEPARATOR.toString())
+    }
+
+/** Lenient decode: malformed records are dropped. */
+internal fun decodeBarWeights(value: String?): Map<BarWeightKey, Double> {
+    if (value.isNullOrEmpty()) return emptyMap()
+    return value.split(CARD_SEPARATOR)
+        .mapNotNull { encoded ->
+            val fields = encoded.split(FIELD_SEPARATOR)
+            if (fields.size != 3) return@mapNotNull null
+            val exerciseId = fields[0].toLongOrNull() ?: return@mapNotNull null
+            val unit = WeightUnit.entries.firstOrNull { it.value == fields[1] } ?: return@mapNotNull null
+            val weight = fields[2].toDoubleOrNull() ?: return@mapNotNull null
+            BarWeightKey(exerciseId, unit) to weight
+        }
+        .toMap()
+}
 
 /** Lenient decode: cards without exercises are dropped, caps enforced. */
 internal fun decodeProgressionCards(value: String?): List<ProgressionCardConfig> {

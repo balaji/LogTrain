@@ -1,6 +1,7 @@
 package dev.balaji.moonrose.logtrain.db
 
 import dev.balaji.moonrose.logtrain.model.Exercise
+import dev.balaji.moonrose.logtrain.model.PlateMath
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -28,7 +29,19 @@ data class DraftSessionExercise(
     val id: Long,
     val exercise: Exercise,
     val sets: List<DraftSessionSet> = listOf(DraftSessionSet()),
-)
+    /**
+     * What the user logged the last time they did this exercise, formatted
+     * ("50kg x 5") and in set order. Row N of the current session shows entry
+     * N; rows beyond the list show a placeholder.
+     */
+    val previousSets: List<String> = emptyList(),
+) {
+    /**
+     * Whether weight cells offer the plate keyboard. Barbell only for now —
+     * deliberately excludes "smith machine", whose bars vary too much.
+     */
+    val usesPlateKeyboard: Boolean get() = exercise.equipment == "barbell"
+}
 
 data class WorkoutSessionUiState(
     val loading: Boolean = true,
@@ -98,20 +111,35 @@ class WorkoutSessionFormState(private val sessionId: Long) {
                 )
             }
             flush()
+            val withPrevious = grouped.map { draft ->
+                draft.copy(previousSets = loadPreviousSets(draft.exercise.id))
+            }
             _uiState.value = _uiState.value.copy(
                 loading = false,
-                exercises = grouped,
+                exercises = withPrevious,
                 startedAt = session?.performedAt ?: 0L,
             )
         }
     }
 
     fun addExercise(exercise: Exercise) {
+        val draftId = nextId++
         val current = _uiState.value
         _uiState.value = current.copy(
-            exercises = current.exercises + DraftSessionExercise(id = nextId++, exercise = exercise),
+            exercises = current.exercises + DraftSessionExercise(id = draftId, exercise = exercise),
         )
         scheduleAutosave()
+        // Previous values come from the db; fill them in once loaded.
+        scope.launch {
+            val previous = loadPreviousSets(exercise.id)
+            if (previous.isEmpty()) return@launch
+            val state = _uiState.value
+            _uiState.value = state.copy(
+                exercises = state.exercises.map {
+                    if (it.id == draftId) it.copy(previousSets = previous) else it
+                },
+            )
+        }
     }
 
     fun addSet(exerciseIndex: Int) {
@@ -253,6 +281,22 @@ class WorkoutSessionFormState(private val sessionId: Long) {
         }
     }
 
+    private suspend fun loadPreviousSets(exerciseId: Long): List<String> =
+        AppDb.db.workoutSessionDetailDao()
+            .getLatestCompletedSets(PROFILE_ID, exerciseId)
+            .map { row ->
+                val weight = row.actualWeight?.formatWeight()
+                val reps = row.actualReps
+                when {
+                    weight != null && reps != null -> "${weight}kg x $reps"
+                    weight != null -> "${weight}kg"
+                    reps != null -> "x $reps"
+                    // Blank keeps the list positionally aligned; the UI shows
+                    // its placeholder for blank entries.
+                    else -> ""
+                }
+            }
+
     private fun updateExercise(index: Int, transform: (DraftSessionExercise) -> DraftSessionExercise) {
         val current = _uiState.value
         _uiState.value = current.copy(
@@ -276,5 +320,4 @@ private const val AUTOSAVE_DEBOUNCE_MS = 500L
 
 private fun String.hasReps(): Boolean = (toIntOrNull() ?: 0) > 0
 
-private fun Double.formatWeight(): String =
-    if (this == toLong().toDouble()) toLong().toString() else toString()
+private fun Double.formatWeight(): String = PlateMath.formatWeight(this)
