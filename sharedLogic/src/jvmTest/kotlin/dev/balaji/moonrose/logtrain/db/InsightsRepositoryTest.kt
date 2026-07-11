@@ -6,6 +6,7 @@ import dev.balaji.moonrose.logtrain.calendar.WeekStart
 import dev.balaji.moonrose.logtrain.insights.BodyWeightTrend
 import dev.balaji.moonrose.logtrain.insights.InsightCard
 import dev.balaji.moonrose.logtrain.insights.SparkPoint
+import dev.balaji.moonrose.logtrain.model.ProgressionCardConfig
 import java.io.File
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -33,8 +34,8 @@ class InsightsRepositoryTest {
     // A Sunday, so weeks align with the default week start.
     private val sunday = 3L
 
-    private fun set(day: Long, exerciseId: Long = 1, name: String = "Bench", weight: Double = 100.0, reps: Int = 5) =
-        SetPoint(epochDay = day, sessionKey = day, exerciseId = exerciseId, exerciseName = name, weight = weight, reps = reps)
+    private fun set(day: Long, exerciseId: Long = 1, name: String = "Bench", weight: Double = 100.0, reps: Int = 5, bodyPart: String? = null) =
+        SetPoint(epochDay = day, sessionKey = day, exerciseId = exerciseId, exerciseName = name, bodyPart = bodyPart, weight = weight, reps = reps)
 
     @Test
     fun `weekly volume buckets sets and includes empty weeks`() {
@@ -83,6 +84,22 @@ class InsightsRepositoryTest {
     }
 
     @Test
+    fun `body part breakdown counts sets, sorts by count then name, and skips unknown body parts`() {
+        val sets = listOf(
+            set(sunday, bodyPart = "chest"),
+            set(sunday + 1, bodyPart = "chest"),
+            set(sunday + 2, exerciseId = 2, name = "Squat", bodyPart = "thighs"),
+            set(sunday + 3, exerciseId = 3, name = "Curl", bodyPart = "biceps"),
+            set(sunday + 4, exerciseId = 4, name = "Mystery", bodyPart = null),
+        )
+        val slices = bodyPartBreakdownFrom(sets)
+        assertEquals(listOf("chest", "biceps", "thighs"), slices.map { it.bodyPart })
+        assertEquals(listOf(2, 1, 1), slices.map { it.setCount })
+
+        assertTrue(bodyPartBreakdownFrom(emptyList()).isEmpty())
+    }
+
+    @Test
     fun `frequency counts sessions in rolling windows`() {
         val today = sunday + 100
         val sessionDays = listOf(today, today - 3, today - 10, today - 40)
@@ -121,11 +138,75 @@ class InsightsRepositoryTest {
             set(sunday + 7, weight = 102.5, reps = 5),
         )
         val cards = buildCards(sets, listOf(sunday, sunday + 7), null, sunday + 8, WeekStart.SUNDAY)
-        assertEquals(listOf("weekly_volume", "frequency", "progression:1"), cards.map { it.id })
+        assertEquals(listOf("weekly_volume", "frequency", "progression:slot0"), cards.map { it.id })
         assertEquals(InsightCard.HEADLINE_STREAK_WEEKS, cards[1].headlineKey)
         assertEquals(listOf("2"), cards[1].headlineArgs)
         assertEquals(InsightCard.HEADLINE_EST_1RM, cards[2].headlineKey)
         assertEquals("Bench", cards[2].exerciseName)
+        // The single series mirrors the classic card.
+        assertEquals(listOf("Bench"), cards[2].series.map { it.name })
+        assertEquals(cards[2].spark, cards[2].series.single().points)
+    }
+
+    @Test
+    fun `eligible progression exercises need two distinct weeks inside the window`() {
+        val sets = listOf(
+            // Bench: two weeks, volume 2 * 500.
+            set(sunday, weight = 100.0, reps = 5),
+            set(sunday + 7, weight = 100.0, reps = 5),
+            // Squat: two weeks, volume 2 * 900 -> ranks first.
+            set(sunday, exerciseId = 2, name = "Squat", weight = 180.0, reps = 5),
+            set(sunday + 7, exerciseId = 2, name = "Squat", weight = 180.0, reps = 5),
+            // Curl: sets on two days of the same week only.
+            set(sunday, exerciseId = 3, name = "Curl", weight = 20.0, reps = 10),
+            set(sunday + 1, exerciseId = 3, name = "Curl", weight = 20.0, reps = 10),
+            // Row: its earlier week predates the 12-week window.
+            set(sunday - 84, exerciseId = 4, name = "Row", weight = 60.0, reps = 8),
+            set(sunday, exerciseId = 4, name = "Row", weight = 60.0, reps = 8),
+        )
+        val eligible = eligibleProgressionExercises(sets, todayEpochDay = sunday + 8, weekStart = WeekStart.SUNDAY)
+        assertEquals(listOf("Squat", "Bench"), eligible)
+
+        assertTrue(eligibleProgressionExercises(emptyList(), sunday, WeekStart.SUNDAY).isEmpty())
+    }
+
+    @Test
+    fun `effective configs default to one top-volume single and drop stale exercises`() {
+        val eligible = listOf("Squat", "Bench", "Row", "Curl")
+
+        val defaults = effectiveProgressionConfigs(emptyList(), eligible)
+        assertEquals(listOf(listOf("Squat")), defaults.map { it.exercises })
+
+        val stored = listOf(
+            ProgressionCardConfig(exercises = listOf("bench", "Deadlift"), showPctChange = true),
+            ProgressionCardConfig(exercises = listOf("Deadlift")),
+        )
+        val effective = effectiveProgressionConfigs(stored, eligible)
+        // "bench" is canonicalized, "Deadlift" (no longer eligible) is dropped, the emptied card disappears.
+        assertEquals(listOf(ProgressionCardConfig(exercises = listOf("Bench"), showPctChange = true)), effective)
+    }
+
+    @Test
+    fun `a multi exercise config yields one comparison card without narration keys`() {
+        val sets = listOf(
+            set(sunday, weight = 100.0, reps = 5),
+            set(sunday + 7, weight = 110.0, reps = 5),
+            set(sunday, exerciseId = 2, name = "Squat", weight = 140.0, reps = 5),
+            set(sunday + 7, exerciseId = 2, name = "Squat", weight = 150.0, reps = 5),
+        )
+        val configs = listOf(ProgressionCardConfig(exercises = listOf("Bench", "Squat"), showPctChange = true))
+        val cards = buildCards(sets, listOf(sunday, sunday + 7), null, sunday + 8, WeekStart.SUNDAY, configs)
+
+        val card = cards.single { it.kind == "progression_multi" }
+        assertEquals("progression:slot0", card.id)
+        assertNull(card.exerciseName)
+        assertEquals("", card.headlineKey)
+        assertTrue(card.showPctChange)
+        assertEquals(listOf("Bench", "Squat"), card.series.map { it.name })
+        assertEquals(listOf("up", "up"), card.series.map { it.trend })
+        // Latest weekly best est. 1RM per series (Epley: w * (1 + reps/30)).
+        assertEquals(110.0 * (1 + 5 / 30.0), card.series[0].latest)
+        assertEquals(150.0 * (1 + 5 / 30.0), card.series[1].latest)
     }
 
     @Test
@@ -159,6 +240,7 @@ class InsightsRepositoryTest {
         val rows = db.workoutSessionDetailDao().getCompletedSets(PROFILE_ID, startMillis = 0)
         assertEquals(1, rows.size)
         assertEquals("Barbell Bench Press", rows.single().exerciseName)
+        assertEquals("chest", rows.single().bodyPart)
         assertEquals(100.0, rows.single().actualWeight)
         assertEquals(1000, rows.single().performedAt)
 

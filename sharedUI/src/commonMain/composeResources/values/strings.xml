@@ -197,6 +197,8 @@
     <!-- Insight cards (args are pre-formatted numbers from sharedLogic) -->
     <string name="insight_title_volume">Weekly volume</string>
     <string name="insight_title_frequency">Consistency</string>
+    <string name="insight_title_body_parts">Body part focus</string>
+    <string name="insight_body_part_share">%1$s sets · %2$s%</string>
     <string name="insight_volume_this_week">%1$s %2$s this week</string>
     <string name="insight_streak_weeks">%1$s-week streak</string>
     <string name="insight_no_streak">No active streak</string>
@@ -211,6 +213,11 @@
     <string name="insight_slope_per_week">%1$s %2$s/week over %3$s weeks</string>
     <string name="insight_change_30_days">%1$s %2$s in 30 days</string>
     <string name="insight_log_regularly">Log regularly to see your trend</string>
+    <string name="insight_exercises">Exercises</string>
+    <string name="insight_add_comparison">Add comparison</string>
+    <string name="insight_remove_card">Remove card</string>
+    <string name="insight_axis_pct_change">% change</string>
+    <string name="insight_series_slope">%1$s %2$s/week</string>
 
     <!-- Profile validation -->
     <string name="profile_name_too_long">Name must be at most %1$s characters</string>
@@ -250,6 +257,8 @@
     <string name="body_part_shoulders">Shoulders</string>
     <string name="body_part_thighs">Thighs</string>
     <string name="body_part_triceps">Triceps</string>
+    <!-- Folded tail of the body-part pie chart, not a catalog value -->
+    <string name="body_part_other">Other</string>
     <string name="equipment_machine">Machine</string>
     <string name="equipment_body_weight">Body weight</string>
     <string name="equipment_cable">Cable</string>

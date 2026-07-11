@@ -172,17 +172,23 @@ class InsightNarrationStateTest {
     }
 
     @Test
-    fun `errors mark the card failed and the next emission retries`() {
+    fun `errors mark the card failed and only changed stats retry`() {
         val state = state()
         cardsFlow.value = listOf(card("volume", "v1"))
         provider.fail("boom")
         assertEquals("failed", state.narrations.value.getValue("volume").status)
         assertNull(cache["volume"])
 
-        // StateFlow dedupes equal lists, so force a fresh emission with the
-        // same stats — mirroring the next real database invalidation.
+        // Re-emissions with identical stats stay quietly failed instead of
+        // pulsing the loading placeholder on every edit. (StateFlow dedupes
+        // equal lists, so force a fresh emission.)
         cardsFlow.value = emptyList()
         cardsFlow.value = listOf(card("volume", "v1"))
+        assertEquals("failed", state.narrations.value.getValue("volume").status)
+        assertEquals(1, provider.calls.size)
+
+        // Changed stats are a new request and retry.
+        cardsFlow.value = listOf(card("volume", "v2"))
         assertEquals("loading", state.narrations.value.getValue("volume").status)
         assertEquals(2, provider.calls.size)
         provider.complete("Recovered.")

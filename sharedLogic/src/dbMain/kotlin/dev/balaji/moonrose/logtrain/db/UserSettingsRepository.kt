@@ -2,6 +2,7 @@ package dev.balaji.moonrose.logtrain.db
 
 import dev.balaji.moonrose.logtrain.calendar.WeekStart
 import dev.balaji.moonrose.logtrain.model.Appearance
+import dev.balaji.moonrose.logtrain.model.ProgressionCardConfig
 import dev.balaji.moonrose.logtrain.model.UserSettings
 import dev.balaji.moonrose.logtrain.model.WeightUnit
 import kotlinx.coroutines.flow.Flow
@@ -11,6 +12,16 @@ internal const val SETTING_WEEK_START = "week_start"
 internal const val SETTING_APPEARANCE = "appearance"
 internal const val SETTING_WEIGHT_UNIT = "weight_unit"
 internal const val SETTING_NOTIFICATIONS_ENABLED = "notifications_enabled"
+internal const val SETTING_PROGRESSION_CARDS = "progression_cards"
+
+internal const val MAX_PROGRESSION_CARDS = 3
+internal const val MAX_PROGRESSION_EXERCISES = 3
+
+/** Separators for the progression-cards value: untypeable, so safe in exercise names. */
+private const val CARD_SEPARATOR = '\u001E'
+private const val FIELD_SEPARATOR = '\u001F'
+private const val AXIS_PCT = "pct"
+private const val AXIS_ABS = "abs"
 
 object UserSettingsRepository {
     val settings: Flow<UserSettings> =
@@ -24,6 +35,9 @@ object UserSettingsRepository {
 
     suspend fun setNotificationsEnabled(enabled: Boolean) =
         set(SETTING_NOTIFICATIONS_ENABLED, enabled.toString())
+
+    suspend fun setProgressionCards(configs: List<ProgressionCardConfig>) =
+        set(SETTING_PROGRESSION_CARDS, encodeProgressionCards(configs))
 
     private suspend fun set(key: String, value: String) {
         val now = nowMillis()
@@ -47,5 +61,29 @@ internal fun List<UserSettingEntity>.toUserSettings(): UserSettings {
         appearance = Appearance.fromValue(byKey[SETTING_APPEARANCE]),
         weightUnit = WeightUnit.fromValue(byKey[SETTING_WEIGHT_UNIT]),
         notificationsEnabled = byKey[SETTING_NOTIFICATIONS_ENABLED].toBoolean(),
+        progressionCards = decodeProgressionCards(byKey[SETTING_PROGRESSION_CARDS]),
     )
+}
+
+internal fun encodeProgressionCards(configs: List<ProgressionCardConfig>): String =
+    configs
+        .filter { it.exercises.isNotEmpty() }
+        .take(MAX_PROGRESSION_CARDS)
+        .joinToString(CARD_SEPARATOR.toString()) { config ->
+            val axis = if (config.showPctChange) AXIS_PCT else AXIS_ABS
+            (listOf(axis) + config.exercises.take(MAX_PROGRESSION_EXERCISES))
+                .joinToString(FIELD_SEPARATOR.toString())
+        }
+
+/** Lenient decode: cards without exercises are dropped, caps enforced. */
+internal fun decodeProgressionCards(value: String?): List<ProgressionCardConfig> {
+    if (value.isNullOrEmpty()) return emptyList()
+    return value.split(CARD_SEPARATOR)
+        .mapNotNull { encoded ->
+            val fields = encoded.split(FIELD_SEPARATOR)
+            val exercises = fields.drop(1).filter { it.isNotBlank() }.take(MAX_PROGRESSION_EXERCISES)
+            if (exercises.isEmpty()) return@mapNotNull null
+            ProgressionCardConfig(exercises = exercises, showPctChange = fields.first() == AXIS_PCT)
+        }
+        .take(MAX_PROGRESSION_CARDS)
 }

@@ -12,6 +12,21 @@ package dev.balaji.moonrose.logtrain.insights
 data class SparkPoint(val epochDay: Long, val value: Double)
 
 /**
+ * One named line of a progression chart, with the stats each UI renders in
+ * the legend. [points] are weekly best estimated 1RMs, oldest first.
+ */
+data class SparkSeries(
+    /** Exercise name — user data, shown verbatim. */
+    val name: String,
+    /** Latest weekly best estimated 1RM. */
+    val latest: Double,
+    val slopePerWeek: Double,
+    /** "up" | "down" | "flat". */
+    val trend: String,
+    val points: List<SparkPoint>,
+)
+
+/**
  * A self-contained card for the Progress screen. Numbers are pre-formatted
  * in Kotlin so Compose, SwiftUI, and the webApp render identical values, but
  * every sentence is a language-neutral key that each UI maps to its own
@@ -20,9 +35,9 @@ data class SparkPoint(val epochDay: Long, val value: Double)
  * unit where noted; the unit label itself is localized by the UI.
  */
 data class InsightCard(
-    /** Stable identity: "weekly_volume", "frequency", "progression:<exerciseId>", "body_weight". */
+    /** Stable identity: "weekly_volume", "frequency", "progression:slot<index>", "body_weight". */
     val id: String,
-    /** "volume" | "frequency" | "progression" | "plateau" | "body_weight". */
+    /** "volume" | "frequency" | "progression" | "plateau" | "progression_multi" | "body_weight". */
     val kind: String,
     /**
      * Card title for progression/plateau cards (an exercise name — user data,
@@ -40,6 +55,14 @@ data class InsightCard(
     val trend: String,
     /** Sparkline series, oldest first; empty when the card has no chart. */
     val spark: List<SparkPoint>,
+    /**
+     * Named lines for progression cards (1–3 entries; [spark] duplicates the
+     * first one); empty for the other kinds. "progression_multi" cards have
+     * no headline/detail — the UI renders one legend row per series instead.
+     */
+    val series: List<SparkSeries> = emptyList(),
+    /** Chart y-axis mode: % change from each series' first week vs raw weight. */
+    val showPctChange: Boolean = false,
 ) {
     companion object {
         /** args: [volume] + unit — "1,234 kg this week". */
@@ -85,6 +108,16 @@ data class InsightCard(
         const val DETAIL_LOG_REGULARLY = "log_regularly"
     }
 }
+
+/**
+ * Completed working sets attributed to one primary body part. [bodyPart] is
+ * the lowercase catalog key stored on the exercise ("chest", "full body", …);
+ * each UI maps it to a localized label.
+ */
+data class BodyPartSlice(
+    val bodyPart: String,
+    val setCount: Int,
+)
 
 data class WeeklyVolumePoint(
     val weekStartEpochDay: Long,

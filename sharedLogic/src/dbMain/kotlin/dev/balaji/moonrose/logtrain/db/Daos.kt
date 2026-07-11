@@ -19,6 +19,8 @@ data class CompletedSetRow(
     @ColumnInfo(name = "performed_at") val performedAt: Long,
     @ColumnInfo(name = "exercise_id") val exerciseId: Long,
     @ColumnInfo(name = "exercise_name") val exerciseName: String,
+    /** Primary body part of the exercise; null for exercises without one. */
+    @ColumnInfo(name = "body_part") val bodyPart: String?,
     @ColumnInfo(name = "actual_weight") val actualWeight: Double?,
     @ColumnInfo(name = "actual_reps") val actualReps: Int?,
 )
@@ -287,7 +289,8 @@ interface WorkoutSessionDetailDao {
 
     @Query(
         "SELECT s.performed_at AS performed_at, d.exercise_id AS exercise_id, " +
-            "e.name AS exercise_name, d.actual_weight AS actual_weight, d.actual_reps AS actual_reps " +
+            "e.name AS exercise_name, e.body_part AS body_part, " +
+            "d.actual_weight AS actual_weight, d.actual_reps AS actual_reps " +
             "FROM workout_session_details d " +
             "JOIN workout_sessions s ON s.id = d.workout_session_id " +
             "JOIN exercises e ON e.id = d.exercise_id " +
@@ -299,7 +302,8 @@ interface WorkoutSessionDetailDao {
 
     @Query(
         "SELECT s.performed_at AS performed_at, d.exercise_id AS exercise_id, " +
-            "e.name AS exercise_name, d.actual_weight AS actual_weight, d.actual_reps AS actual_reps " +
+            "e.name AS exercise_name, e.body_part AS body_part, " +
+            "d.actual_weight AS actual_weight, d.actual_reps AS actual_reps " +
             "FROM workout_session_details d " +
             "JOIN workout_sessions s ON s.id = d.workout_session_id " +
             "JOIN exercises e ON e.id = d.exercise_id " +

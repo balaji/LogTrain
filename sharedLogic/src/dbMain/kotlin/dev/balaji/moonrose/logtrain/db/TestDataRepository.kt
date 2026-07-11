@@ -78,8 +78,10 @@ private const val DEFAULT_BODY_WEIGHT_KG = 82.0
 /**
  * Plans [days] calendar days of history ending today: roughly three sessions a
  * week rotating through the 3 Day Full Body sample routines with gradual
- * progressive overload, plus a bodyweight entry every few days. All weights
- * are in the user's display unit, like the real logging paths.
+ * progressive overload, plus a bodyweight entry every few days. A randomized
+ * 5-15% of workout days are disrupted — skipped entirely or cut short with the
+ * trailing sets missing. All weights are in the user's display unit, like the
+ * real logging paths.
  */
 internal fun planTestData(
     days: Int,
@@ -93,11 +95,14 @@ internal fun planTestData(
     val firstDay = todayEpochDay - days + 1
 
     val sessions = mutableListOf<PlannedSession>()
+    // Life happens on 5-15% of workout days (rate drawn once per plan): the
+    // session is either skipped outright or cut short, in roughly equal measure.
+    val disruptionRate = random.nextDouble(0.05, 0.15)
     var rotation = 0
     for (day in firstDay..todayEpochDay) {
         if (LocalDate.fromEpochDays(day).dayOfWeek !in TRAINING_DAYS) continue
-        // Life happens: roughly one session in ten is skipped.
-        if (random.nextDouble() < 0.1) continue
+        val disrupted = random.nextDouble() < disruptionRate
+        if (disrupted && random.nextBoolean()) continue
         val routine = routines[rotation % routines.size]
         rotation++
 
@@ -117,11 +122,17 @@ internal fun planTestData(
                 )
             }
         }
+        // A disrupted day that wasn't skipped is cut short: the tail of the
+        // session (up to half of it) goes unlogged, and it ends sooner.
+        val fullSetCount = sets.size
+        if (disrupted && sets.size > 1) {
+            repeat(random.nextInt(1, sets.size / 2 + 1)) { sets.removeAt(sets.lastIndex) }
+        }
         sessions += PlannedSession(
             epochDay = day,
             // Evening sessions between 17:00 and 19:00.
             startMinuteOfDay = 17 * 60 + random.nextInt(0, 121),
-            durationMinutes = 45 + random.nextInt(0, 31),
+            durationMinutes = (45 + random.nextInt(0, 31)) * sets.size / fullSetCount,
             sets = sets,
         )
     }

@@ -35,6 +35,17 @@ enum class WeightUnit(val value: String) {
 }
 
 /**
+ * One user-configured progression card on the Progress tab: which exercises
+ * its chart overlays and how its y-axis scales. Persisted in user_settings.
+ */
+data class ProgressionCardConfig(
+    /** 1–3 exercise names, chart order. */
+    val exercises: List<String>,
+    /** Chart y-axis mode: % change from each series' first week vs raw weight. */
+    val showPctChange: Boolean = false,
+)
+
+/**
  * Typed view of the user_settings key-value table. Absent or unrecognized
  * rows yield these defaults, so no rows are ever seeded.
  */
@@ -48,4 +59,10 @@ data class UserSettings(
      * nothing sends notifications yet.
      */
     val notificationsEnabled: Boolean = false,
+    /**
+     * Progression cards the user configured on the Progress tab, display
+     * order. Empty means "never configured" — the Progress tab then defaults
+     * to one card charting the top-volume exercise.
+     */
+    val progressionCards: List<ProgressionCardConfig> = emptyList(),
 )

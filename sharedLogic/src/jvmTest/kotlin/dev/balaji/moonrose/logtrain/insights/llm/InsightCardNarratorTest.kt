@@ -4,7 +4,9 @@ import dev.balaji.moonrose.logtrain.insights.InsightCard
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
 
 class InsightCardNarratorTest {
     private fun card(kind: String, id: String = "test", exerciseName: String? = "Bench Press") =
@@ -49,6 +51,13 @@ class InsightCardNarratorTest {
         assertEquals(a.statsHash, b.statsHash)
         assertNotEquals(a.statsHash, c.statsHash)
         assertNotEquals(a.statsHash, d.statsHash)
+    }
+
+    @Test
+    fun `multi exercise comparison cards get no narration`() = runBlocking {
+        // contextFor's else-branch bails before touching any repository, so
+        // no database is needed here.
+        assertNull(InsightCardNarrator.buildRequest(card("progression_multi", exerciseName = null)))
     }
 
     @Test

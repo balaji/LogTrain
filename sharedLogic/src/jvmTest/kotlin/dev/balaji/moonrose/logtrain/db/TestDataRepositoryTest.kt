@@ -42,9 +42,30 @@ class TestDataRepositoryTest {
         val trainingDays = setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY)
         assertTrue(plan.sessions.all { it.epochDay in (monday - 27)..monday })
         assertTrue(plan.sessions.all { LocalDate.fromEpochDays(it.epochDay).dayOfWeek in trainingDays })
-        // 12 possible training days in 4 weeks, minus the ~10% skip rate.
+        // 12 possible training days in 4 weeks, minus the disrupted days
+        // (5-15%, about half of which are skipped outright).
         assertTrue(plan.sessions.size in 8..12, "got ${plan.sessions.size} sessions")
         assertTrue(plan.sessions.all { it.sets.isNotEmpty() })
+    }
+
+    @Test
+    fun `disrupted days are skipped or cut short but most sessions are complete`() {
+        val plan = plan(days = 365, seed = 7)
+        val trainingDays = setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY)
+        val possibleDays = ((monday - 364)..monday).count {
+            LocalDate.fromEpochDays(it).dayOfWeek in trainingDays
+        }
+        // Some days are skipped outright, but never so many that the cadence breaks.
+        assertTrue(plan.sessions.size < possibleDays, "no days were skipped")
+        assertTrue(plan.sessions.size > possibleDays * 8 / 10, "too many days skipped")
+
+        // Every full session in the rotation has 15 sets; cut-short sessions
+        // lose trailing sets but keep at least half.
+        val fullSetCount = plan.sessions.maxOf { it.sets.size }
+        val cutShort = plan.sessions.filter { it.sets.size < fullSetCount }
+        assertTrue(cutShort.isNotEmpty(), "no sessions were cut short")
+        assertTrue(cutShort.size < plan.sessions.size / 4, "too many cut-short sessions")
+        assertTrue(cutShort.all { it.sets.size >= fullSetCount / 2 })
     }
 
     @Test

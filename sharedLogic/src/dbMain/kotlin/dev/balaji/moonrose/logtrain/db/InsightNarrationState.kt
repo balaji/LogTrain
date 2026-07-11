@@ -49,7 +49,13 @@ class InsightNarrationState internal constructor(
     val narrations: StateFlow<Map<String, CardNarration>> = _narrations.asStateFlow()
     private val queue = Channel<CardNarrationRequest>(Channel.UNLIMITED)
 
-    /** cardId -> stats hash last enqueued; dedupes re-emissions and marks superseded work. */
+    /**
+     * cardId -> stats hash last enqueued; dedupes re-emissions and marks
+     * superseded work. A [FAILED_PREFIX]ed hash records a failed generation
+     * so identical stats are not retried on every re-emission (each retry
+     * pulses the loading placeholder in the UI); changed stats — or the next
+     * app launch, since this map is in-memory — retry naturally.
+     */
     private val enqueued = mutableMapOf<String, String>()
     private var prewarmed = false
 
@@ -79,6 +85,8 @@ class InsightNarrationState internal constructor(
                 // Already queued or just finished for these exact stats; keep
                 // whatever the worker last reported (loading or ready).
                 next[id] = _narrations.value[id] ?: CardNarration(id, "loading", "")
+            } else if (enqueued[id] == FAILED_PREFIX + item.request.statsHash) {
+                next[id] = CardNarration(id, "failed", "")
             } else {
                 enqueued[id] = item.request.statsHash
                 next[id] = CardNarration(id, "loading", "")
@@ -99,8 +107,11 @@ class InsightNarrationState internal constructor(
             if (enqueued[request.cardId] != request.statsHash) continue
             val text = generate(request)?.trim()
             if (text.isNullOrEmpty()) {
-                // Drop the enqueued marker so the next card emission retries.
-                enqueued.remove(request.cardId)
+                // Remember the failure for these exact stats (unless newer
+                // stats were enqueued meanwhile) so re-emissions don't retry.
+                if (enqueued[request.cardId] == request.statsHash) {
+                    enqueued[request.cardId] = FAILED_PREFIX + request.statsHash
+                }
                 update(request.cardId, CardNarration(request.cardId, "failed", ""))
                 continue
             }
@@ -127,5 +138,9 @@ class InsightNarrationState internal constructor(
         val current = _narrations.value
         if (cardId !in current) return
         _narrations.value = current + (cardId to narration)
+    }
+
+    private companion object {
+        const val FAILED_PREFIX = "failed:"
     }
 }

@@ -4,6 +4,7 @@ import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import dev.balaji.moonrose.logtrain.calendar.WeekStart
 import dev.balaji.moonrose.logtrain.model.Appearance
+import dev.balaji.moonrose.logtrain.model.ProgressionCardConfig
 import dev.balaji.moonrose.logtrain.model.SampleProgram
 import dev.balaji.moonrose.logtrain.model.SamplePrograms
 import dev.balaji.moonrose.logtrain.model.SampleRoutine
@@ -244,6 +245,29 @@ class AppDatabaseTest {
         val now = nowMillis()
         db.userSettingDao().upsert(UserSettingEntity(SETTING_APPEARANCE, "sepia", now, now))
         assertEquals(Appearance.SYSTEM, db.userSettingDao().observeAll().first().toUserSettings().appearance)
+    }
+
+    @Test
+    fun `progression card configs round-trip and decode leniently`() {
+        val configs = listOf(
+            ProgressionCardConfig(exercises = listOf("Bench Press", "Overhead Press"), showPctChange = true),
+            ProgressionCardConfig(exercises = listOf("Squat")),
+        )
+        assertEquals(configs, decodeProgressionCards(encodeProgressionCards(configs)))
+
+        assertTrue(decodeProgressionCards(null).isEmpty())
+        assertTrue(decodeProgressionCards("").isEmpty())
+        // A card with an axis field but no exercises is dropped; garbage is one abs card.
+        assertTrue(decodeProgressionCards("pct").isEmpty())
+        assertEquals(
+            listOf(ProgressionCardConfig(exercises = listOf("garbage"), showPctChange = false)),
+            decodeProgressionCards("not-an-axis\u001Fgarbage"),
+        )
+        // Caps: at most 3 cards, at most 3 exercises per card.
+        val oversized = List(5) { i -> ProgressionCardConfig(exercises = List(5) { "E$i-$it" }) }
+        val decoded = decodeProgressionCards(encodeProgressionCards(oversized))
+        assertEquals(3, decoded.size)
+        assertTrue(decoded.all { it.exercises.size == 3 })
     }
 
     private suspend fun seedProfile() {

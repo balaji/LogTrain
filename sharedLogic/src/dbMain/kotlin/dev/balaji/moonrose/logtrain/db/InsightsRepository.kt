@@ -2,19 +2,23 @@ package dev.balaji.moonrose.logtrain.db
 
 import dev.balaji.moonrose.logtrain.calendar.WeekMath
 import dev.balaji.moonrose.logtrain.calendar.WeekStart
+import dev.balaji.moonrose.logtrain.insights.BodyPartSlice
 import dev.balaji.moonrose.logtrain.insights.BodyWeightTrend
 import dev.balaji.moonrose.logtrain.insights.ExercisePr
 import dev.balaji.moonrose.logtrain.insights.ExerciseProgression
 import dev.balaji.moonrose.logtrain.insights.InsightCard
 import dev.balaji.moonrose.logtrain.insights.InsightMath
 import dev.balaji.moonrose.logtrain.insights.SparkPoint
+import dev.balaji.moonrose.logtrain.insights.SparkSeries
 import dev.balaji.moonrose.logtrain.insights.TrainingFrequency
 import dev.balaji.moonrose.logtrain.insights.WeeklyVolumePoint
+import dev.balaji.moonrose.logtrain.model.ProgressionCardConfig
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
@@ -27,6 +31,8 @@ internal data class SetPoint(
     val sessionKey: Long,
     val exerciseId: Long,
     val exerciseName: String,
+    /** Primary body part catalog key of the exercise; null when it has none. */
+    val bodyPart: String?,
     val weight: Double,
     val reps: Int,
 )
@@ -95,8 +101,44 @@ object InsightsRepository {
                 bodyWeight = trendFrom(weightEntries.filter { it.epochDay >= today - 90 }, today),
                 todayEpochDay = today,
                 weekStart = settings.weekStart,
+                progressionConfigs = settings.progressionCards,
             )
         }
+    }
+
+    /**
+     * Exercises eligible for a progression card (weighted sets in at least
+     * two distinct weeks of the last 12), most 12-week volume first;
+     * recomputed on any relevant DB change.
+     */
+    fun observeProgressionOptions(): Flow<List<String>> {
+        val startMillis = startOfDayMillis(WeekMath.todayEpochDay() - 365)
+        return combine(
+            AppDb.db.workoutSessionDetailDao().observeCompletedSets(PROFILE_ID, startMillis),
+            UserSettingsRepository.settings,
+        ) { rows, settings ->
+            val zone = TimeZone.currentSystemDefault()
+            eligibleProgressionExercises(
+                sets = rows.map { it.toSetPoint(zone) },
+                todayEpochDay = WeekMath.todayEpochDay(),
+                weekStart = settings.weekStart,
+            )
+        }
+    }
+
+    /**
+     * Completed working sets per primary body part over the last year, most
+     * trained first; recomputed on any relevant DB change. Sets whose exercise
+     * has no body part are omitted.
+     */
+    fun observeBodyPartBreakdown(): Flow<List<BodyPartSlice>> {
+        val startMillis = startOfDayMillis(WeekMath.todayEpochDay() - 365)
+        return AppDb.db.workoutSessionDetailDao()
+            .observeCompletedSets(PROFILE_ID, startMillis)
+            .map { rows ->
+                val zone = TimeZone.currentSystemDefault()
+                bodyPartBreakdownFrom(rows.map { it.toSetPoint(zone) })
+            }
     }
 
     private suspend fun completedSetsSince(startMillis: Long): List<SetPoint> {
@@ -113,6 +155,7 @@ internal fun CompletedSetRow.toSetPoint(zone: TimeZone): SetPoint =
         sessionKey = performedAt,
         exerciseId = exerciseId,
         exerciseName = exerciseName,
+        bodyPart = bodyPart,
         weight = actualWeight ?: 0.0,
         reps = actualReps ?: 0,
     )
@@ -149,6 +192,14 @@ internal fun weeklyVolumeFrom(
         )
     }
 }
+
+internal fun bodyPartBreakdownFrom(sets: List<SetPoint>): List<BodyPartSlice> =
+    sets
+        .mapNotNull { it.bodyPart }
+        .groupingBy { it }
+        .eachCount()
+        .map { (bodyPart, count) -> BodyPartSlice(bodyPart = bodyPart, setCount = count) }
+        .sortedWith(compareByDescending<BodyPartSlice> { it.setCount }.thenBy { it.bodyPart })
 
 internal fun personalRecordsFrom(
     sets: List<SetPoint>,
@@ -220,16 +271,59 @@ internal fun buildCards(
     bodyWeight: BodyWeightTrend?,
     todayEpochDay: Long,
     weekStart: WeekStart,
+    progressionConfigs: List<ProgressionCardConfig> = emptyList(),
 ): List<InsightCard> {
     val cards = mutableListOf<InsightCard>()
 
     if (sessionDays.isNotEmpty()) {
         cards += volumeCard(sets, todayEpochDay, weekStart)
         cards += frequencyCard(sessionDays, todayEpochDay, weekStart)
-        cards += progressionCards(sets, todayEpochDay, weekStart)
+        val eligible = eligibleProgressionExercises(sets, todayEpochDay, weekStart)
+        cards += effectiveProgressionConfigs(progressionConfigs, eligible)
+            .mapIndexedNotNull { slot, config ->
+                progressionCard(sets, config, slot, todayEpochDay, weekStart)
+            }
     }
     if (bodyWeight != null) cards += bodyWeightCard(bodyWeight)
     return cards
+}
+
+/**
+ * Exercises eligible for a progression card: weighted sets in ≥2 distinct
+ * weeks of the last 12; most 12-week volume first.
+ */
+internal fun eligibleProgressionExercises(
+    sets: List<SetPoint>,
+    todayEpochDay: Long,
+    weekStart: WeekStart,
+): List<String> =
+    sets
+        .filter { it.weight > 0 && it.reps > 0 && it.epochDay >= todayEpochDay - 7L * 12 }
+        .groupBy { it.exerciseName }
+        .filterValues { exerciseSets ->
+            exerciseSets.distinctBy { WeekMath.weekStartOnOrBefore(it.epochDay, weekStart) }.size >= 2
+        }
+        .entries
+        .sortedByDescending { (_, exerciseSets) -> exerciseSets.sumOf { it.weight * it.reps } }
+        .map { it.key }
+
+/**
+ * The progression cards to show: the stored configs with ineligible
+ * exercises dropped (canonicalizing case) and emptied cards removed, or —
+ * when the user never configured any — a single card charting the
+ * top-volume eligible exercise.
+ */
+internal fun effectiveProgressionConfigs(
+    stored: List<ProgressionCardConfig>,
+    eligible: List<String>,
+): List<ProgressionCardConfig> {
+    if (stored.isEmpty()) {
+        return eligible.take(1).map { ProgressionCardConfig(listOf(it)) }
+    }
+    val byLowercase = eligible.associateBy { it.lowercase() }
+    return stored
+        .map { config -> config.copy(exercises = config.exercises.mapNotNull { byLowercase[it.lowercase()] }) }
+        .filter { it.exercises.isNotEmpty() }
 }
 
 private fun volumeCard(
@@ -291,51 +385,89 @@ private fun frequencyCard(sessionDays: List<Long>, todayEpochDay: Long, weekStar
     )
 }
 
-/** One card per top-volume exercise (max 3) that has at least two weeks of history. */
-private fun progressionCards(
+/**
+ * One card for a configured exercise selection. Exercises without two weeks
+ * of history are dropped; null when none remain. Single-exercise cards keep
+ * the progression/plateau kinds (and their narration); comparison cards are
+ * "progression_multi", which has no headline, detail, or narration — the UI
+ * renders one legend row per series.
+ */
+private fun progressionCard(
     sets: List<SetPoint>,
+    config: ProgressionCardConfig,
+    slot: Int,
     todayEpochDay: Long,
     weekStart: WeekStart,
-): List<InsightCard> {
+): InsightCard? {
     val window = todayEpochDay - 7L * 12
     val recent = sets.filter { it.weight > 0 && it.reps > 0 && it.epochDay >= window }
-    return recent
-        .groupBy { it.exerciseName }
-        .entries
-        .sortedByDescending { (_, s) -> s.sumOf { it.weight * it.reps } }
-        .take(3)
-        .mapNotNull { (name, _) -> progressionFrom(recent, name, todayEpochDay, weekStart) }
+    val progressions = config.exercises
+        .mapNotNull { progressionFrom(recent, it, todayEpochDay, weekStart) }
         .filter { it.weeklyBest1Rm.size >= 2 }
-        .map { p ->
-            val latest = p.weeklyBest1Rm.last().value
-            val weeksSpanned = p.weeklyBest1Rm.size
-            if (p.plateau) {
-                InsightCard(
-                    id = "progression:${p.exerciseId}",
-                    kind = "plateau",
-                    exerciseName = p.exerciseName,
-                    headlineKey = InsightCard.HEADLINE_PLATEAU_AT,
-                    headlineArgs = listOf(InsightMath.formatNumber(latest)),
-                    detailKey = InsightCard.DETAIL_FLAT_ACROSS_WEEKS,
-                    detailArgs = listOf("$weeksSpanned"),
-                    trend = "flat",
-                    spark = p.weeklyBest1Rm,
-                )
-            } else {
-                val sign = if (p.slopePerWeek >= 0) "+" else ""
-                InsightCard(
-                    id = "progression:${p.exerciseId}",
-                    kind = "progression",
-                    exerciseName = p.exerciseName,
-                    headlineKey = InsightCard.HEADLINE_EST_1RM,
-                    headlineArgs = listOf(InsightMath.formatNumber(latest)),
-                    detailKey = InsightCard.DETAIL_SLOPE_PER_WEEK,
-                    detailArgs = listOf("$sign${InsightMath.formatNumber(p.slopePerWeek)}", "$weeksSpanned"),
-                    trend = if (p.slopePerWeek >= 0) "up" else "down",
-                    spark = p.weeklyBest1Rm,
-                )
-            }
+    val series = progressions.map { p ->
+        SparkSeries(
+            name = p.exerciseName,
+            latest = p.weeklyBest1Rm.last().value,
+            slopePerWeek = p.slopePerWeek,
+            trend = when {
+                p.plateau -> "flat"
+                p.slopePerWeek >= 0 -> "up"
+                else -> "down"
+            },
+            points = p.weeklyBest1Rm,
+        )
+    }
+    val id = "progression:slot$slot"
+    val single = progressions.singleOrNull()
+        ?: return if (series.isEmpty()) {
+            null
+        } else {
+            InsightCard(
+                id = id,
+                kind = "progression_multi",
+                exerciseName = null,
+                headlineKey = "",
+                headlineArgs = emptyList(),
+                detailKey = "",
+                detailArgs = emptyList(),
+                trend = "none",
+                spark = series.first().points,
+                series = series,
+                showPctChange = config.showPctChange,
+            )
         }
+    val latest = single.weeklyBest1Rm.last().value
+    val weeksSpanned = single.weeklyBest1Rm.size
+    return if (single.plateau) {
+        InsightCard(
+            id = id,
+            kind = "plateau",
+            exerciseName = single.exerciseName,
+            headlineKey = InsightCard.HEADLINE_PLATEAU_AT,
+            headlineArgs = listOf(InsightMath.formatNumber(latest)),
+            detailKey = InsightCard.DETAIL_FLAT_ACROSS_WEEKS,
+            detailArgs = listOf("$weeksSpanned"),
+            trend = "flat",
+            spark = single.weeklyBest1Rm,
+            series = series,
+            showPctChange = config.showPctChange,
+        )
+    } else {
+        val sign = if (single.slopePerWeek >= 0) "+" else ""
+        InsightCard(
+            id = id,
+            kind = "progression",
+            exerciseName = single.exerciseName,
+            headlineKey = InsightCard.HEADLINE_EST_1RM,
+            headlineArgs = listOf(InsightMath.formatNumber(latest)),
+            detailKey = InsightCard.DETAIL_SLOPE_PER_WEEK,
+            detailArgs = listOf("$sign${InsightMath.formatNumber(single.slopePerWeek)}", "$weeksSpanned"),
+            trend = if (single.slopePerWeek >= 0) "up" else "down",
+            spark = single.weeklyBest1Rm,
+            series = series,
+            showPctChange = config.showPctChange,
+        )
+    }
 }
 
 private fun bodyWeightCard(trend: BodyWeightTrend): InsightCard {
