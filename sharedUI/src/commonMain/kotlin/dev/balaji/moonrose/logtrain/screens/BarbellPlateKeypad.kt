@@ -46,7 +46,7 @@ import org.jetbrains.compose.resources.stringResource
  * In-app keyboard for barbell weight cells: plate buttons compute
  * bar + 2 x plates, with a numeric fallback keypad for weights that can't be
  * loaded from standard plates. All state lives in [BarbellKeyboardState];
- * this is a thin rendering shared by Android and desktop.
+ * this is a thin rendering used by Android.
  */
 @Composable
 internal fun BarbellPlateKeypad(

@@ -750,8 +750,7 @@ private fun SessionSetRow(
             )
             if (usesPlateKeypad) {
                 // Not a text field: the plate keypad drives the value, so
-                // there is no system IME to fight with (and desktop behaves
-                // identically).
+                // there is no system IME to fight with.
                 PlateWeightCell(
                     value = set.actualWeight,
                     target = set.targetWeight,

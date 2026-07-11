@@ -28,10 +28,10 @@ data class SparkSeries(
 
 /**
  * A self-contained card for the Progress screen. Numbers are pre-formatted
- * in Kotlin so Compose, SwiftUI, and the webApp render identical values, but
+ * in Kotlin so Compose and SwiftUI render identical values, but
  * every sentence is a language-neutral key that each UI maps to its own
  * localized template (Compose string resources, the iOS shell's English
- * literals, the webApp's i18n). Templates also interpolate the user's weight
+ * literals). Templates also interpolate the user's weight
  * unit where noted; the unit label itself is localized by the UI.
  */
 data class InsightCard(

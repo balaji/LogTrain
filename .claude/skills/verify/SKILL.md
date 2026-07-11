@@ -1,22 +1,11 @@
 ---
 name: verify
-description: How to run LogTrain and observe changes at runtime (desktop Compose app, iOS simulator, seeded data)
+description: How to run LogTrain and observe changes at runtime (iOS simulator, seeded data)
 ---
 
 # Verifying LogTrain changes at runtime
 
 If JDK is not found, check if it is installed via homebrew; export `JAVA_HOME=$BREW_HOME/opt/openjdk` for every Gradle call.
-
-## Desktop (Compose, fastest shared-UI surface)
-
-```bash
-JAVA_HOME=$BREW_HOME/opt/openjdk ./gradlew :desktopApp:run
-```
-
-- Opens a macOS window (main class `dev.balaji.moonrose.logtrain.MainKt`). Runs until the window is closed; launch it in the background.
-- Its Room DB lives at `~/.logtrain/logtrain.db` (JVM `databaseBuilder` uses `user.home`). That is the developer's own data — inspect with sqlite3, don't reset it. Note: an old DB may predate `ExerciseSeedCallback` and have an empty `exercises` table, which leaves most screens empty.
-- The Profile screen has a developer test-data generator (`TestDataRepository.generate(days)`) and a matching delete; it's the sanctioned way to get workout history for the Progress screen.
-- `screencapture -x <file>.png` works from this environment for capturing the window.
 
 ## iOS simulator
 

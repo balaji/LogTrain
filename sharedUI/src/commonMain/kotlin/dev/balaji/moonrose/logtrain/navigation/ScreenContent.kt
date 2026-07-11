@@ -14,7 +14,7 @@ import dev.balaji.moonrose.logtrain.screens.WorkoutSessionScreen
 
 /**
  * Single route-to-screen dispatcher used by every platform entry point:
- * the shared App() scaffold on Android/Desktop and the per-screen
+ * the shared App() scaffold on Android and the per-screen
  * ComposeUIViewControllers on iOS.
  */
 @Composable

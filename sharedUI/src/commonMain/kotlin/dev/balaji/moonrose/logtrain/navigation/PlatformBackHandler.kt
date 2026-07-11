@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 
 /**
  * System back integration. Android hooks the (predictive) back gesture;
- * iOS and Desktop are no-ops (SwiftUI owns back on iOS, Desktop has none).
+ * iOS is a no-op (SwiftUI owns back on iOS).
  */
 @Composable
 expect fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit)

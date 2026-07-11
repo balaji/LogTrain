@@ -18,8 +18,8 @@ import dev.balaji.moonrose.logtrain.sharedui.resources.*
  * Localized rendering of the language-neutral keys, enums, and structured
  * data that sharedLogic produces. sharedLogic never emits display text (see
  * e.g. InsightCard, SampleProgram, ProfileNameError); this file is where the
- * Compose UI turns those keys into strings. The webApp and the iOS SwiftUI
- * shell keep their own equivalents of these mappings.
+ * Compose UI turns those keys into strings. The iOS SwiftUI
+ * shell keeps its own equivalent of these mappings.
  */
 
 @Composable
