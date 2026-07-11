@@ -20,8 +20,6 @@ kotlin {
         }
     }
 
-    jvm()
-
     androidLibrary {
         namespace = "dev.balaji.moonrose.logtrain.sharedUI"
         compileSdk = libs.versions.android.compileSdk.get().toInt()

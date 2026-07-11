@@ -15,19 +15,6 @@ kotlin {
     iosArm64()
     iosSimulatorArm64()
 
-    jvm()
-
-    js {
-        outputModuleName = "sharedLogic"
-        browser()
-        binaries.library()
-        generateTypeScriptDefinitions()
-        compilerOptions {
-            target = "es2015"
-            optIn.add("kotlin.js.ExperimentalJsExport")
-        }
-    }
-
     androidLibrary {
         namespace = "dev.balaji.moonrose.logtrain.sharedLogic"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -45,7 +32,7 @@ kotlin {
     }
 
     sourceSets {
-        // Room-backed persistence for every target except js (Room has no JS support).
+        // Room-backed persistence for every target.
         // sharedUI's targets are a subset of these, so its commonMain can use dbMain APIs.
         val dbMain by creating {
             dependsOn(commonMain.get())
@@ -56,7 +43,6 @@ kotlin {
         }
         androidMain.get().dependsOn(dbMain)
         iosMain.get().dependsOn(dbMain)
-        jvmMain.get().dependsOn(dbMain)
 
         commonMain.dependencies {
             implementation(libs.kotlinx.coroutinesCore)
@@ -64,9 +50,6 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
-        }
-        jvmTest.dependencies {
-            implementation(libs.kotlin.testJunit)
         }
     }
 }
@@ -79,6 +62,4 @@ dependencies {
     add("kspAndroid", libs.androidx.room.compiler)
     add("kspIosArm64", libs.androidx.room.compiler)
     add("kspIosSimulatorArm64", libs.androidx.room.compiler)
-    add("kspJvm", libs.androidx.room.compiler)
-    // no kspJs: the js target has no Room code
 }

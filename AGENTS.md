@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Kotlin Multiplatform app (Android, iOS, Desktop, Web) for logging gym
+Kotlin Multiplatform app (Android, iOS) for logging gym
 workouts. It is local-first: all data lives in an on-device Room (KMP)
 database; there is no backend and no sign-in. The local schema mirrors the
 old `moonrose` Rails backend (sibling repo) so a future premium sync feature
@@ -10,18 +10,14 @@ can map rows 1:1.
 
 - [sharedLogic](sharedLogic/src) — platform-agnostic Kotlin: domain models
   (`commonMain/.../model/`) and the Room database layer (`dbMain/.../db/`).
-  `dbMain` is an intermediate source set shared by android + ios + jvm —
-  Room has no JS support, so `jsMain` never sees it. Platform `dbMain`
-  actuals (database file location) live in `androidMain`/`iosMain`/`jvmMain`.
-  Compiles to a JS library (`sharedLogic`) consumed by `webApp`.
-- [sharedUI](sharedUI/src) — Compose Multiplatform UI shared by Android,
-  Desktop, and iOS. Not used by `webApp` (that's plain React). Its targets
-  are a subset of `dbMain`'s, so its `commonMain` can use the db layer
-  directly (screens consume repositories/Flows, never Room types).
-- [androidApp](androidApp), [desktopApp](desktopApp), [iosApp](iosApp) —
-  thin per-platform entry points wiring up `sharedLogic` + `sharedUI`.
-- [webApp](webApp) — React + TypeScript. Currently a "not supported on web"
-  notice; DB-backed features need the future sync backend.
+  `dbMain` is an intermediate source set shared by android + ios. Platform
+  `dbMain` actuals (database file location) live in `androidMain`/`iosMain`.
+- [sharedUI](sharedUI/src) — Compose Multiplatform UI shared by Android
+  and iOS. Its targets are a subset of `dbMain`'s, so its `commonMain` can
+  use the db layer directly (screens consume repositories/Flows, never Room
+  types).
+- [androidApp](androidApp), [iosApp](iosApp) — thin per-platform entry
+  points wiring up `sharedLogic` + `sharedUI`.
 
 ## UI architecture
 
@@ -30,7 +26,7 @@ Compose with Material Design.** No screen should render Compose Material
 widgets on iOS. Shared Kotlin code's job is domain models, the Room DB layer,
 and plain `StateFlow`-based form/state holders in `sharedLogic`'s `dbMain`
 source set (see `ProfileFormState.kt`, `ExerciseFormState.kt`) that both a
-Compose screen (Android/Desktop) and a native SwiftUI view (iOS) can bind to
+Compose screen (Android) and a native SwiftUI view (iOS) can bind to
 — never shared Compose UI as the iOS rendering path.
 
 This supersedes the original hybrid pattern (JetBrains' "Compose renders
@@ -55,7 +51,7 @@ Until a screen is migrated, it still follows the old hybrid pattern:
   `ScreenViewController(route:onNavigate:onGoBack:)`). Navigation intents flow
   Kotlin → Swift through those callbacks; Swift coordinators push/pop the stack.
   The shared `App()` composable is **not** used on iOS.
-- **Android/Desktop**: pure Compose. `App()` (`sharedUI/.../App.kt`) renders
+- **Android**: pure Compose. `App()` (`sharedUI/.../App.kt`) renders
   profile gate → `NavigationBar` tab scaffold, with a hand-rolled `NavStack`
   (no navigation library — deliberate; SwiftUI owns the iOS stack, so a shared
   nav library would be dead weight). Android theming is `MaterialExpressiveTheme`
@@ -139,7 +135,7 @@ for every other screen:
 4. Wire it into `ContentView.swift`'s tab/`NavigationStack` coordinators in
    place of the old `TabRootComposeView`/`DetailComposeView` route dispatch
    for that route.
-5. The Compose version of the screen (still used by Android/Desktop) keeps
+5. The Compose version of the screen (still used by Android) keeps
    binding to the same shared state class — don't fork the state/business
    logic, only the view layer forks per platform.
 
@@ -161,32 +157,20 @@ Room KMP (`androidx.room` + bundled SQLite driver, KSP codegen) in
   callback bridge for the SwiftUI shell (it can't consume Flows).
 - **Database file**: `AppDb.db` lazy singleton; file lives at
   `getDatabasePath("logtrain.db")` (Android, context via `DbContextHolder`,
-  set in `MainActivity`), app documents dir (iOS), `~/.logtrain/logtrain.db`
-  (desktop).
+  set in `MainActivity`) or the app documents dir (iOS).
 - **Schema JSON** is exported to `sharedLogic/schemas/` (committed). Bump the
   `@Database` version and write a migration for any schema change.
 
 ## Building and running
 
 - Android: `./gradlew :androidApp:assembleDebug`
-- Desktop: `./gradlew :desktopApp:run` (or `:desktopApp:hotRun --auto` for hot reload)
 - iOS: open [iosApp](iosApp) in Xcode and run from there (requires Xcode 26+;
   deployment target is iOS 26.0). Headless:
   `xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -destination 'generic/platform=iOS Simulator' build`
-- Web:
-  ```
-  npm run build:shared   # builds sharedLogic's Kotlin/JS library
-  npm install
-  npm run start
-  ```
-  (`npm run build:shared` must be re-run after any `sharedLogic` change —
-  webApp consumes a built artifact, not live source.)
 
 ## Tests
 
 - Android: `./gradlew :sharedUI:testAndroidHostTest :sharedLogic:testAndroidHostTest`
-- Desktop: `./gradlew :sharedUI:jvmTest :sharedLogic:jvmTest`
-- Web: `./gradlew :sharedLogic:jsTest`
 - iOS: `./gradlew :sharedUI:iosSimulatorArm64Test :sharedLogic:iosSimulatorArm64Test`
 
 Run the ones relevant to what you touched; there's no single "test everything"
@@ -198,11 +182,6 @@ to be present.
 The tab shell is behind the profile gate; creating a profile through the
 first-run form is the fast path. To get back to a fresh install:
 
-- Desktop: `rm -rf ~/.logtrain`
 - Android: `adb shell pm clear dev.balaji.moonrose.logtrain`
 - iOS simulator: delete the app (the database lives in the app's Documents
   directory).
-
-Inspect the desktop database directly with
-`sqlite3 ~/.logtrain/logtrain.db` (e.g. `.tables`,
-`select * from exercises;`).

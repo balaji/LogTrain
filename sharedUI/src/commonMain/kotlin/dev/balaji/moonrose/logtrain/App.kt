@@ -57,7 +57,7 @@ import dev.balaji.moonrose.logtrain.sharedui.resources.*
 private data class TabSpec(val route: TopLevelRoute, val icon: ImageVector)
 
 /**
- * Full app for platforms where Compose owns navigation (Android, Desktop).
+ * Full app for platforms where Compose owns navigation (Android).
  * iOS does not call this — its SwiftUI shell hosts screens individually.
  */
 @Composable

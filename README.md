@@ -13,9 +13,6 @@ future premium feature.
 ## Where it runs
 
 - **iPhone** and **Android** — the primary experience: logging at the gym.
-- **Desktop** — reviewing history and planning routines with a keyboard.
-- **Web** — coming soon; local data isn't available in the browser yet, so
-  the web app currently shows a notice.
 
 ## Product principles
 
