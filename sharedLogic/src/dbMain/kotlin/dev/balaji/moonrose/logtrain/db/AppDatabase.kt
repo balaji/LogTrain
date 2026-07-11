@@ -27,7 +27,8 @@ import androidx.room.TypeConverters
     // v10: body_metrics weight time-series for Progress insights.
     // v11: test_data flag on workout_sessions and body_metrics for generated demo data.
     // v12: ai_insight_cache table for LLM-narrated insight card text.
-    version = 12,
+    // v13: profile.gender rewritten from English display text to language-neutral keys.
+    version = 13,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

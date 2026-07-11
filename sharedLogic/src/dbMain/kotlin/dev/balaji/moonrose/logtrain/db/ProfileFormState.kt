@@ -31,6 +31,13 @@ const val MIN_AGE = 1
 const val MAX_AGE = 120
 
 /**
+ * Language-neutral keys persisted in profile.gender; the UI layers map them
+ * to localized labels (genderLabel in LogicLabels.kt on Compose, and the
+ * mirror in ProfileFormView.swift on iOS) and never store display text.
+ */
+val GENDER_KEYS: List<String> = listOf("male", "female", "other", "prefer_not_to_say")
+
+/**
  * Profile create/edit form state, shared by the Compose form and the native
  * SwiftUI form so validation and save logic live in one place.
  */

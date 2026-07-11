@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import dev.balaji.moonrose.logtrain.db.GENDER_KEYS
 import dev.balaji.moonrose.logtrain.db.ProfileFormState
 import dev.balaji.moonrose.logtrain.model.Profile
 import org.jetbrains.compose.resources.stringResource
@@ -43,12 +44,6 @@ fun ProfileForm(
     val formState = remember { ProfileFormState(initial) }
     val uiState by formState.uiState.collectAsState()
     var genderExpanded by remember { mutableStateOf(false) }
-    val genderOptions = listOf(
-        stringResource(Res.string.gender_male),
-        stringResource(Res.string.gender_female),
-        stringResource(Res.string.gender_other),
-        stringResource(Res.string.gender_prefer_not_to_say),
-    )
 
     Column(
         modifier = Modifier
@@ -88,7 +83,7 @@ fun ProfileForm(
             onExpandedChange = { genderExpanded = it },
         ) {
             OutlinedTextField(
-                value = uiState.gender ?: "",
+                value = uiState.gender?.let { genderLabel(it) } ?: "",
                 onValueChange = {},
                 readOnly = true,
                 label = { Text(stringResource(Res.string.gender)) },
@@ -99,11 +94,11 @@ fun ProfileForm(
                 expanded = genderExpanded,
                 onDismissRequest = { genderExpanded = false },
             ) {
-                genderOptions.forEach { option ->
+                GENDER_KEYS.forEach { key ->
                     DropdownMenuItem(
-                        text = { Text(option) },
+                        text = { Text(genderLabel(key)) },
                         onClick = {
-                            formState.updateGender(option)
+                            formState.updateGender(key)
                             genderExpanded = false
                         },
                     )

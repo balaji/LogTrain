@@ -115,7 +115,7 @@ private fun ProfileDetails(profile: Profile, onEdit: () -> Unit) {
         HorizontalDivider()
         ProfileField(stringResource(Res.string.age), profile.age?.toString())
         HorizontalDivider()
-        ProfileField(stringResource(Res.string.gender), profile.gender)
+        ProfileField(stringResource(Res.string.gender), profile.gender?.let { genderLabel(it) })
         HorizontalDivider()
         ProfileField(stringResource(Res.string.weight), profile.weight?.let { stringResource(Res.string.weight_kg_value, it.toString()) })
         HorizontalDivider()

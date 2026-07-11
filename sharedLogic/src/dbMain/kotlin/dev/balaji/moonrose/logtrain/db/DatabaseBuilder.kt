@@ -54,12 +54,29 @@ internal val MIGRATION_11_12 = object : Migration(11, 12) {
     }
 }
 
+// Up to v12 the gender picker persisted its localized (English) display
+// string; v13 stores the language-neutral GENDER_KEYS values instead, so a
+// later app-language change can't orphan the stored value. Unrecognized
+// values are kept as-is and rendered verbatim by the shells' fallbacks.
+internal val MIGRATION_12_13 = object : Migration(12, 13) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(
+            "UPDATE profile SET gender = CASE gender " +
+                "WHEN 'Male' THEN 'male' " +
+                "WHEN 'Female' THEN 'female' " +
+                "WHEN 'Other' THEN 'other' " +
+                "WHEN 'Prefer not to say' THEN 'prefer_not_to_say' " +
+                "ELSE gender END",
+        )
+    }
+}
+
 fun createDatabase(): AppDatabase =
     databaseBuilder()
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
         .addCallback(ExerciseSeedCallback)
-        .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
+        .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
         // Pre-release safety net for schema history older than v9.
         .fallbackToDestructiveMigration(dropAllTables = true)
         .build()
