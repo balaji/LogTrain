@@ -1,0 +1,303 @@
+<resources>
+    <!-- App -->
+    <string name="app_name">LogTrain</string>
+    <string name="app_tagline">Spåra dina träningspass, allt på din enhet.</string>
+
+    <!-- Common actions -->
+    <string name="back">Tillbaka</string>
+    <string name="cancel">Avbryt</string>
+    <string name="delete">Ta bort</string>
+    <string name="save">Spara</string>
+    <string name="edit">Redigera</string>
+    <string name="add">Lägg till</string>
+    <string name="ok">OK</string>
+    <string name="yes">Ja</string>
+    <string name="no">Nej</string>
+    <string name="create">Skapa</string>
+    <string name="loading">Läser in…</string>
+    <string name="collapse">Fäll ihop</string>
+    <string name="expand">Fäll ut</string>
+    <string name="name">Namn</string>
+    <string name="something_went_wrong">Något gick fel</string>
+    <string name="could_not_save">Det gick inte att spara ändringen</string>
+
+    <!-- Tabs -->
+    <string name="tab_exercises">Övningar</string>
+    <string name="tab_workouts">Träningspass</string>
+    <string name="tab_history">Historik</string>
+    <string name="tab_progress">Framsteg</string>
+
+    <!-- Active session / workout dialogs -->
+    <string name="discard_workout_title">Kasta träningspasset?</string>
+    <string name="discard_workout_message">Det här passet och alla loggade set tas bort.</string>
+    <string name="discard">Kasta</string>
+    <string name="nothing_to_save_title">Inget att spara</string>
+    <string name="nothing_to_save_message">Det finns inga slutförda set att spara. Kasta?</string>
+    <string name="discard_workout">Kasta träningspass</string>
+    <string name="finish_workout">Avsluta träningspass</string>
+
+    <!-- Workout session / routine editor -->
+    <string name="add_exercise_caps">LÄGG TILL ÖVNING</string>
+    <string name="add_set_caps">LÄGG TILL SET</string>
+    <string name="reorder_exercises">Ändra ordning på övningar</string>
+    <string name="column_set">SET</string>
+    <string name="column_previous">FÖRRA</string>
+    <string name="column_kg">KG</string>
+    <string name="column_lb">LB</string>
+    <string name="column_reps">REPS</string>
+    <string name="warmup_marker">U</string>
+    <string name="plate_bar">Stång</string>
+    <string name="plate_bar_weight">Stångvikt</string>
+    <string name="plate_use_numeric">123</string>
+    <string name="plate_use_plates">Skivor</string>
+    <string name="plate_done">Klar</string>
+    <string name="plate_per_side">per sida</string>
+    <string name="delete_exercise">Ta bort övning</string>
+    <string name="exercise_options">Övningsalternativ</string>
+    <string name="remove_set">Ta bort set</string>
+    <string name="start_workout">Starta pass</string>
+    <string name="routine_no_exercises">Inga övningar än. Tryck på Redigera för att lägga till övningar.</string>
+    <string name="sets_by_exercise">%1$d x %2$s</string>
+
+    <!-- Programs -->
+    <string name="programs_title">Program</string>
+    <string name="empty_workout_title">Tomt pass</string>
+    <string name="new_program_cd">Nytt program</string>
+    <string name="new_program">Nytt program</string>
+    <string name="rename_program">Byt namn på program</string>
+    <string name="delete_program_title">Ta bort program?</string>
+    <string name="delete_program_message">"%1$s" och alla dess rutiner tas bort.</string>
+    <string name="new_routine">Ny rutin</string>
+    <string name="rename_routine">Byt namn på rutin</string>
+    <string name="delete_routine_title">Ta bort rutin?</string>
+    <string name="delete_routine_message">"%1$s" tas bort.</string>
+    <string name="add_sample_title">Lägg till i dina program?</string>
+    <string name="add_sample_message">"%1$s" kopieras till dina program, där du kan redigera det.</string>
+    <string name="start_empty_workout">Starta tomt pass</string>
+    <string name="my_programs">Mina program</string>
+    <string name="no_programs_yet">Inga program än. Tryck på + för att skapa ett.</string>
+    <string name="no_routines_yet">Inga rutiner än. Tryck på + för att lägga till en.</string>
+    <string name="sample_programs">Exempelprogram</string>
+    <string name="edit_program">Redigera program</string>
+    <string name="delete_program">Ta bort program</string>
+    <string name="edit_routine">Redigera rutin</string>
+    <string name="delete_routine">Ta bort rutin</string>
+    <string name="open_routine">Öppna rutin</string>
+    <string name="add_routine">Lägg till rutin</string>
+    <string name="sample_days_summary">%1$d dagar i veckan · %2$s</string>
+    <string name="copy_to_my_programs">Kopiera till mina program</string>
+    <plurals name="exercise_count">
+        <item quantity="one">%1$d övning</item>
+        <item quantity="other">%1$d övningar</item>
+    </plurals>
+
+    <!-- Exercises -->
+    <string name="add_exercise_cd">Lägg till övning</string>
+    <string name="search_exercises">Sök övningar</string>
+    <string name="clear_search">Rensa sökning</string>
+    <string name="body_part">Kroppsdel</string>
+    <string name="equipment">Utrustning</string>
+    <string name="no_exercises_match">Inga övningar matchar dina filter.</string>
+    <string name="my_exercises">Mina övningar</string>
+    <string name="all_exercises">Alla övningar</string>
+    <string name="delete_exercise_title">Ta bort övning?</string>
+    <string name="delete_exercise_message">"%1$s" tas bort permanent.</string>
+    <string name="exercise_in_use">"%1$s" används av en rutin eller träningshistorik och kan inte tas bort.</string>
+
+    <!-- Exercise detail -->
+    <string name="new_exercise">Ny övning</string>
+    <string name="search_in_google">Sök på Google</string>
+    <string name="describe_exercise_query">Beskriv övningen %1$s</string>
+    <string name="exercise_type">Typ</string>
+    <string name="name_required">Namn krävs</string>
+    <string name="duplicate_exercise_name">En övning med det här namnet finns redan</string>
+
+    <!-- Profile -->
+    <string name="profile">Profil</string>
+    <string name="age">Ålder</string>
+    <string name="gender">Kön</string>
+    <string name="weight">Vikt</string>
+    <string name="height">Längd</string>
+    <string name="weight_kg_value">%1$s kg</string>
+    <string name="height_cm_value">%1$s cm</string>
+    <string name="weight_kg_label">Vikt (kg)</string>
+    <string name="height_cm_label">Längd (cm)</string>
+    <string name="gender_male">Man</string>
+    <string name="gender_female">Kvinna</string>
+    <string name="gender_other">Annat</string>
+    <string name="gender_prefer_not_to_say">Vill inte uppge</string>
+    <string name="create_a_profile">Skapa en profil</string>
+    <string name="create_profile">Skapa profil</string>
+
+    <!-- Settings -->
+    <string name="settings">Inställningar</string>
+    <string name="send_notifications">Skicka aviseringar</string>
+    <string name="week_starts_on">Veckan börjar på</string>
+    <string name="appearance">Utseende</string>
+    <string name="weight_units">Viktenheter</string>
+    <string name="weekday_sun_short">Sön</string>
+    <string name="weekday_mon_short">Mån</string>
+    <string name="weekday_tue_short">Tis</string>
+    <string name="weekday_wed_short">Ons</string>
+    <string name="weekday_thu_short">Tors</string>
+    <string name="weekday_fri_short">Fre</string>
+    <string name="weekday_sat_short">Lör</string>
+    <string name="appearance_light">Ljust</string>
+    <string name="appearance_dark">Mörkt</string>
+    <string name="appearance_system">System</string>
+    <string name="units_metric">Metriskt</string>
+    <string name="units_imperial">Imperiskt</string>
+
+    <!-- Developer tools -->
+    <string name="developer">Utvecklare</string>
+    <string name="test_data">Testdata</string>
+    <string name="generate">Generera</string>
+    <string name="generating">Genererar…</string>
+    <string name="deleting">Tar bort…</string>
+    <string name="generate_test_data_title">Generera testdata</string>
+    <string name="generate_test_data_message">Fyller kalendern med ungefär tre pass i veckan och regelbundna vägningar, fram till idag.</string>
+    <string name="days_of_history">Dagar av historik</string>
+    <string name="delete_test_data_title">Ta bort testdata</string>
+    <string name="delete_test_data_message">Tar bort alla %1$d genererade pass och deras vägningar. Dina egna loggade data påverkas inte.</string>
+
+    <!-- Progress -->
+    <string name="no_progress_yet">Inga framsteg än</string>
+    <string name="progress_empty_hint">Insikter visas efter ditt första slutförda pass eller loggade vikt.</string>
+    <string name="log_body_weight">Logga kroppsvikt</string>
+    <string name="body_weight">Kroppsvikt</string>
+    <string name="not_logged_yet">Inte loggat än</string>
+    <string name="log_weight">Logga vikt</string>
+    <string name="trend_up">Trend uppåt</string>
+    <string name="trend_down">Trend nedåt</string>
+    <string name="trend_flat">Oförändrad</string>
+
+    <!-- Calendar / history -->
+    <string name="show_calendar">Visa kalender</string>
+    <string name="show_workout_history">Visa träningshistorik</string>
+    <string name="week_number_abbrev">V</string>
+    <string name="no_completed_workouts">Inga slutförda pass</string>
+
+    <!-- Day detail -->
+    <string name="no_workouts_this_day">Inga slutförda pass den här dagen</string>
+    <string name="workout">Träningspass</string>
+    <string name="warm_up">Uppvärmning</string>
+    <string name="set_number">Set %1$d</string>
+    <string name="reps_value">%1$s reps</string>
+
+    <!-- Weight units -->
+    <string name="unit_kg">kg</string>
+    <string name="unit_lb">lb</string>
+
+    <!-- Months (short) -->
+    <string name="month_jan_short">Jan</string>
+    <string name="month_feb_short">Feb</string>
+    <string name="month_mar_short">Mar</string>
+    <string name="month_apr_short">Apr</string>
+    <string name="month_may_short">Maj</string>
+    <string name="month_jun_short">Jun</string>
+    <string name="month_jul_short">Jul</string>
+    <string name="month_aug_short">Aug</string>
+    <string name="month_sep_short">Sep</string>
+    <string name="month_oct_short">Okt</string>
+    <string name="month_nov_short">Nov</string>
+    <string name="month_dec_short">Dec</string>
+    <!-- e.g. "7 jul 2026": day, month abbreviation, year -->
+    <string name="day_title">%2$s %1$s %3$s</string>
+
+    <!-- Insight cards (args are pre-formatted numbers from sharedLogic) -->
+    <string name="insight_title_volume">Veckovolym</string>
+    <string name="insight_title_frequency">Regelbundenhet</string>
+    <string name="insight_title_body_parts">Fokus på kroppsdelar</string>
+    <string name="insight_body_part_share">%1$s set · %2$s%</string>
+    <string name="insight_volume_this_week">%1$s %2$s den här veckan</string>
+    <string name="insight_streak_weeks">%1$s veckors svit</string>
+    <string name="insight_no_streak">Ingen aktiv svit</string>
+    <string name="insight_plateau_at">Platå vid ~%1$s %2$s</string>
+    <string name="insight_est_1rm">Ber. 1RM %1$s %2$s</string>
+    <string name="insight_latest_body_weight">%1$s %2$s</string>
+    <string name="insight_pct_vs_4_week_avg">%1$s% mot 4-veckorssnitt</string>
+    <string name="insight_sets_in_sessions">%1$s set på %2$s pass</string>
+    <string name="insight_workouts_30_days">%1$s pass de senaste 30 dagarna</string>
+    <string name="insight_workouts_30_days_longest">%1$s pass de senaste 30 dagarna · längsta svit %2$s veckor</string>
+    <string name="insight_flat_across_weeks">Ber. 1RM oförändrat i %1$s veckor</string>
+    <string name="insight_slope_per_week">%1$s %2$s/vecka över %3$s veckor</string>
+    <string name="insight_change_30_days">%1$s %2$s på 30 dagar</string>
+    <string name="insight_log_regularly">Logga regelbundet för att se din trend</string>
+    <string name="insight_exercises">Övningar</string>
+    <string name="insight_add_comparison">Lägg till jämförelse</string>
+    <string name="insight_remove_card">Ta bort kort</string>
+    <string name="insight_axis_pct_change">% förändring</string>
+    <string name="insight_series_slope">%1$s %2$s/vecka</string>
+
+    <!-- Profile validation -->
+    <string name="profile_name_too_long">Namnet får vara högst %1$s tecken</string>
+    <string name="profile_name_letters_only">Namnet får bara innehålla bokstäver</string>
+    <string name="profile_age_range">Åldern måste vara mellan %1$s och %2$s</string>
+
+    <!-- Sample programs -->
+    <string name="sample_full_body_3day_name">3-dagars helkropp</string>
+    <string name="sample_full_body_3day_summary">Tre helkroppspass i veckan. Det enklaste sättet att börja.</string>
+    <string name="sample_upper_lower_4day_name">4-dagars över/underkropp</string>
+    <string name="sample_upper_lower_4day_summary">Två överkroppsdagar och två underkroppsdagar, växelvis under veckan.</string>
+    <string name="sample_push_pull_legs_5day_name">5-dagars push pull ben</string>
+    <string name="sample_push_pull_legs_5day_summary">En push-, pull- och bendag, sedan en överkropps- och underkroppsdag för att avsluta veckan.</string>
+    <string name="sample_routine_full_body_a">Helkropp A</string>
+    <string name="sample_routine_full_body_b">Helkropp B</string>
+    <string name="sample_routine_full_body_c">Helkropp C</string>
+    <string name="sample_routine_upper_a">Överkropp A</string>
+    <string name="sample_routine_lower_a">Underkropp A</string>
+    <string name="sample_routine_upper_b">Överkropp B</string>
+    <string name="sample_routine_lower_b">Underkropp B</string>
+    <string name="sample_routine_push">Push</string>
+    <string name="sample_routine_pull">Pull</string>
+    <string name="sample_routine_legs">Ben</string>
+    <string name="sample_routine_upper">Överkropp</string>
+    <string name="sample_routine_lower">Underkropp</string>
+
+    <!-- Exercise catalog keys (lowercase DB values → display labels) -->
+    <string name="body_part_back">Rygg</string>
+    <string name="body_part_biceps">Biceps</string>
+    <string name="body_part_calves">Vader</string>
+    <string name="body_part_chest">Bröst</string>
+    <string name="body_part_core">Bål</string>
+    <string name="body_part_forearms">Underarmar</string>
+    <string name="body_part_full_body">Hela kroppen</string>
+    <string name="body_part_glutes">Säte</string>
+    <string name="body_part_hamstrings">Baklår</string>
+    <string name="body_part_shoulders">Axlar</string>
+    <string name="body_part_thighs">Lår</string>
+    <string name="body_part_triceps">Triceps</string>
+    <!-- Folded tail of the body-part pie chart, not a catalog value -->
+    <string name="body_part_other">Övrigt</string>
+    <string name="equipment_machine">Maskin</string>
+    <string name="equipment_body_weight">Kroppsvikt</string>
+    <string name="equipment_cable">Kabel</string>
+    <string name="equipment_barbell">Skivstång</string>
+    <string name="equipment_smith_machine">Smithmaskin</string>
+    <string name="equipment_dumbbell">Hantel</string>
+    <string name="equipment_kettlebell">Kettlebell</string>
+    <string name="equipment_other">Övrigt</string>
+    <string name="equipment_band">Band</string>
+    <string name="exercise_type_strength">Styrka</string>
+    <string name="exercise_type_duration">Tid</string>
+    <string name="exercise_type_distance">Distans</string>
+    <string name="exercise_type_reps_duration">Reps och tid</string>
+    <string name="exercise_type_distance_duration">Distans och tid</string>
+    <string name="exercise_type_reps_distance">Reps och distans</string>
+    <string name="one_rm_calculator">1RM-kalkylator</string>
+    <string name="reps">Reps</string>
+    <string name="calculate">Beräkna</string>
+    <string name="close">Stäng</string>
+    <string name="find_out_more">Läs mer</string>
+    <string name="one_rm_selected_formula_hint">Tryck på en formel för att göra den till standard för alla insikter.</string>
+    <string name="one_rm_high_reps_hint">Över 15 reps blir de här uppskattningarna mycket mindre exakta — att klara så många reps är ett gott tecken på att du kan prova en tyngre vikt.</string>
+    <string name="one_rm_search_query">%1$s formel för 1 rep max</string>
+    <string name="one_rm_formula_epley">Epley</string>
+    <string name="one_rm_formula_brzycki">Brzycki</string>
+    <string name="one_rm_formula_lombardi">Lombardi</string>
+    <string name="one_rm_formula_oconner">O'Conner</string>
+    <string name="one_rm_info_epley">Epley-formeln, publicerad av styrketränaren Boyd Epley 1985, är den mest använda beräkningen av ett rep max i träningsappar, kalkylblad och gymfolklore. Det är en enkel linjär modell: varje rep du utför utöver det första lägger till en trettiondel av stångvikten till uppskattningen. Den linjära formen gör den lätt att resonera kring — dubbla antalet extra reps och du fördubblar det tillagda värdet — och den beter sig förutsägbart över hela rep-intervallet. Epley och Brzycki, de två populäraste formlerna, är exakt lika vid 10 reps; under 10 är Epley något mer försiktig än Brzycki, och över 10 blir den den mer generösa av de två. Som alla beräkningar är den mest tillförlitlig när setet tas nära failure med måttligt antal reps, ungefär 2 till 10, där förhållandet mellan reps och belastning är nära linjärt för de flesta lyftare. Eftersom den varken kollapsar vid höga reps eller överdriver set med få reps är den ett vettigt förval när du inte har någon stark anledning att föredra en annan modell, vilket är precis därför så mycket programvara levereras med den. LogTrain använder Epley som sin standardformel.</string>
+    <string name="one_rm_info_brzycki">Matt Brzycki, styrketränare och författare vid Princeton University, publicerade denna formel 1993 och den har sedan dess blivit den beräkning som oftast citeras i akademiska valideringsstudier. Till skillnad från Epleys raka linje är Brzycki hyperbolisk: uppskattningen är vikten multiplicerad med 36 delat med (37 minus reps). Varje ytterligare rep räknas därför lite mer än det föregående, och kurvan accelererar när antalet reps stiger. I det låga rep-intervallet, upp till omkring 10 reps, följer Brzycki uppmätta max nära och forskning rankar den generellt bland de mest exakta av de klassiska formlerna där. Bortom 10 reps krymper nämnaren snabbt och uppskattningen växer aggressivt, så behandla förutsägelser vid höga reps med skepsis — ett set på 20 reps med en lätt vikt ger en smickrande siffra som få lyftare faktiskt kan lyfta en gång. Brzycki och Epley är exakt lika vid 10 reps, med Brzycki något högre under den punkten. Välj den om du oftast testar med tunga set på 3 till 8 reps och vill ha den beräkning med starkast forskningsstöd i det intervallet. LogTrain begränsar antalet reps till 36 så att beräkningen förblir ändlig.</string>
+    <string name="one_rm_info_lombardi">Lombardi-formeln har en helt annan matematisk form än sina linjära och hyperboliska syskon: den multiplicerar vikten med antalet reps upphöjt till 0,1. En potenslag med en så liten exponent ger den mildaste kurvan av alla vanliga beräkningar — uppskattningen stiger snabbt över de första repsen och planar sedan ut dramatiskt, så ett set på 10 reps krediteras bara omkring 26 procent över stångvikten och ett set på 20 reps knappt mer. Den återhållsamheten är hela poängen. Där Epley och särskilt Brzycki blåser upp set med höga reps till iögonfallande max förblir Lombardi skeptisk, vilket gör den bäst lämpad för lyftare som loggar uthållighetsbetonade set på 12, 15 eller 20 reps och vill ha en siffra de rimligen kan nå på ett tungt enkellyft. Nackdelen är den omvända: för riktigt tunga dubbel- och trippellyft ger Lombardi minst kredit av de fyra, så rena styrkeatleter som testar vid få reps kan tycka att den underskattar dem. Välj Lombardi om din träning lever i de högre rep-intervallen och du hellre blir positivt överraskad vid stången än besviken.</string>
+    <string name="one_rm_info_oconner">Publicerad av O'Conner och kollegor 1989 är denna formel Epleys försiktiga syskon. Den använder samma linjära idé — varje rep utöver det första lägger till en fast andel av stångvikten — men andelen är 1/40 i stället för Epleys 1/30, så varje rep ger 25 procent mindre kredit. Resultatet är en medvetet försiktig uppskattning över hela rep-intervallet: vid 5 reps förutspår O'Conner 12,5 procent över stångvikten där Epley förutspår nästan 17 procent. Den återhållsamheten är värdefull i situationer där det är mer riskabelt att överskatta ett max än att underskatta det. Tränare som programmerar procentsatser för nybörjare föredrar den ofta, eftersom en nybörjares uppskattade max avgör deras arbetsvikter i veckor, och en uppblåst siffra bakar in belastningar de inte kan återhämta sig från. Den passar också äldre lyftare, rehabsituationer och alla som återvänder efter ett uppehåll, där en säkerhetsmarginal betyder mer än prestige. Eftersom den är linjär förblir den stabil och förutsägbar vid högre reps snarare än att accelerera som Brzycki. Välj O'Conner när du vill att dina träningssiffror ska förankras i det du nästan säkert kan lyfta, inte det du kanske skulle lyfta en perfekt dag.</string>
+</resources>

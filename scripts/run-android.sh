@@ -1,5 +1,9 @@
 #!/bin/bash
 # Build sharedLogic/sharedUI + androidApp and run it in the Android Emulator.
+# Usage: run-android.sh [language-code]
+#   language-code: optional, e.g. "en" or "sv". Overrides the app's per-app
+#   language via `cmd locale set-app-locales`, without changing the
+#   emulator's system-wide language setting.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -10,6 +14,7 @@ export PATH="$ANDROID_SDK/platform-tools:$ANDROID_SDK/emulator:$PATH"
 
 AVD_NAME="Medium_Phone"
 APP_ID="dev.balaji.moonrose.logtrain"
+LANG_CODE="${1:-}"
 
 # Boot an emulator if no device/emulator is currently attached.
 if ! adb devices | grep -q "device$"; then
@@ -23,5 +28,17 @@ if ! adb devices | grep -q "device$"; then
 fi
 
 ./gradlew :androidApp:installDebug
+
+adb shell am force-stop "$APP_ID"
+
+if [[ -n "$LANG_CODE" ]]; then
+    case "$LANG_CODE" in
+        en) LOCALE="en-US" ;;
+        sv) LOCALE="sv-SE" ;;
+        *) LOCALE="$LANG_CODE" ;;
+    esac
+    echo "Launching with language override: $LANG_CODE ($LOCALE)"
+    adb shell cmd locale set-app-locales "$APP_ID" --user current --locales "$LOCALE"
+fi
 
 adb shell am start -n "$APP_ID/.MainActivity"
