@@ -1,5 +1,6 @@
 package dev.balaji.moonrose.logtrain.db
 
+import dev.balaji.moonrose.logtrain.model.SetType
 import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -12,7 +13,7 @@ data class DaySessionSet(
     val targetReps: String,
     val actualWeight: String,
     val actualReps: String,
-    val warmup: Boolean,
+    val setType: SetType,
     val completed: Boolean,
 )
 
@@ -82,7 +83,7 @@ class DayDetailState(private val epochDay: Long) {
                     targetReps = detail.targetReps?.toString().orEmpty(),
                     actualWeight = detail.actualWeight?.formatDayDetailNumber().orEmpty(),
                     actualReps = detail.actualReps?.toString().orEmpty(),
-                    warmup = detail.warmup,
+                    setType = detail.setType,
                     completed = detail.completed,
                 ),
             )

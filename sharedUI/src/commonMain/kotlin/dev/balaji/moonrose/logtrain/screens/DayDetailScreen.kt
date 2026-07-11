@@ -35,6 +35,7 @@ import dev.balaji.moonrose.logtrain.db.DayDetailState
 import dev.balaji.moonrose.logtrain.db.DayDetailUiState
 import dev.balaji.moonrose.logtrain.db.DaySession
 import dev.balaji.moonrose.logtrain.db.DaySessionExercise
+import dev.balaji.moonrose.logtrain.model.SetType
 import dev.balaji.moonrose.logtrain.navigation.DayDetailRoute
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import org.jetbrains.compose.resources.stringResource
@@ -114,10 +115,14 @@ private fun ExerciseSummaryRow(exercise: DaySessionExercise) {
         Text(exercise.name, style = MaterialTheme.typography.bodyLarge)
         var workingSetNumber = 0
         exercise.sets.forEach { set ->
-            if (!set.warmup) workingSetNumber++
+            if (set.setType == SetType.NORMAL) workingSetNumber++
             Row(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    if (set.warmup) stringResource(Res.string.warm_up) else stringResource(Res.string.set_number, workingSetNumber),
+                    if (set.setType == SetType.NORMAL) {
+                        stringResource(Res.string.set_number, workingSetNumber)
+                    } else {
+                        setTypeLabel(set.setType)
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),

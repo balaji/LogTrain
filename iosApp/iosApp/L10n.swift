@@ -1,4 +1,5 @@
 import Foundation
+import SharedUI
 
 /*
  * All user-facing text for the iOS shell. Keys mirror the Compose resource
@@ -58,6 +59,11 @@ enum L10n {
     static let columnLb = String(localized: "column_lb", defaultValue: "LB")
     static let columnReps = String(localized: "column_reps", defaultValue: "REPS")
     static let warmupMarker = String(localized: "warmup_marker", defaultValue: "W")
+    static let dropsetMarker = String(localized: "dropset_marker", defaultValue: "D")
+    static let setType = String(localized: "set_type", defaultValue: "Set type")
+    static let setTypeNormal = String(localized: "set_type_normal", defaultValue: "Normal")
+    static let warmUp = String(localized: "warm_up", defaultValue: "Warm-up")
+    static let dropSet = String(localized: "drop_set", defaultValue: "Drop set")
     static let plateBar = String(localized: "plate_bar", defaultValue: "Bar")
     static let plateUseNumeric = String(localized: "plate_use_numeric", defaultValue: "123")
     static let plateUsePlates = String(localized: "plate_use_plates", defaultValue: "Plates")
@@ -400,4 +406,23 @@ enum L10n {
     }
     /// Folded tail of the body-part pie chart, not a catalog value.
     static let bodyPartOther = String(localized: "body_part_other", defaultValue: "Other")
+
+    /// Full name of a sharedLogic SetType, for the set-type menu.
+    static func setTypeLabel(_ setType: SetType) -> String {
+        switch setType {
+        case .warmup: return warmUp
+        case .drop: return dropSet
+        default: return setTypeNormal
+        }
+    }
+
+    /// The marker shown in place of a set number. Normal sets keep their
+    /// working-set number, so they have none.
+    static func setTypeMarker(_ setType: SetType) -> String? {
+        switch setType {
+        case .warmup: return warmupMarker
+        case .drop: return dropsetMarker
+        default: return nil
+        }
+    }
 }

@@ -85,6 +85,7 @@ import androidx.compose.ui.unit.sp
 import dev.balaji.moonrose.logtrain.db.DraftWorkSet
 import dev.balaji.moonrose.logtrain.db.RoutineDetailUiState
 import dev.balaji.moonrose.logtrain.db.RoutineFormState
+import dev.balaji.moonrose.logtrain.model.SetType
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import dev.balaji.moonrose.logtrain.navigation.Route
 import dev.balaji.moonrose.logtrain.navigation.RoutineDetailRoute
@@ -215,7 +216,7 @@ private fun RoutineDetailBody(
                         onRemoveSet = { setIdx -> formState.removeSet(wsIndex, setIdx) },
                         onUpdateWeight = { setIdx, v -> formState.updateWeight(wsIndex, setIdx, v) },
                         onUpdateReps = { setIdx, v -> formState.updateReps(wsIndex, setIdx, v) },
-                        onToggleWarmup = { setIdx -> formState.toggleWarmup(wsIndex, setIdx) },
+                        onSetTypeChange = { setIdx, setType -> formState.setSetType(wsIndex, setIdx, setType) },
                         onDelete = { formState.removeExercise(wsIndex) },
                         onReorderStart = { startRootY ->
                             reorder.activeIndex = wsIndex
@@ -462,7 +463,7 @@ private fun ExerciseCard(
     onRemoveSet: (Int) -> Unit,
     onUpdateWeight: (Int, String) -> Unit,
     onUpdateReps: (Int, String) -> Unit,
-    onToggleWarmup: (Int) -> Unit,
+    onSetTypeChange: (Int, SetType) -> Unit,
     onDelete: () -> Unit,
     onReorderStart: (Float) -> Unit,
     onReorderDrag: (Float) -> Unit,
@@ -569,30 +570,22 @@ private fun ExerciseCard(
                 Spacer(Modifier.width(40.dp))
             }
 
-            // Set rows. Warm-up sets show "W" and don't consume a working-set
-            // number; tapping the number cell toggles warm-up.
+            // Set rows. Only normal sets take a working-set number; warm-up and
+            // drop sets show a marker, and the cell opens the set-type menu.
             var workingSetNumber = 0
             workSet.sets.forEachIndexed { setIdx, set ->
-                if (!set.warmup) workingSetNumber++
+                if (set.setType == SetType.NORMAL) workingSetNumber++
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        if (set.warmup) stringResource(Res.string.warmup_marker) else "$workingSetNumber",
-                        modifier = Modifier
-                            .width(40.dp)
-                            .clickable { onToggleWarmup(setIdx) }
-                            .padding(vertical = 8.dp),
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (set.warmup) {
-                            MaterialTheme.colorScheme.tertiary
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
+                    SetTypeCell(
+                        setType = set.setType,
+                        workingSetNumber = workingSetNumber,
+                        onSetTypeChange = { onSetTypeChange(setIdx, it) },
+                        cellWidth = 40.dp,
                     )
                     CompactInput(
                         value = set.weight,

@@ -71,12 +71,104 @@ internal val MIGRATION_12_13 = object : Migration(12, 13) {
     }
 }
 
+// The boolean `warmup` becomes the `set_type` enum, so the column has to go
+// rather than just gain a sibling — hence the full table rebuild (SQLite can
+// drop a column, but Room compares the table against the schema it expects and
+// a leftover `warmup` would fail validation). SQL mirrors createSql in
+// schemas/.../14.json exactly. work_set_details is rebuilt first because
+// workout_session_details carries a foreign key into it.
+internal val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(
+            "CREATE TABLE IF NOT EXISTS `_new_work_set_details` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`work_set_id` INTEGER NOT NULL, `position` INTEGER NOT NULL, " +
+                "`target_weight` REAL, `target_reps` INTEGER, `target_duration` INTEGER, " +
+                "`set_type` TEXT NOT NULL DEFAULT 'normal', " +
+                "`created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, " +
+                "FOREIGN KEY(`work_set_id`) REFERENCES `work_sets`(`id`) " +
+                "ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        connection.execSQL(
+            "INSERT INTO `_new_work_set_details` (" +
+                "`id`, `work_set_id`, `position`, `target_weight`, `target_reps`, " +
+                "`target_duration`, `set_type`, `created_at`, `updated_at`) " +
+                "SELECT `id`, `work_set_id`, `position`, `target_weight`, `target_reps`, " +
+                "`target_duration`, CASE WHEN `warmup` != 0 THEN 'warmup' ELSE 'normal' END, " +
+                "`created_at`, `updated_at` FROM `work_set_details`",
+        )
+        connection.execSQL("DROP TABLE `work_set_details`")
+        connection.execSQL("ALTER TABLE `_new_work_set_details` RENAME TO `work_set_details`")
+        connection.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_work_set_details_work_set_id` " +
+                "ON `work_set_details` (`work_set_id`)",
+        )
+        connection.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_work_set_details_work_set_id_position` " +
+                "ON `work_set_details` (`work_set_id`, `position`)",
+        )
+
+        connection.execSQL(
+            "CREATE TABLE IF NOT EXISTS `_new_workout_session_details` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`workout_session_id` INTEGER NOT NULL, `work_set_detail_id` INTEGER, " +
+                "`exercise_id` INTEGER NOT NULL, `position` INTEGER NOT NULL, " +
+                "`target_weight` REAL, `target_reps` INTEGER, `target_duration` INTEGER, " +
+                "`actual_weight` REAL, `actual_reps` INTEGER, `actual_duration` INTEGER, " +
+                "`set_type` TEXT NOT NULL DEFAULT 'normal', " +
+                "`completed` INTEGER NOT NULL DEFAULT 0, " +
+                "`created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, " +
+                "FOREIGN KEY(`workout_session_id`) REFERENCES `workout_sessions`(`id`) " +
+                "ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`work_set_detail_id`) REFERENCES `work_set_details`(`id`) " +
+                "ON UPDATE NO ACTION ON DELETE SET NULL , " +
+                "FOREIGN KEY(`exercise_id`) REFERENCES `exercises`(`id`) " +
+                "ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        )
+        connection.execSQL(
+            "INSERT INTO `_new_workout_session_details` (" +
+                "`id`, `workout_session_id`, `work_set_detail_id`, `exercise_id`, `position`, " +
+                "`target_weight`, `target_reps`, `target_duration`, `actual_weight`, " +
+                "`actual_reps`, `actual_duration`, `set_type`, `completed`, " +
+                "`created_at`, `updated_at`) " +
+                "SELECT `id`, `workout_session_id`, `work_set_detail_id`, `exercise_id`, `position`, " +
+                "`target_weight`, `target_reps`, `target_duration`, `actual_weight`, " +
+                "`actual_reps`, `actual_duration`, " +
+                "CASE WHEN `warmup` != 0 THEN 'warmup' ELSE 'normal' END, `completed`, " +
+                "`created_at`, `updated_at` FROM `workout_session_details`",
+        )
+        connection.execSQL("DROP TABLE `workout_session_details`")
+        connection.execSQL(
+            "ALTER TABLE `_new_workout_session_details` RENAME TO `workout_session_details`",
+        )
+        connection.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_workout_session_details_work_set_detail_id` " +
+                "ON `workout_session_details` (`work_set_detail_id`)",
+        )
+        connection.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_workout_session_details_exercise_id` " +
+                "ON `workout_session_details` (`exercise_id`)",
+        )
+        connection.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                "`index_workout_session_details_workout_session_id_position` " +
+                "ON `workout_session_details` (`workout_session_id`, `position`)",
+        )
+    }
+}
+
 fun createDatabase(): AppDatabase =
     databaseBuilder()
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
         .addCallback(ExerciseSeedCallback)
-        .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
+        .addMigrations(
+            MIGRATION_9_10,
+            MIGRATION_10_11,
+            MIGRATION_11_12,
+            MIGRATION_12_13,
+            MIGRATION_13_14,
+        )
         // Pre-release safety net for schema history older than v9.
         .fallbackToDestructiveMigration(dropAllTables = true)
         .build()

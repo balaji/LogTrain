@@ -46,6 +46,9 @@
     <string name="column_lb">LB</string>
     <string name="column_reps">REPS</string>
     <string name="warmup_marker">W</string>
+    <string name="dropset_marker">D</string>
+    <string name="set_type">Set type</string>
+    <string name="set_type_normal">Normal</string>
     <string name="plate_bar">Bar</string>
     <string name="plate_bar_weight">Bar weight</string>
     <string name="plate_use_numeric">123</string>
@@ -181,6 +184,7 @@
     <string name="no_workouts_this_day">No completed workouts on this day</string>
     <string name="workout">Workout</string>
     <string name="warm_up">Warm-up</string>
+    <string name="drop_set">Drop set</string>
     <string name="set_number">Set %1$d</string>
     <string name="reps_value">%1$s reps</string>
 

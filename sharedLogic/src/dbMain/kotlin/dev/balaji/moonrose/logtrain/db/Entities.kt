@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import dev.balaji.moonrose.logtrain.model.SetType
 
 /*
  * Local schema mirroring the moonrose backend (see ~/projects/moonrose/db/schema.rb),
@@ -133,7 +134,8 @@ data class WorkSetDetailEntity(
     // Seconds, matching moonrose.
     @ColumnInfo(name = "target_duration") val targetDuration: Int?,
     // Warm-up sets are part of the routine but don't count as working sets.
-    @ColumnInfo(defaultValue = "0") val warmup: Boolean = false,
+    // Drop sets do count as work, but like warm-ups don't take a set number.
+    @ColumnInfo(name = "set_type", defaultValue = "'normal'") val setType: SetType = SetType.NORMAL,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )
@@ -227,8 +229,8 @@ data class WorkoutSessionDetailEntity(
     @ColumnInfo(name = "actual_reps") val actualReps: Int?,
     @ColumnInfo(name = "actual_duration") val actualDuration: Int?,
     // Snapshotted from the source WorkSetDetail like the targets above, and
-    // toggleable on the fly for sets added during the session.
-    @ColumnInfo(defaultValue = "0") val warmup: Boolean = false,
+    // changeable on the fly for sets added during the session.
+    @ColumnInfo(name = "set_type", defaultValue = "'normal'") val setType: SetType = SetType.NORMAL,
     @ColumnInfo(defaultValue = "0") val completed: Boolean = false,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,

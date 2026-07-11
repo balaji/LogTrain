@@ -2,6 +2,7 @@ package dev.balaji.moonrose.logtrain.db
 
 import dev.balaji.moonrose.logtrain.model.Exercise
 import dev.balaji.moonrose.logtrain.model.PlateMath
+import dev.balaji.moonrose.logtrain.model.SetType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -21,7 +22,7 @@ data class DraftSessionSet(
     val targetReps: String = "",
     val actualWeight: String = "",
     val actualReps: String = "",
-    val warmup: Boolean = false,
+    val setType: SetType = SetType.NORMAL,
     val completed: Boolean = false,
 )
 
@@ -105,7 +106,7 @@ class WorkoutSessionFormState(private val sessionId: Long) {
                         targetReps = detail.targetReps?.toString().orEmpty(),
                         actualWeight = detail.actualWeight?.formatWeight().orEmpty(),
                         actualReps = detail.actualReps?.toString().orEmpty(),
-                        warmup = detail.warmup,
+                        setType = detail.setType,
                         completed = detail.completed,
                     ),
                 )
@@ -182,8 +183,8 @@ class WorkoutSessionFormState(private val sessionId: Long) {
         }
     }
 
-    fun toggleWarmup(exerciseIndex: Int, setIndex: Int) {
-        updateSet(exerciseIndex, setIndex) { it.copy(warmup = !it.warmup) }
+    fun setSetType(exerciseIndex: Int, setIndex: Int, setType: SetType) {
+        updateSet(exerciseIndex, setIndex) { it.copy(setType = setType) }
     }
 
     fun toggleCompleted(exerciseIndex: Int, setIndex: Int) {
@@ -271,7 +272,7 @@ class WorkoutSessionFormState(private val sessionId: Long) {
                         actualWeight = set.actualWeight.toDoubleOrNull(),
                         actualReps = set.actualReps.toIntOrNull(),
                         actualDuration = null,
-                        warmup = set.warmup,
+                        setType = set.setType,
                         completed = set.completed,
                         createdAt = now,
                         updatedAt = now,

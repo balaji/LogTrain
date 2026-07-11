@@ -12,154 +12,101 @@ can map rows 1:1.
   (`commonMain/.../model/`) and the Room database layer (`dbMain/.../db/`).
   `dbMain` is an intermediate source set shared by android + ios. Platform
   `dbMain` actuals (database file location) live in `androidMain`/`iosMain`.
-- [sharedUI](sharedUI/src) — Compose Multiplatform UI shared by Android
-  and iOS. Its targets are a subset of `dbMain`'s, so its `commonMain` can
-  use the db layer directly (screens consume repositories/Flows, never Room
-  types).
+- [sharedUI](sharedUI/src) — Compose UI, used only on Android (screens
+  consume repositories/Flows, never Room types directly). Its iOS target
+  exists because its Gradle module is the umbrella that packages the iOS
+  framework (`baseName = "SharedUI"`, see `sharedUI/build.gradle.kts`) — iOS
+  `import SharedUI` pulls in `sharedLogic`'s state/repositories via that
+  framework, not any Compose UI.
 - [androidApp](androidApp), [iosApp](iosApp) — thin per-platform entry
   points wiring up `sharedLogic` + `sharedUI`.
 
 ## UI architecture
 
-**Policy: every iOS page is native SwiftUI. Every Android page is native
-Compose with Material Design.** No screen should render Compose Material
-widgets on iOS. Shared Kotlin code's job is domain models, the Room DB layer,
-and plain `StateFlow`-based form/state holders in `sharedLogic`'s `dbMain`
-source set (see `ProfileFormState.kt`, `ExerciseFormState.kt`) that both a
-Compose screen (Android) and a native SwiftUI view (iOS) can bind to
-— never shared Compose UI as the iOS rendering path.
+Every iOS page is native SwiftUI. Every Android page is native Compose with
+Material Design. Shared Kotlin code's job is domain models, the Room DB
+layer, and plain `StateFlow`-based form/state holders in `sharedLogic`'s
+`dbMain` source set (see `ProfileFormState.kt`, `ExerciseFormState.kt`) that
+both a Compose screen (Android) and a native SwiftUI view (iOS) bind to.
+Compose UI (`sharedUI`) is Android-only: `App()` (`sharedUI/.../App.kt`)
+renders the profile gate and `NavigationBar` tab scaffold with a hand-rolled
+`NavStack`. iOS's `ContentView.swift` builds its own `TabView` +
+per-tab `NavigationStack` and binds directly to `sharedLogic` state —
+it never hosts Compose.
 
-This supersedes the original hybrid pattern (JetBrains' "Compose renders
-content, SwiftUI owns chrome" —
-https://kotlinlang.org/docs/multiplatform/ios-liquid-glass.html), which is
-**legacy** and being migrated off screen-by-screen, oldest offender first.
-Profile was the pilot migration (see "Migrating a screen to native SwiftUI"
-below); Plans/Workouts/Exercises are still Compose-hosted on iOS and are next
-in line. Do not build *new* iOS screens against the legacy hybrid pattern —
-build them native from the start, extracting shared state into `dbMain` as
-needed.
+Building a new screen:
 
-### Legacy Compose-hosted screens (not yet migrated)
-
-Until a screen is migrated, it still follows the old hybrid pattern:
-
-- **iOS (26.0+ only, no fallback)**: SwiftUI owns all navigation chrome —
-  `TabView` + per-tab `NavigationStack` in `iosApp/iosApp/ContentView.swift`
-  get real Liquid Glass styling. Compose renders screen *content* only, hosted
-  per-screen via the entry points in `sharedUI/src/iosMain/.../MainViewController.kt`
-  (`ProfileSetupViewController`, `MainViewController(route:onNavigate:)`,
-  `ScreenViewController(route:onNavigate:onGoBack:)`). Navigation intents flow
-  Kotlin → Swift through those callbacks; Swift coordinators push/pop the stack.
-  The shared `App()` composable is **not** used on iOS.
-- **Android**: pure Compose. `App()` (`sharedUI/.../App.kt`) renders
-  profile gate → `NavigationBar` tab scaffold, with a hand-rolled `NavStack`
-  (no navigation library — deliberate; SwiftUI owns the iOS stack, so a shared
-  nav library would be dead weight). Android theming is `MaterialExpressiveTheme`
-  + Material You dynamic color (`PlatformTheme.android.kt`); predictive back is
-  enabled in the manifest.
-
-Adding a shared screen means: define its route in `sharedUI/.../navigation/Routes.kt`
-(routes carry `title`/`subtitle` so SwiftUI can draw nav bars without calling
-Kotlin), branch it in `navigation/ScreenContent.kt`, and in the screen itself
-gate any top bar / back button on `LocalUseNativeNavigation` (true when SwiftUI
-draws the chrome) and use `WindowInsets.safeDrawing` padding *inside* scrollables
-so content flows behind translucent system bars. A new tab additionally needs a
-`Tab` + coordinator in `ContentView.swift` and a `TabSpec` in `App.kt`.
-
-### Don't let Material patterns leak onto iOS
-
-Compose's defaults are Material (Android) by design, so any control that isn't
-explicitly branched will render Android-style on iOS too. Before adding a new
-screen or interaction, check whether it falls into one of these categories —
-each has an established fix, don't reinvent it:
-
-- **Primary/floating actions** (a screen's main "+"/create button): never use
-  `FloatingActionButton` when `LocalUseNativeNavigation.current` is true — iOS
-  puts this in the native nav bar's trailing `ToolbarItem`, not a floating
-  circle. Since SwiftUI owns that toolbar and Compose only owns content, the
-  tap has to cross the boundary: add a small listener-object bridge (see
-  `PlansCreateRequestNotifier` in
-  `sharedUI/.../plans/`) that the Compose screen listens to via
-  `DisposableEffect`, and call `.shared.requestCreate()` from a `.toolbar` in
-  `ContentView.swift`.
-- **Alerts and confirmations** (rename/delete/error dialogs): never render a
-  bare Material `AlertDialog` unconditionally — on iOS it should present a
-  native `UIAlertController` instead. Use `LocalNativeAlertPresenter`
-  (`sharedUI/.../navigation/NativeAlerts.kt`, iOS impl in `NativeAlerts.ios.kt`)
-  from the dialog composable: if `LocalUseNativeNavigation.current` and the
-  presenter is non-null, call it from a `LaunchedEffect(Unit)` and return
-  early; otherwise fall back to the Material `AlertDialog`. See
-  `PlanDialogs.kt` for the pattern.
-- **Row/contextual actions** (rename/delete on a list row): never use a bare
-  `DropdownMenu` unconditionally — on iOS this should be a native action
-  sheet (`LocalNativeAlertPresenter.presentActionSheet(...)`) or a gesture
-  that reads natively on both platforms. The current convention is
-  swipe-to-reveal action buttons via `SwipeRevealRow`
-  (`sharedUI/.../screens/SwipeRevealRow.kt`; see `PlanRow`/`RoutineRow` in
-  `PlansScreen.kt`).
-- **Icons**: `material-icons-core` is a small, frozen set (see version gotcha
-  below) — don't reach for an "iOS-shaped" icon (e.g. a horizontal-ellipsis
-  glyph) that isn't in that set just to look native; the interaction pattern
-  (toolbar button, native alert, action sheet) is what actually matters, the
-  glyph is secondary.
-
-When in doubt: if a control's only job is to look right (a spinner, a list
-row), it's usually fine shared as-is. If a control is "chrome-adjacent" —
-something Android and iOS have genuinely different conventions for (primary
-actions, alerts/action sheets, menus, swipe gestures, tab/nav bars) — assume it
-needs platform branching from the start rather than discovering the gap later.
-
-Version gotchas: `material3` must stay on an alpha (`libs.versions.toml`) —
-Expressive APIs are stripped from stable releases. The material-icons artifacts
-are frozen at 1.7.3 and no longer come in transitively; only
-`material-icons-core` icons are available.
-
-### Migrating a screen to native SwiftUI
-
-Profile was the pilot (see `iosApp/iosApp/ProfileView.swift`,
-`ProfileFormView.swift`, `ProfileSetupView.swift`); follow the same pattern
-for every other screen:
-
-1. Extract the screen's state into a plain `StateFlow`-based class in
-   `sharedLogic/src/dbMain/.../db/` (e.g. `ProfileFormState.kt`,
-   `ExerciseFormState.kt`) — a `MutableStateFlow<UiState>` plus action methods
-   and a `save(...)`. No Compose types; this is what both the Compose form
-   and the native SwiftUI view bind to.
+1. Extract its state into a plain `StateFlow`-based class in
+   `sharedLogic/src/dbMain/.../db/` (a `MutableStateFlow<UiState>` plus
+   action methods and a `save(...)`) — no Compose types; this is what both
+   the Compose screen and the native SwiftUI view bind to.
 2. SKIE (`co.touchlab.skie`, applied in `sharedUI/build.gradle.kts`) exposes
    that `StateFlow` to Swift as a `SkieSwiftStateFlow`, which conforms to
    `AsyncSequence` — bind with `for await state in formState.uiState { ... }`.
-3. Write the SwiftUI view(s) in `iosApp/iosApp/`, using native components
+3. Write the SwiftUI view(s) in `iosApp/iosApp/` using native components
    (`Form`, `List`, `Picker`, `NavigationStack` toolbar items, native
-   alerts/action sheets) — no Compose hosting, no `UIViewControllerRepresentable`
-   for this screen.
-4. Wire it into `ContentView.swift`'s tab/`NavigationStack` coordinators in
-   place of the old `TabRootComposeView`/`DetailComposeView` route dispatch
-   for that route.
-5. The Compose version of the screen (still used by Android) keeps
-   binding to the same shared state class — don't fork the state/business
-   logic, only the view layer forks per platform.
+   alerts/action sheets) and wire them into `ContentView.swift`'s
+   tab/`NavigationStack` coordinators.
+4. Write the Compose screen in `sharedUI/.../screens/` binding to the same
+   shared state class for Android — only the view layer forks per platform.
+
+Version gotchas: `material3` must stay on an alpha (`libs.versions.toml`) —
+Expressive APIs are stripped from stable releases. The material-icons
+artifacts are frozen at 1.7.3 and no longer come in transitively; only
+`material-icons-core` icons are available.
 
 ## Local database
 
 Room KMP (`androidx.room` + bundled SQLite driver, KSP codegen) in
 `sharedLogic/src/dbMain/.../db/`:
 
-- **Entities** (`Entities.kt`): `profile` (single row, id = 1: name, age,
-  gender, weight, height), `exercises` (reference catalog, seeded on first
-  create by `ExerciseSeed.kt`), `plans`, `routines`, `work_sets`,
-  `work_set_details`, `workout_sessions`, `workout_session_details`.
-  Snake_case table/column names mirror moonrose's schema for future sync
-  parity; timestamps are epoch millis. Containment FKs cascade (plan →
-  routines), history FKs null out (session → routine).
-- **Repositories** (`ProfileRepository`, `PlanRepository`): the only API the
-  UI layer uses — Flow-based reads of domain models
+- **Entities** (`Entities.kt`): `profile` (single row, id = 1), `user_settings`
+  (key/value, e.g. week start, appearance, weight unit), `exercises`
+  (reference catalog, seeded on first create by `ExerciseSeed.kt`),
+  `programs`, `routines` (FK'd to a program), `work_sets`, `work_set_details`,
+  `workout_sessions`, `workout_session_details`, `body_metrics`, and
+  `ai_insight_cache` (cached LLM narration for insight cards). Snake_case
+  table/column names mirror moonrose's schema for future sync parity;
+  timestamps are epoch millis. Containment FKs cascade (program → routines),
+  history FKs null out (session → routine).
+- **Repositories**: one per feature area (`ProfileRepository`,
+  `ProgramRepository`, `ExerciseRepository`, `CalendarRepository`,
+  `WorkoutSessionRepository`, `BodyMetricsRepository`,
+  `UserSettingsRepository`, `InsightsRepository`, `TestDataRepository`) —
+  the only API the UI layer uses: Flow-based reads of domain models
   (`commonMain/.../model/Models.kt`), suspend writes. `ProfileStore` is a
   callback bridge for the SwiftUI shell (it can't consume Flows).
 - **Database file**: `AppDb.db` lazy singleton; file lives at
   `getDatabasePath("logtrain.db")` (Android, context via `DbContextHolder`,
   set in `MainActivity`) or the app documents dir (iOS).
 - **Schema JSON** is exported to `sharedLogic/schemas/` (committed). Bump the
-  `@Database` version and write a migration for any schema change.
+  `@Database` version and write a migration for any schema change — then
+  verify it: `createDatabase()` uses `fallbackToDestructiveMigration(dropAllTables
+  = true)`, so a wrong migration silently wipes data instead of crashing.
+  Reconstruct a version-N database from the committed schema JSON, open it
+  with `addMigrations(...)` and **no fallback**, and query it — Room
+  validates the migrated schema and throws on any mismatch (see
+  `Migration13To14Test.kt` in `sharedLogic/src/iosTest/.../db/` for the
+  pattern; run with `:sharedLogic:iosSimulatorArm64Test` — there's no
+  `jvmTest` source set). Mutate the migration once and re-run to confirm the
+  test can actually fail; with the fallback off, a broken migration can still
+  leave empty tables that vacuously pass assertions.
+
+## Localization
+
+`sharedUI` strings go through Compose Multiplatform resources
+(`sharedUI/src/commonMain/composeResources/values/strings.xml`); a new
+language is a new `values-<lang>/strings.xml`. `sharedLogic` never emits
+user-facing English — it returns keys/enums/structured values (e.g.
+`InsightCard.headlineKey`, `ProfileNameError`), which `LogicLabels.kt` maps to
+Compose strings and `iosApp/iosApp/L10n.swift` maps to
+`String(localized:defaultValue:)` constants under the same keys. Follow
+`.claude/skills/localized-strings/SKILL.md` for the full checklist when
+adding UI text.
+
+Gotcha: Compose Multiplatform resources don't process Android-style escape
+sequences — `\'`/`\"` render as a literal backslash+quote in strings.xml. Use
+plain `'` and `"`.
 
 ## Building and running
 
@@ -167,6 +114,12 @@ Room KMP (`androidx.room` + bundled SQLite driver, KSP codegen) in
 - iOS: open [iosApp](iosApp) in Xcode and run from there (requires Xcode 26+;
   deployment target is iOS 26.0). Headless:
   `xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -destination 'generic/platform=iOS Simulator' build`
+
+If Gradle or xcodebuild's "Compile Kotlin Framework" phase fails with an
+opaque JDK/toolchain error, `JAVA_HOME` likely isn't pointed at a real JDK —
+export it explicitly before invoking `./gradlew`/`xcodebuild`. If
+`xcode-select` points at CommandLineTools rather than a full Xcode install,
+also set `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 
 ## Tests
 

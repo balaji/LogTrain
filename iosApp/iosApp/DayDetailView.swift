@@ -61,7 +61,7 @@ private struct ExerciseSummaryRow: View {
                 .font(.body)
             ForEach(Array(exercise.sets.enumerated()), id: \.offset) { index, set in
                 HStack {
-                    Text(L10n.setNumber(index + 1))
+                    Text(label(at: index, set))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -72,6 +72,14 @@ private struct ExerciseSummaryRow: View {
             }
         }
         .padding(.vertical, 2)
+    }
+
+    /// Only normal sets take a number; warm-up and drop sets are named instead,
+    /// matching the Compose day detail.
+    private func label(at index: Int, _ set: DaySessionSet) -> String {
+        guard set.setType == .normal else { return L10n.setTypeLabel(set.setType) }
+        let workingNumber = exercise.sets.prefix(index + 1).filter { $0.setType == .normal }.count
+        return L10n.setNumber(workingNumber)
     }
 
     private func summary(for set: DaySessionSet) -> String {

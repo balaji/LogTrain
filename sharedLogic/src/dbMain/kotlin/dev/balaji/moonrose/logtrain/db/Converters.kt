@@ -1,6 +1,7 @@
 package dev.balaji.moonrose.logtrain.db
 
 import androidx.room.TypeConverter
+import dev.balaji.moonrose.logtrain.model.SetType
 
 // Room/SQLite has no native array type; store as a comma-joined string.
 internal object Converters {
@@ -10,4 +11,12 @@ internal object Converters {
     @TypeConverter
     fun toStringList(value: String?): List<String>? =
         value?.takeIf { it.isNotEmpty() }?.split(",")
+
+    // Stored as its language-neutral key so the SQL in Daos and the migration
+    // can match on it directly.
+    @TypeConverter
+    fun fromSetType(value: SetType): String = value.key
+
+    @TypeConverter
+    fun toSetType(value: String): SetType = SetType.fromKey(value)
 }

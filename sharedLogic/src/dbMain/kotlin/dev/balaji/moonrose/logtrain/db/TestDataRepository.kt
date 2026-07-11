@@ -108,16 +108,22 @@ internal fun planTestData(
 
         val sets = mutableListOf<PlannedSet>()
         for (workSet in routine.workSets) {
-            val weight = workingWeight(workSet.exerciseName, day - firstDay, weightUnit, random)
+            val weights = setWeights(
+                exerciseName = workSet.exerciseName,
+                dayOffset = day - firstDay,
+                setCount = workSet.sets.size,
+                weightUnit = weightUnit,
+                random = random,
+            )
             workSet.sets.forEachIndexed { index, set ->
                 val lastSet = index == workSet.sets.lastIndex
-                // The final set of an exercise misses a rep or two now and then.
+                // The top set of an exercise misses a rep or two now and then.
                 val missed = if (lastSet && random.nextDouble() < 0.25) random.nextInt(1, 3) else 0
                 sets += PlannedSet(
                     exerciseName = workSet.exerciseName,
-                    targetWeight = weight,
+                    targetWeight = weights[index],
                     targetReps = set.targetReps,
-                    actualWeight = weight,
+                    actualWeight = weights[index],
                     actualReps = (set.targetReps - missed).coerceAtLeast(1),
                 )
             }
@@ -157,33 +163,44 @@ internal fun planTestData(
     return TestDataPlan(sessions = sessions, weighIns = weighIns)
 }
 
+/** Fraction of the top set the weight drops by for each set below it. */
+private const val RAMP_PER_SET = 0.1
+
 /**
- * Weight for one exercise on the session [dayOffset] days into the plan:
- * a linear ramp of about 0.45% of the starting weight per calendar day,
- * capped at +45%, with an occasional one-step off day, rounded to the
- * plates/pins available in the unit.
+ * Weights for the [setCount] sets of one exercise on the session [dayOffset]
+ * days into the plan. The sets ramp up to a top set that grows about 0.45% of
+ * the starting weight per calendar day, capped at +45%, with an occasional
+ * one-step off day; each set below the top is 10% lighter than the one after
+ * it. Every set is rounded to the plates/pins available in the unit, so on a
+ * light exercise consecutive sets can land on the same weight rather than ramp.
+ * Bodyweight exercises (absent from [START_WEIGHTS_KG]) have no weight at all.
  */
-private fun workingWeight(
+private fun setWeights(
     exerciseName: String,
     dayOffset: Long,
+    setCount: Int,
     weightUnit: WeightUnit,
     random: Random,
-): Double? {
-    val startKg = START_WEIGHTS_KG[exerciseName] ?: return null
+): List<Double?> {
+    val startKg = START_WEIGHTS_KG[exerciseName] ?: return List(setCount) { null }
     val ramp = 1 + minOf(0.0045 * dayOffset, 0.45)
-    var kg = startKg * ramp
     val step = when {
         weightUnit == WeightUnit.IMPERIAL -> 5 * KG_PER_LB
         startKg < 15.0 -> 1.0
         else -> 2.5
     }
-    if (random.nextDouble() < 0.15) kg -= step
-    val steps = (kg / step).roundToInt().coerceAtLeast(1)
-    val rounded = steps * step
-    return if (weightUnit == WeightUnit.IMPERIAL) {
-        (rounded / KG_PER_LB).roundToInt().toDouble()
-    } else {
-        rounded
+    var topKg = startKg * ramp
+    if (random.nextDouble() < 0.15) topKg -= step
+    return List(setCount) { index ->
+        val setsBelowTop = setCount - 1 - index
+        val kg = topKg * (1 - RAMP_PER_SET * setsBelowTop)
+        val steps = (kg / step).roundToInt().coerceAtLeast(1)
+        val rounded = steps * step
+        if (weightUnit == WeightUnit.IMPERIAL) {
+            (rounded / KG_PER_LB).roundToInt().toDouble()
+        } else {
+            rounded
+        }
     }
 }
 

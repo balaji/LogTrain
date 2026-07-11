@@ -46,6 +46,9 @@
     <string name="column_lb">LB</string>
     <string name="column_reps">REPS</string>
     <string name="warmup_marker">U</string>
+    <string name="dropset_marker">D</string>
+    <string name="set_type">Settyp</string>
+    <string name="set_type_normal">Normalt</string>
     <string name="plate_bar">Stång</string>
     <string name="plate_bar_weight">Stångvikt</string>
     <string name="plate_use_numeric">123</string>
@@ -181,6 +184,7 @@
     <string name="no_workouts_this_day">Inga slutförda pass den här dagen</string>
     <string name="workout">Träningspass</string>
     <string name="warm_up">Uppvärmning</string>
+    <string name="drop_set">Dropset</string>
     <string name="set_number">Set %1$d</string>
     <string name="reps_value">%1$s reps</string>
 

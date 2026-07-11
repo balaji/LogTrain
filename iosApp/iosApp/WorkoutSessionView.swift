@@ -282,10 +282,9 @@ private struct SessionExerciseSection: View {
 
     private var setsCount: Int { Int(exercise.sets.count) }
 
-    private func setNumberLabel(_ setIdx: Int) -> String {
-        if exercise.sets[setIdx].warmup { return L10n.warmupMarker }
-        let workingNumber = exercise.sets.prefix(setIdx + 1).filter { !$0.warmup }.count
-        return "\(workingNumber)"
+    /// Only normal sets take a number; warm-up and drop sets show a marker.
+    private func workingSetNumber(_ setIdx: Int) -> Int {
+        exercise.sets.prefix(setIdx + 1).filter { $0.setType == .normal }.count
     }
 
     private func previousLabel(_ setIdx: Int) -> String? {
@@ -309,7 +308,7 @@ private struct SessionExerciseSection: View {
 
             ForEach(Array(exercise.sets.enumerated()), id: \.offset) { setIdx, set in
                 SessionSetRow(
-                    setLabel: setNumberLabel(setIdx),
+                    workingSetNumber: workingSetNumber(setIdx),
                     previous: previousLabel(setIdx),
                     set: set,
                     plateKeyboard: exercise.usesPlateKeyboard ? plateKeyboard : nil,
@@ -322,8 +321,12 @@ private struct SessionExerciseSection: View {
                             currentValue: set.actualWeight
                         )
                     },
-                    onToggleWarmup: {
-                        formState.toggleWarmup(exerciseIndex: Int32(exIndex), setIndex: Int32(setIdx))
+                    onSetTypeChange: { setType in
+                        formState.setSetType(
+                            exerciseIndex: Int32(exIndex),
+                            setIndex: Int32(setIdx),
+                            setType: setType
+                        )
                     },
                     onWeightChange: {
                         formState.updateActualWeight(exerciseIndex: Int32(exIndex), setIndex: Int32(setIdx), value: $0)
@@ -363,10 +366,10 @@ private struct SessionExerciseSection: View {
     }
 }
 
-/// One set row: warm-up/number toggle, previous performance, weight and reps
-/// inputs, and a completion checkbox. Turns green and briefly pops when checked.
+/// One set row: set-type cell, previous performance, weight and reps inputs,
+/// and a completion checkbox. Turns green and briefly pops when checked.
 private struct SessionSetRow: View {
-    let setLabel: String
+    let workingSetNumber: Int
     let previous: String?
     let set: DraftSessionSet
     /// Non-nil only for barbell exercises; switches the weight input to the
@@ -374,7 +377,7 @@ private struct SessionSetRow: View {
     let plateKeyboard: BarbellKeyboardState?
     let plateNumericMode: Bool
     let onOpenPlateKeypad: () -> Void
-    let onToggleWarmup: () -> Void
+    let onSetTypeChange: (SetType) -> Void
     let onWeightChange: (String) -> Void
     let onRepsChange: (String) -> Void
     let onToggleCompleted: () -> Void
@@ -383,14 +386,12 @@ private struct SessionSetRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            // Warm-up sets show "W" and don't consume a working-set number;
-            // tapping the number toggles warm-up, matching sharedUI.
-            Button(action: onToggleWarmup) {
-                Text(setLabel)
-                    .foregroundStyle(set.warmup ? Color.orange : Color.secondary)
-            }
-            .buttonStyle(.borderless)
-            .frame(width: 28)
+            SetTypeCell(
+                setType: set.setType,
+                workingSetNumber: workingSetNumber,
+                width: 28,
+                onSetTypeChange: onSetTypeChange
+            )
 
             Text(previous ?? "—")
                 .font(.footnote)

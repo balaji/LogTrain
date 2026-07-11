@@ -293,6 +293,12 @@ interface WorkoutSessionDetailDao {
     )
     suspend fun hasCompletedSets(sessionId: Long): Boolean
 
+    /**
+     * The source for every volume, PR and est-1RM number. Warm-ups are excluded
+     * here rather than downstream — CompletedSetRow deliberately carries no set
+     * type, so nothing can forget to filter. Drop sets are work at a reduced
+     * load and stay in.
+     */
     @Query(
         "SELECT s.performed_at AS performed_at, d.exercise_id AS exercise_id, " +
             "e.name AS exercise_name, e.body_part AS body_part, " +
@@ -301,7 +307,7 @@ interface WorkoutSessionDetailDao {
             "JOIN workout_sessions s ON s.id = d.workout_session_id " +
             "JOIN exercises e ON e.id = d.exercise_id " +
             "WHERE s.profile_id = :profileId AND s.completed_at IS NOT NULL " +
-            "AND d.completed != 0 AND d.warmup = 0 AND s.performed_at >= :startMillis " +
+            "AND d.completed != 0 AND d.set_type != 'warmup' AND s.performed_at >= :startMillis " +
             "ORDER BY s.performed_at",
     )
     fun observeCompletedSets(profileId: Long, startMillis: Long): Flow<List<CompletedSetRow>>
@@ -314,7 +320,7 @@ interface WorkoutSessionDetailDao {
             "JOIN workout_sessions s ON s.id = d.workout_session_id " +
             "JOIN exercises e ON e.id = d.exercise_id " +
             "WHERE s.profile_id = :profileId AND s.completed_at IS NOT NULL " +
-            "AND d.completed != 0 AND d.warmup = 0 AND s.performed_at >= :startMillis " +
+            "AND d.completed != 0 AND d.set_type != 'warmup' AND s.performed_at >= :startMillis " +
             "ORDER BY s.performed_at",
     )
     suspend fun getCompletedSets(profileId: Long, startMillis: Long): List<CompletedSetRow>

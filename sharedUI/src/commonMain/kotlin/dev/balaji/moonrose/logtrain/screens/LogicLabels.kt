@@ -10,6 +10,7 @@ import dev.balaji.moonrose.logtrain.insights.InsightCard
 import dev.balaji.moonrose.logtrain.insights.OneRmFormula
 import dev.balaji.moonrose.logtrain.model.SampleProgram
 import dev.balaji.moonrose.logtrain.model.SampleRoutine
+import dev.balaji.moonrose.logtrain.model.SetType
 import dev.balaji.moonrose.logtrain.model.WeightUnit
 import org.jetbrains.compose.resources.stringResource
 import dev.balaji.moonrose.logtrain.sharedui.resources.*
@@ -49,6 +50,27 @@ internal fun oneRmInfoText(formula: OneRmFormula): String = stringResource(
         OneRmFormula.OCONNER -> Res.string.one_rm_info_oconner
     },
 )
+
+/** Full name, for the set-type menu and the read-only day detail. */
+@Composable
+internal fun setTypeLabel(setType: SetType): String = stringResource(
+    when (setType) {
+        SetType.NORMAL -> Res.string.set_type_normal
+        SetType.WARMUP -> Res.string.warm_up
+        SetType.DROP -> Res.string.drop_set
+    },
+)
+
+/**
+ * The one-letter marker shown in place of a set number. NORMAL has none — it
+ * keeps its working-set number — so callers supply that themselves.
+ */
+@Composable
+internal fun setTypeMarker(setType: SetType): String? = when (setType) {
+    SetType.NORMAL -> null
+    SetType.WARMUP -> stringResource(Res.string.warmup_marker)
+    SetType.DROP -> stringResource(Res.string.dropset_marker)
+}
 
 @Composable
 internal fun monthAbbreviation(monthOfYear: Int): String = stringResource(

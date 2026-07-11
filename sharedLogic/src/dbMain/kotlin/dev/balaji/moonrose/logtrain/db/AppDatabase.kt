@@ -28,7 +28,8 @@ import androidx.room.TypeConverters
     // v11: test_data flag on workout_sessions and body_metrics for generated demo data.
     // v12: ai_insight_cache table for LLM-narrated insight card text.
     // v13: profile.gender rewritten from English display text to language-neutral keys.
-    version = 13,
+    // v14: warmup flag replaced by the set_type enum ('normal'/'warmup'/'drop').
+    version = 14,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

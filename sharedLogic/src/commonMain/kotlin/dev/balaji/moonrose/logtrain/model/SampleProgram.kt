@@ -50,7 +50,7 @@ data class SampleSet(
     val targetReps: Int,
     /** Left null in every sample: the user supplies their own load. */
     val targetWeight: Double? = null,
-    val warmup: Boolean = false,
+    val setType: SetType = SetType.NORMAL,
 )
 
 private fun sets(count: Int, reps: Int) = List(count) { SampleSet(targetReps = reps) }

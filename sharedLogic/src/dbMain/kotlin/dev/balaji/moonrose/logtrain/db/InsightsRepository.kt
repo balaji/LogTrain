@@ -45,13 +45,15 @@ internal data class SetPoint(
  * device timezone at emission time, like CalendarRepository.
  */
 object InsightsRepository {
-    /** Total volume per week, oldest first, covering exactly [weeks] weeks up to the current one. */
+    /**
+     * Total volume per trailing 7-day window, oldest first, covering exactly
+     * [weeks] windows up to the one ending today.
+     */
     suspend fun weeklyVolume(weeks: Int = 8): List<WeeklyVolumePoint> {
-        val settings = UserSettingsRepository.settings.first()
         val today = WeekMath.todayEpochDay()
-        val firstWeekStart = WeekMath.weekStartOnOrBefore(today, settings.weekStart) - 7L * (weeks - 1)
-        val sets = completedSetsSince(startOfDayMillis(firstWeekStart))
-        return weeklyVolumeFrom(sets, weeks, today, settings.weekStart)
+        val firstWindowStart = today - 7L * weeks + 1
+        val sets = completedSetsSince(startOfDayMillis(firstWindowStart))
+        return weeklyVolumeFrom(sets, weeks, today)
     }
 
     /** Best sets by estimated 1RM, one per exercise, best first; all-time. */
@@ -175,24 +177,30 @@ internal fun startOfDayMillis(epochDay: Long, zone: TimeZone = TimeZone.currentS
 // Pure transforms below are internal (not private) so jvmTest can exercise
 // them without a database, mirroring toUserSettings.
 
+/**
+ * Buckets [sets] into [weeks] trailing, non-overlapping 7-day windows, the
+ * last one ending on [todayEpochDay] — e.g. today back 6 days — rather than a
+ * calendar week. A calendar-week bucket would be partial for most of the
+ * week (as little as a single day right after it rolls over) and read as a
+ * huge, spurious drop when compared against complete prior weeks.
+ */
 internal fun weeklyVolumeFrom(
     sets: List<SetPoint>,
     weeks: Int,
     todayEpochDay: Long,
-    weekStart: WeekStart,
 ): List<WeeklyVolumePoint> {
-    val firstWeekStart = WeekMath.weekStartOnOrBefore(todayEpochDay, weekStart) - 7L * (weeks - 1)
-    val byWeek = sets
-        .filter { it.epochDay >= firstWeekStart }
-        .groupBy { WeekMath.weekStartOnOrBefore(it.epochDay, weekStart) }
+    val firstWindowStart = todayEpochDay - 7L * weeks + 1
+    val byDay = sets
+        .filter { it.epochDay >= firstWindowStart }
+        .groupBy { it.epochDay }
     return (0 until weeks).map { i ->
-        val weekStartDay = firstWeekStart + 7L * i
-        val weekSets = byWeek[weekStartDay].orEmpty()
+        val windowStart = firstWindowStart + 7L * i
+        val windowSets = (windowStart..windowStart + 6).flatMap { byDay[it].orEmpty() }
         WeeklyVolumePoint(
-            weekStartEpochDay = weekStartDay,
-            totalVolume = weekSets.sumOf { it.weight * it.reps },
-            setCount = weekSets.size,
-            sessionCount = weekSets.distinctBy { it.sessionKey }.size,
+            weekStartEpochDay = windowStart,
+            totalVolume = windowSets.sumOf { it.weight * it.reps },
+            setCount = windowSets.size,
+            sessionCount = windowSets.distinctBy { it.sessionKey }.size,
         )
     }
 }
@@ -305,7 +313,7 @@ internal fun buildCards(
     val cards = mutableListOf<InsightCard>()
 
     if (sessionDays.isNotEmpty()) {
-        cards += volumeCard(sets, todayEpochDay, weekStart)
+        cards += volumeCard(sets, todayEpochDay)
         cards += frequencyCard(sessionDays, todayEpochDay, weekStart)
         val eligible = eligibleProgressionExercises(sets, todayEpochDay, weekStart)
         cards += effectiveProgressionConfigs(progressionConfigs, eligible)
@@ -358,9 +366,8 @@ internal fun effectiveProgressionConfigs(
 private fun volumeCard(
     sets: List<SetPoint>,
     todayEpochDay: Long,
-    weekStart: WeekStart,
 ): InsightCard {
-    val weeklies = weeklyVolumeFrom(sets, weeks = 8, todayEpochDay, weekStart)
+    val weeklies = weeklyVolumeFrom(sets, weeks = 8, todayEpochDay)
     val thisWeek = weeklies.last()
     val priorAvg = weeklies.dropLast(1).takeLast(4).map { it.totalVolume }.average()
     val detailKey: String

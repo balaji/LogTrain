@@ -102,7 +102,7 @@ object WorkoutSessionRepository {
                             actualWeight = null,
                             actualReps = null,
                             actualDuration = null,
-                            warmup = detail.warmup,
+                            setType = detail.setType,
                             completed = false,
                             createdAt = now,
                             updatedAt = now,

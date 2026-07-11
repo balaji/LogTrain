@@ -98,6 +98,7 @@ import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
 import dev.balaji.moonrose.logtrain.db.WorkoutSessionFormState
 import dev.balaji.moonrose.logtrain.db.WorkoutSessionRepository
 import dev.balaji.moonrose.logtrain.db.WorkoutSessionUiState
+import dev.balaji.moonrose.logtrain.model.SetType
 import dev.balaji.moonrose.logtrain.model.UserSettings
 import dev.balaji.moonrose.logtrain.model.WeightUnit
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
@@ -303,7 +304,7 @@ private fun WorkoutSessionBody(
                             onRemoveSet = { setIdx -> formState.removeSet(exIndex, setIdx) },
                             onUpdateWeight = { setIdx, v -> formState.updateActualWeight(exIndex, setIdx, v) },
                             onUpdateReps = { setIdx, v -> formState.updateActualReps(exIndex, setIdx, v) },
-                            onToggleWarmup = { setIdx -> formState.toggleWarmup(exIndex, setIdx) },
+                            onSetTypeChange = { setIdx, setType -> formState.setSetType(exIndex, setIdx, setType) },
                             onToggleCompleted = { setIdx -> formState.toggleCompleted(exIndex, setIdx) },
                             onDelete = { formState.removeExercise(exIndex) },
                             onReorderStart = { startRootY ->
@@ -503,7 +504,7 @@ private fun SessionExerciseCard(
     onRemoveSet: (Int) -> Unit,
     onUpdateWeight: (Int, String) -> Unit,
     onUpdateReps: (Int, String) -> Unit,
-    onToggleWarmup: (Int) -> Unit,
+    onSetTypeChange: (Int, SetType) -> Unit,
     onToggleCompleted: (Int) -> Unit,
     onDelete: () -> Unit,
     onReorderStart: (Float) -> Unit,
@@ -609,14 +610,14 @@ private fun SessionExerciseCard(
             Spacer(Modifier.width(40.dp))
         }
 
-        // Warm-up sets show "W" and don't consume a working-set number;
-        // tapping the number cell toggles warm-up on the fly.
+        // Only normal sets take a working-set number; warm-up and drop sets show
+        // a marker, and the cell opens the set-type menu.
         var workingSetNumber = 0
         exercise.sets.forEachIndexed { setIdx, set ->
-            if (!set.warmup) workingSetNumber++
+            if (set.setType == SetType.NORMAL) workingSetNumber++
             SessionSetRow(
                 set = set,
-                setLabel = if (set.warmup) stringResource(Res.string.warmup_marker) else "$workingSetNumber",
+                workingSetNumber = workingSetNumber,
                 previous = exercise.previousSets.getOrNull(setIdx)?.takeIf { it.isNotBlank() },
                 canDelete = exercise.sets.size > 1,
                 usesPlateKeypad = exercise.usesPlateKeyboard,
@@ -624,7 +625,7 @@ private fun SessionExerciseCard(
                 onOpenPlateKeypad = { onOpenPlateKeypad(setIdx, set.actualWeight) },
                 onFieldFocused = onFieldFocused,
                 onDelete = { onRemoveSet(setIdx) },
-                onToggleWarmup = { onToggleWarmup(setIdx) },
+                onSetTypeChange = { onSetTypeChange(setIdx, it) },
                 onUpdateWeight = { onUpdateWeight(setIdx, it) },
                 onUpdateReps = { onUpdateReps(setIdx, it) },
                 onToggleCompleted = { onToggleCompleted(setIdx) },
@@ -651,7 +652,7 @@ private fun SessionExerciseCard(
 @Composable
 private fun SessionSetRow(
     set: DraftSessionSet,
-    setLabel: String,
+    workingSetNumber: Int,
     previous: String?,
     canDelete: Boolean,
     usesPlateKeypad: Boolean,
@@ -659,7 +660,7 @@ private fun SessionSetRow(
     onOpenPlateKeypad: () -> Unit,
     onFieldFocused: () -> Unit,
     onDelete: () -> Unit,
-    onToggleWarmup: () -> Unit,
+    onSetTypeChange: (SetType) -> Unit,
     onUpdateWeight: (String) -> Unit,
     onUpdateReps: (String) -> Unit,
     onToggleCompleted: () -> Unit,
@@ -727,19 +728,11 @@ private fun SessionSetRow(
                 .padding(horizontal = 16.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                setLabel,
-                modifier = Modifier
-                    .width(32.dp)
-                    .clickable { onToggleWarmup() }
-                    .padding(vertical = 8.dp),
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (set.warmup) {
-                    MaterialTheme.colorScheme.tertiary
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                },
+            SetTypeCell(
+                setType = set.setType,
+                workingSetNumber = workingSetNumber,
+                onSetTypeChange = onSetTypeChange,
+                cellWidth = 32.dp,
             )
             Text(
                 previous ?: "—",

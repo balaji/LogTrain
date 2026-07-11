@@ -189,6 +189,11 @@ private struct ExerciseCardView: View {
     var onReorderChanged: (CGFloat) -> Void
     var onReorderEnded: () -> Void
 
+    /// Only normal sets take a number; warm-up and drop sets show a marker.
+    private func workingSetNumber(_ setIdx: Int) -> Int {
+        workSet.sets.prefix(setIdx + 1).filter { $0.setType == .normal }.count
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(workSet.exercise.name)
@@ -216,9 +221,18 @@ private struct ExerciseCardView: View {
 
             ForEach(Array(workSet.sets.enumerated()), id: \.offset) { setIdx, set in
                 HStack(spacing: 8) {
-                    Text("\(setIdx + 1)")
-                        .frame(width: 28)
-                        .foregroundStyle(.secondary)
+                    SetTypeCell(
+                        setType: set.setType,
+                        workingSetNumber: workingSetNumber(setIdx),
+                        width: 28,
+                        onSetTypeChange: { setType in
+                            formState.setSetType(
+                                workSetIndex: Int32(wsIndex),
+                                setIndex: Int32(setIdx),
+                                setType: setType
+                            )
+                        }
+                    )
 
                     TextField(
                         "0",

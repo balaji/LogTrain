@@ -1,6 +1,7 @@
 package dev.balaji.moonrose.logtrain.db
 
 import dev.balaji.moonrose.logtrain.model.Exercise
+import dev.balaji.moonrose.logtrain.model.SetType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -8,7 +9,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-data class DraftSet(val weight: String = "", val reps: String = "", val warmup: Boolean = false)
+data class DraftSet(
+    val weight: String = "",
+    val reps: String = "",
+    val setType: SetType = SetType.NORMAL,
+)
 
 data class DraftWorkSet(
     val id: Long,
@@ -44,7 +49,7 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
                             DraftSet(
                                 weight = d.targetWeight?.formatWeight() ?: "",
                                 reps = d.targetReps?.toString() ?: "",
-                                warmup = d.warmup,
+                                setType = d.setType,
                             )
                         }
                     },
@@ -83,9 +88,9 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
         }
     }
 
-    fun toggleWarmup(workSetIndex: Int, setIndex: Int) {
+    fun setSetType(workSetIndex: Int, setIndex: Int, setType: SetType) {
         updateWorkSet(workSetIndex) { ws ->
-            ws.copy(sets = ws.sets.mapIndexed { i, s -> if (i == setIndex) s.copy(warmup = !s.warmup) else s })
+            ws.copy(sets = ws.sets.mapIndexed { i, s -> if (i == setIndex) s.copy(setType = setType) else s })
         }
     }
 
@@ -138,7 +143,7 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
                             targetWeight = set.weight.toDoubleOrNull(),
                             targetReps = set.reps.toIntOrNull(),
                             targetDuration = null,
-                            warmup = set.warmup,
+                            setType = set.setType,
                             createdAt = now,
                             updatedAt = now,
                         ),
