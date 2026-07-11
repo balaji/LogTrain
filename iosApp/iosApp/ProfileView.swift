@@ -25,7 +25,7 @@ struct ProfileView: View {
                         Section {
                             LabeledContent("Name", value: profile.name)
                             LabeledContent("Age", value: profile.age.map { "\($0)" } ?? "—")
-                            LabeledContent("Gender", value: profile.gender ?? "—")
+                            LabeledContent("Gender", value: profile.gender.map(genderLabel) ?? "—")
                             LabeledContent("Weight", value: profile.weight.map { "\($0) kg" } ?? "—")
                             LabeledContent("Height", value: profile.height.map { "\($0) cm" } ?? "—")
                         }

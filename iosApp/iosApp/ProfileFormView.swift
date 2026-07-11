@@ -1,7 +1,21 @@
 import SwiftUI
 import SharedUI
 
-private let genderOptions = ["Male", "Female", "Other", "Prefer not to say"]
+// Language-neutral keys persisted in profile.gender; matches GENDER_KEYS in
+// the shared ProfileFormState.
+private let genderOptions = ["male", "female", "other", "prefer_not_to_say"]
+
+/// English labels for the language-neutral gender keys the DB stores; mirrors
+/// sharedUI's genderLabel. Unknown values are shown verbatim rather than hidden.
+func genderLabel(_ key: String) -> String {
+    switch key {
+    case "male": return "Male"
+    case "female": return "Female"
+    case "other": return "Other"
+    case "prefer_not_to_say": return "Prefer not to say"
+    default: return key
+    }
+}
 
 /// English messages for the language-neutral validation errors the shared
 /// form state emits; mirrors sharedUI's profileNameErrorText. The length
@@ -72,7 +86,7 @@ struct ProfileFormView: View {
                 )) {
                     Text("Select").tag("")
                     ForEach(genderOptions, id: \.self) { option in
-                        Text(option).tag(option)
+                        Text(genderLabel(option)).tag(option)
                     }
                 }
 
