@@ -19,6 +19,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
+import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -31,6 +32,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import dev.balaji.moonrose.logtrain.db.BarbellKeyboardState
 import dev.balaji.moonrose.logtrain.db.BarbellKeyboardUiState
@@ -120,6 +123,31 @@ private fun BarWeightChip(
     }
 }
 
+/**
+ * Blue ramp, lightest to strongest, one step per plate denomination (there
+ * are always exactly 7). Assigned by rank within the full plate set, not by
+ * absolute value, so a given denomination's color is stable across kg and lb.
+ */
+private val PlateChipPalette = listOf(
+    Color(0xFFE3F2FD),
+    Color(0xFFBBDEFB),
+    Color(0xFF90CAF9),
+    Color(0xFF64B5F6),
+    Color(0xFF42A5F5),
+    Color(0xFF1E88E5),
+    Color(0xFF0D47A1),
+)
+
+/** Background for [value]'s rank among [plateOptions] (smallest = lightest). */
+private fun chipColorFor(value: Double, plateOptions: List<PlateOption>): Color {
+    val index = plateOptions.indexOfFirst { it.value == value }.coerceAtLeast(0)
+    return PlateChipPalette[index.coerceIn(0, PlateChipPalette.lastIndex)]
+}
+
+/** White text on the strong end of the ramp, dark text on the light end. */
+private fun contentColorFor(background: Color): Color =
+    if (background.luminance() > 0.5f) Color.Black else Color.White
+
 /** The tapped plates, in tap order; tapping a chip unloads that plate. */
 @Composable
 private fun PlateBreakdownRow(state: BarbellKeyboardUiState, keyboard: BarbellKeyboardState) {
@@ -136,10 +164,16 @@ private fun PlateBreakdownRow(state: BarbellKeyboardUiState, keyboard: BarbellKe
             )
         } else {
             state.plateBreakdown.forEach { entry ->
+                val bg = chipColorFor(entry.option.value, state.plateOptions)
                 InputChip(
                     selected = false,
                     onClick = { keyboard.removePlate(entry.option.value) },
                     label = { Text("${entry.count} × ${entry.option.label}") },
+                    colors = InputChipDefaults.inputChipColors(
+                        containerColor = bg,
+                        labelColor = contentColorFor(bg),
+                    ),
+                    border = null,
                 )
             }
         }

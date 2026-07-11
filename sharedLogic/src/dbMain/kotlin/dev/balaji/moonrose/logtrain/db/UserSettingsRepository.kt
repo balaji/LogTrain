@@ -1,6 +1,7 @@
 package dev.balaji.moonrose.logtrain.db
 
 import dev.balaji.moonrose.logtrain.calendar.WeekStart
+import dev.balaji.moonrose.logtrain.insights.OneRmFormula
 import dev.balaji.moonrose.logtrain.model.Appearance
 import dev.balaji.moonrose.logtrain.model.ProgressionCardConfig
 import dev.balaji.moonrose.logtrain.model.UserSettings
@@ -12,6 +13,7 @@ internal const val SETTING_WEEK_START = "week_start"
 internal const val SETTING_APPEARANCE = "appearance"
 internal const val SETTING_WEIGHT_UNIT = "weight_unit"
 internal const val SETTING_NOTIFICATIONS_ENABLED = "notifications_enabled"
+internal const val SETTING_ONE_RM_FORMULA = "one_rm_formula"
 internal const val SETTING_PROGRESSION_CARDS = "progression_cards"
 internal const val SETTING_BARBELL_BAR_WEIGHTS = "barbell_bar_weights"
 
@@ -36,6 +38,8 @@ object UserSettingsRepository {
 
     suspend fun setNotificationsEnabled(enabled: Boolean) =
         set(SETTING_NOTIFICATIONS_ENABLED, enabled.toString())
+
+    suspend fun setOneRmFormula(formula: OneRmFormula) = set(SETTING_ONE_RM_FORMULA, formula.value)
 
     suspend fun setProgressionCards(configs: List<ProgressionCardConfig>) =
         set(SETTING_PROGRESSION_CARDS, encodeProgressionCards(configs))
@@ -77,6 +81,7 @@ internal fun List<UserSettingEntity>.toUserSettings(): UserSettings {
         weekStart = WeekStart.fromValue(byKey[SETTING_WEEK_START]),
         appearance = Appearance.fromValue(byKey[SETTING_APPEARANCE]),
         weightUnit = WeightUnit.fromValue(byKey[SETTING_WEIGHT_UNIT]),
+        oneRmFormula = OneRmFormula.fromValue(byKey[SETTING_ONE_RM_FORMULA]),
         notificationsEnabled = byKey[SETTING_NOTIFICATIONS_ENABLED].toBoolean(),
         progressionCards = decodeProgressionCards(byKey[SETTING_PROGRESSION_CARDS]),
     )

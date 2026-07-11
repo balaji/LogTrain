@@ -23,6 +23,29 @@ struct PlateKeypadView: View {
 
     private var unitSuffix: String { state.unit == .imperial ? "lb" : "kg" }
 
+    /// Blue ramp, lightest to strongest, one step per plate denomination
+    /// (there are always exactly 7). Assigned by rank within the full plate
+    /// set, not by absolute value, so a denomination's color is stable
+    /// across kg and lb. Mirrors Compose's `PlateChipPalette`.
+    private static let chipPalette: [Color] = [
+        Color(rgb: 0xE3F2FD),
+        Color(rgb: 0xBBDEFB),
+        Color(rgb: 0x90CAF9),
+        Color(rgb: 0x64B5F6),
+        Color(rgb: 0x42A5F5),
+        Color(rgb: 0x1E88E5),
+        Color(rgb: 0x0D47A1),
+    ]
+
+    private func chipColor(for value: Double) -> Color {
+        let index = state.plateOptions.firstIndex { $0.value == value } ?? 0
+        return Self.chipPalette[min(max(index, 0), Self.chipPalette.count - 1)]
+    }
+
+    private func contentColor(for background: Color) -> Color {
+        background.isLight ? .black : .white
+    }
+
     private enum GridCell {
         case plate(PlateOption)
         case backspace
@@ -125,13 +148,15 @@ struct PlateKeypadView: View {
                             // No remove icon: the whole chip is already the
                             // tap target, and the "x" read as another
                             // multiplication sign next to the count.
+                            let bg = chipColor(for: entry.option.value)
                             Button {
                                 keyboard.removePlate(value: entry.option.value)
                             } label: {
                                 Text("\(entry.count) × \(entry.option.label)")
+                                    .foregroundStyle(contentColor(for: bg))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 5)
-                                    .background(Color(.tertiarySystemBackground))
+                                    .background(bg)
                                     .clipShape(Capsule())
                             }
                             .buttonStyle(.plain)
@@ -333,5 +358,23 @@ struct PlateWeightField: UIViewRepresentable {
             // (e.g. from a hardware keyboard) are blocked.
             appliedNumericMode == true
         }
+    }
+}
+
+private extension Color {
+    init(rgb: UInt32) {
+        self.init(
+            red: Double((rgb >> 16) & 0xFF) / 255,
+            green: Double((rgb >> 8) & 0xFF) / 255,
+            blue: Double(rgb & 0xFF) / 255
+        )
+    }
+
+    /// Relative luminance against a black/white threshold, used to pick a
+    /// readable text color for an arbitrary fixed background.
+    var isLight: Bool {
+        guard let components = UIColor(self).cgColor.components, components.count >= 3 else { return true }
+        let luminance = 0.299 * components[0] + 0.587 * components[1] + 0.114 * components[2]
+        return luminance > 0.5
     }
 }

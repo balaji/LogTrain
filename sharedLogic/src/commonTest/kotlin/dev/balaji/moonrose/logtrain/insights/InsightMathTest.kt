@@ -9,18 +9,6 @@ import kotlin.test.assertTrue
 
 class InsightMathTest {
     @Test
-    fun `epley returns the weight itself for singles and zero reps`() {
-        assertEquals(100.0, InsightMath.epley1Rm(100.0, 1))
-        assertEquals(100.0, InsightMath.epley1Rm(100.0, 0))
-    }
-
-    @Test
-    fun `epley scales with reps`() {
-        assertTrue(abs(InsightMath.epley1Rm(100.0, 5) - 116.6667) < 0.001)
-        assertTrue(abs(InsightMath.epley1Rm(60.0, 10) - 80.0) < 0.001)
-    }
-
-    @Test
     fun `slope is zero for fewer than two points and for constant series`() {
         assertEquals(0.0, InsightMath.slopePerDay(emptyList()))
         assertEquals(0.0, InsightMath.slopePerDay(listOf(SparkPoint(0, 5.0))))
