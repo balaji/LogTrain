@@ -66,13 +66,13 @@
     <string name="new_program">New program</string>
     <string name="rename_program">Rename program</string>
     <string name="delete_program_title">Delete program?</string>
-    <string name="delete_program_message">\"%1$s\" and all of its routines will be deleted.</string>
+    <string name="delete_program_message">"%1$s" and all of its routines will be deleted.</string>
     <string name="new_routine">New routine</string>
     <string name="rename_routine">Rename routine</string>
     <string name="delete_routine_title">Delete routine?</string>
-    <string name="delete_routine_message">\"%1$s\" will be deleted.</string>
+    <string name="delete_routine_message">"%1$s" will be deleted.</string>
     <string name="add_sample_title">Add to your programs?</string>
-    <string name="add_sample_message">\"%1$s\" will be copied into your programs, where you can edit it.</string>
+    <string name="add_sample_message">"%1$s" will be copied into your programs, where you can edit it.</string>
     <string name="start_empty_workout">Start Empty Workout</string>
     <string name="my_programs">My Programs</string>
     <string name="no_programs_yet">No programs yet. Tap + to create one.</string>
@@ -101,8 +101,8 @@
     <string name="my_exercises">My Exercises</string>
     <string name="all_exercises">All Exercises</string>
     <string name="delete_exercise_title">Delete exercise?</string>
-    <string name="delete_exercise_message">\"%1$s\" will be permanently deleted.</string>
-    <string name="exercise_in_use">\"%1$s\" is used by a routine or workout history and can\'t be deleted.</string>
+    <string name="delete_exercise_message">"%1$s" will be permanently deleted.</string>
+    <string name="exercise_in_use">"%1$s" is used by a routine or workout history and can't be deleted.</string>
 
     <!-- Exercise detail -->
     <string name="new_exercise">New Exercise</string>
