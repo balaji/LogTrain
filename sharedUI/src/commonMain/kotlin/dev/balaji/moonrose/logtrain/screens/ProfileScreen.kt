@@ -1,5 +1,6 @@
 package dev.balaji.moonrose.logtrain.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -155,6 +156,19 @@ private fun SettingsSection() {
     HorizontalDivider()
     SettingRow(stringResource(Res.string.weight_units), WeightUnit.entries, current.weightUnit, { weightUnitSettingLabel(it) }) {
         scope.launch { UserSettingsRepository.setWeightUnit(it) }
+    }
+    HorizontalDivider()
+    var showOneRmCalculator by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable { showOneRmCalculator = true }.padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(stringResource(Res.string.one_rm_calculator), style = MaterialTheme.typography.bodyLarge)
+        Text(oneRmFormulaLabel(current.oneRmFormula), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    if (showOneRmCalculator) {
+        OneRmCalculatorSheet(settings = current, onDismiss = { showOneRmCalculator = false })
     }
     HorizontalDivider()
     SettingSwitchRow("Send notifications", current.notificationsEnabled) { enabled ->

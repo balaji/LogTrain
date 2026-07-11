@@ -7,6 +7,7 @@ import dev.balaji.moonrose.logtrain.db.MAX_NAME_LENGTH
 import dev.balaji.moonrose.logtrain.db.MIN_AGE
 import dev.balaji.moonrose.logtrain.db.ProfileNameError
 import dev.balaji.moonrose.logtrain.insights.InsightCard
+import dev.balaji.moonrose.logtrain.insights.OneRmFormula
 import dev.balaji.moonrose.logtrain.model.SampleProgram
 import dev.balaji.moonrose.logtrain.model.SampleRoutine
 import dev.balaji.moonrose.logtrain.model.WeightUnit
@@ -26,6 +27,26 @@ internal fun weightUnitLabel(unit: WeightUnit): String = stringResource(
     when (unit) {
         WeightUnit.METRIC -> Res.string.unit_kg
         WeightUnit.IMPERIAL -> Res.string.unit_lb
+    },
+)
+
+@Composable
+internal fun oneRmFormulaLabel(formula: OneRmFormula): String = stringResource(
+    when (formula) {
+        OneRmFormula.EPLEY -> Res.string.one_rm_formula_epley
+        OneRmFormula.BRZYCKI -> Res.string.one_rm_formula_brzycki
+        OneRmFormula.LOMBARDI -> Res.string.one_rm_formula_lombardi
+        OneRmFormula.OCONNER -> Res.string.one_rm_formula_oconner
+    },
+)
+
+@Composable
+internal fun oneRmInfoText(formula: OneRmFormula): String = stringResource(
+    when (formula) {
+        OneRmFormula.EPLEY -> Res.string.one_rm_info_epley
+        OneRmFormula.BRZYCKI -> Res.string.one_rm_info_brzycki
+        OneRmFormula.LOMBARDI -> Res.string.one_rm_info_lombardi
+        OneRmFormula.OCONNER -> Res.string.one_rm_info_oconner
     },
 )
 

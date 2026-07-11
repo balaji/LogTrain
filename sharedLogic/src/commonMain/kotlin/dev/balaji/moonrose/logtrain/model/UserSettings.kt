@@ -1,6 +1,7 @@
 package dev.balaji.moonrose.logtrain.model
 
 import dev.balaji.moonrose.logtrain.calendar.WeekStart
+import dev.balaji.moonrose.logtrain.insights.OneRmFormula
 
 /**
  * App color scheme. Persisted as the lowercase [value] string in
@@ -53,6 +54,8 @@ data class UserSettings(
     val weekStart: WeekStart = WeekStart.SUNDAY,
     val appearance: Appearance = Appearance.SYSTEM,
     val weightUnit: WeightUnit = WeightUnit.METRIC,
+    /** Formula used everywhere an estimated 1RM is shown or ranked. */
+    val oneRmFormula: OneRmFormula = OneRmFormula.EPLEY,
     /**
      * Whether the user opted in to notifications. Off by default; enabling
      * it triggers the OS permission prompt. Stored preference only for now;

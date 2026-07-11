@@ -5,6 +5,7 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import dev.balaji.moonrose.logtrain.calendar.WeekStart
 import dev.balaji.moonrose.logtrain.insights.BodyWeightTrend
 import dev.balaji.moonrose.logtrain.insights.InsightCard
+import dev.balaji.moonrose.logtrain.insights.OneRmFormula
 import dev.balaji.moonrose.logtrain.insights.SparkPoint
 import dev.balaji.moonrose.logtrain.model.ProgressionCardConfig
 import java.io.File
@@ -60,13 +61,20 @@ class InsightsRepositoryTest {
             set(sunday + 2, exerciseId = 2, name = "Squat", weight = 140.0, reps = 3), // 1RM 154
             set(sunday + 3, weight = 0.0, reps = 10),                       // bodyweight rows are skipped
         )
-        val prs = personalRecordsFrom(sets, limit = 5)
+        val prs = personalRecordsFrom(sets, limit = 5, formula = OneRmFormula.EPLEY)
         assertEquals(listOf("Squat", "Bench"), prs.map { it.exerciseName })
         assertEquals(90.0, prs[1].weight)
         assertEquals(8, prs[1].reps)
 
-        val benchOnly = personalRecordsFrom(sets, limit = 5, exerciseName = "bench")
+        val benchOnly = personalRecordsFrom(sets, limit = 5, exerciseName = "bench", formula = OneRmFormula.EPLEY)
         assertEquals(1, benchOnly.size)
+    }
+
+    @Test
+    fun `personal records honor the configured formula`() {
+        val sets = listOf(set(sunday, weight = 100.0, reps = 5))
+        val pr = personalRecordsFrom(sets, limit = 5, formula = OneRmFormula.BRZYCKI).single()
+        assertEquals(100.0 * 36 / (37 - 5), pr.est1Rm)
     }
 
     @Test
@@ -76,11 +84,11 @@ class InsightsRepositoryTest {
             set(sunday + 7, weight = 100.0, reps = 5),
             set(sunday + 14, weight = 100.0, reps = 5),
         )
-        val p = progressionFrom(sets, "Bench", todayEpochDay = sunday + 15, weekStart = WeekStart.SUNDAY)!!
+        val p = progressionFrom(sets, "Bench", todayEpochDay = sunday + 15, weekStart = WeekStart.SUNDAY, formula = OneRmFormula.EPLEY)!!
         assertEquals(3, p.weeklyBest1Rm.size)
         assertTrue(p.plateau)
 
-        assertNull(progressionFrom(sets, "Deadlift", sunday + 15, WeekStart.SUNDAY))
+        assertNull(progressionFrom(sets, "Deadlift", sunday + 15, WeekStart.SUNDAY, OneRmFormula.EPLEY))
     }
 
     @Test
@@ -125,7 +133,7 @@ class InsightsRepositoryTest {
     @Test
     fun `cards are empty with no history and body weight card appears when provided`() {
         assertTrue(
-            buildCards(emptyList(), emptyList(), bodyWeight = null, sunday, WeekStart.SUNDAY).isEmpty(),
+            buildCards(emptyList(), emptyList(), bodyWeight = null, sunday, WeekStart.SUNDAY, formula = OneRmFormula.EPLEY).isEmpty(),
         )
 
         val trend = BodyWeightTrend(
@@ -135,7 +143,7 @@ class InsightsRepositoryTest {
             change30Days = -1.5,
             slopePerWeek = -0.35,
         )
-        val cards = buildCards(emptyList(), emptyList(), trend, sunday + 30, WeekStart.SUNDAY)
+        val cards = buildCards(emptyList(), emptyList(), trend, sunday + 30, WeekStart.SUNDAY, formula = OneRmFormula.EPLEY)
         assertEquals(listOf("body_weight"), cards.map { it.id })
         assertEquals(InsightCard.HEADLINE_LATEST_BODY_WEIGHT, cards.single().headlineKey)
         assertEquals(listOf("78.5"), cards.single().headlineArgs)
@@ -150,7 +158,7 @@ class InsightsRepositoryTest {
             set(sunday, weight = 100.0, reps = 5),
             set(sunday + 7, weight = 102.5, reps = 5),
         )
-        val cards = buildCards(sets, listOf(sunday, sunday + 7), null, sunday + 8, WeekStart.SUNDAY)
+        val cards = buildCards(sets, listOf(sunday, sunday + 7), null, sunday + 8, WeekStart.SUNDAY, formula = OneRmFormula.EPLEY)
         assertEquals(listOf("weekly_volume", "frequency", "progression:slot0"), cards.map { it.id })
         assertEquals(InsightCard.HEADLINE_STREAK_WEEKS, cards[1].headlineKey)
         assertEquals(listOf("2"), cards[1].headlineArgs)
@@ -212,7 +220,7 @@ class InsightsRepositoryTest {
             set(sunday + 7, exerciseId = 2, name = "Squat", weight = 150.0, reps = 5),
         )
         val configs = listOf(ProgressionCardConfig(exercises = listOf("Bench", "Squat"), showPctChange = true))
-        val cards = buildCards(sets, listOf(sunday, sunday + 7), null, sunday + 8, WeekStart.SUNDAY, configs)
+        val cards = buildCards(sets, listOf(sunday, sunday + 7), null, sunday + 8, WeekStart.SUNDAY, configs, OneRmFormula.EPLEY)
 
         val card = cards.single { it.kind == "progression_multi" }
         assertEquals("progression:slot0", card.id)

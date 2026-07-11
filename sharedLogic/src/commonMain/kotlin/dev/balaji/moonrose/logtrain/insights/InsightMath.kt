@@ -11,10 +11,6 @@ import kotlin.math.round
  * tools never come from a language model.
  */
 object InsightMath {
-    /** Epley estimated one-rep max; the weight itself for singles. */
-    fun epley1Rm(weight: Double, reps: Int): Double =
-        if (reps <= 1) weight else weight * (1.0 + reps / 30.0)
-
     /** Least-squares slope in value units per day; 0.0 for fewer than two points. */
     fun slopePerDay(points: List<SparkPoint>): Double {
         if (points.size < 2) return 0.0

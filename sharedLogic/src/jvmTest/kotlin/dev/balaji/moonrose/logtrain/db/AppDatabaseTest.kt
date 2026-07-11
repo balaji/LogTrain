@@ -3,6 +3,7 @@ package dev.balaji.moonrose.logtrain.db
 import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import dev.balaji.moonrose.logtrain.calendar.WeekStart
+import dev.balaji.moonrose.logtrain.insights.OneRmFormula
 import dev.balaji.moonrose.logtrain.model.Appearance
 import dev.balaji.moonrose.logtrain.model.ProgressionCardConfig
 import dev.balaji.moonrose.logtrain.model.SampleProgram
@@ -221,12 +222,14 @@ class AppDatabaseTest {
         db.userSettingDao().upsert(UserSettingEntity(SETTING_APPEARANCE, Appearance.DARK.value, now, now))
         db.userSettingDao().upsert(UserSettingEntity(SETTING_WEIGHT_UNIT, WeightUnit.IMPERIAL.value, now, now))
         db.userSettingDao().upsert(UserSettingEntity(SETTING_NOTIFICATIONS_ENABLED, "true", now, now))
+        db.userSettingDao().upsert(UserSettingEntity(SETTING_ONE_RM_FORMULA, OneRmFormula.BRZYCKI.value, now, now))
 
         val settings = db.userSettingDao().observeAll().first().toUserSettings()
         assertEquals(WeekStart.MONDAY, settings.weekStart)
         assertEquals(Appearance.DARK, settings.appearance)
         assertEquals(WeightUnit.IMPERIAL, settings.weightUnit)
         assertEquals(true, settings.notificationsEnabled)
+        assertEquals(OneRmFormula.BRZYCKI, settings.oneRmFormula)
     }
 
     @Test
@@ -244,7 +247,10 @@ class AppDatabaseTest {
     fun `unknown setting values fall back to defaults`() = runBlocking {
         val now = nowMillis()
         db.userSettingDao().upsert(UserSettingEntity(SETTING_APPEARANCE, "sepia", now, now))
-        assertEquals(Appearance.SYSTEM, db.userSettingDao().observeAll().first().toUserSettings().appearance)
+        db.userSettingDao().upsert(UserSettingEntity(SETTING_ONE_RM_FORMULA, "landers", now, now))
+        val settings = db.userSettingDao().observeAll().first().toUserSettings()
+        assertEquals(Appearance.SYSTEM, settings.appearance)
+        assertEquals(OneRmFormula.EPLEY, settings.oneRmFormula)
     }
 
     @Test

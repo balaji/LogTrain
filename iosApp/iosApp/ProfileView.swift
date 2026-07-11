@@ -13,6 +13,7 @@ struct ProfileView: View {
     @State private var showDeleteAlert = false
     @State private var generateDaysText = "90"
     @State private var working = false
+    @State private var showOneRmCalculator = false
 
     var body: some View {
         Group {
@@ -53,6 +54,12 @@ struct ProfileView: View {
                                     Text("Metric").tag(WeightUnit.metric)
                                     Text("Imperial").tag(WeightUnit.imperial)
                                 }
+                                Button {
+                                    showOneRmCalculator = true
+                                } label: {
+                                    LabeledContent("1 Rep Max Calculator", value: formulaName(settings.oneRmFormula))
+                                }
+                                .tint(.primary)
                                 // Opting in also asks the OS for notification
                                 // permission; the stored flag is the user's
                                 // intent, the grant lives with the system.
@@ -101,6 +108,15 @@ struct ProfileView: View {
                         Button("Cancel", role: .cancel) {}
                     } message: {
                         Text("Removes all \(testSessionCount) generated workouts and their weigh-ins. Your own logged data is untouched.")
+                    }
+                    .sheet(isPresented: $showOneRmCalculator) {
+                        if let settings {
+                            NavigationStack {
+                                OneRmCalculatorView(settings: settings)
+                                    .navigationTitle("1 Rep Max Calculator")
+                                    .navigationBarTitleDisplayMode(.inline)
+                            }
+                        }
                     }
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {

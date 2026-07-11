@@ -8,6 +8,7 @@ import dev.balaji.moonrose.logtrain.insights.ExercisePr
 import dev.balaji.moonrose.logtrain.insights.ExerciseProgression
 import dev.balaji.moonrose.logtrain.insights.InsightCard
 import dev.balaji.moonrose.logtrain.insights.InsightMath
+import dev.balaji.moonrose.logtrain.insights.OneRmFormula
 import dev.balaji.moonrose.logtrain.insights.SparkPoint
 import dev.balaji.moonrose.logtrain.insights.SparkSeries
 import dev.balaji.moonrose.logtrain.insights.TrainingFrequency
@@ -54,8 +55,10 @@ object InsightsRepository {
     }
 
     /** Best sets by estimated 1RM, one per exercise, best first; all-time. */
-    suspend fun personalRecords(limit: Int = 5, exerciseName: String? = null): List<ExercisePr> =
-        personalRecordsFrom(completedSetsSince(0), limit, exerciseName)
+    suspend fun personalRecords(limit: Int = 5, exerciseName: String? = null): List<ExercisePr> {
+        val settings = UserSettingsRepository.settings.first()
+        return personalRecordsFrom(completedSetsSince(0), limit, exerciseName, settings.oneRmFormula)
+    }
 
     /** Weekly best estimated 1RM for one exercise over the last [weeks] weeks; null when it has no history. */
     suspend fun exerciseProgression(exerciseName: String, weeks: Int = 12): ExerciseProgression? {
@@ -63,7 +66,7 @@ object InsightsRepository {
         val today = WeekMath.todayEpochDay()
         val firstWeekStart = WeekMath.weekStartOnOrBefore(today, settings.weekStart) - 7L * (weeks - 1)
         val sets = completedSetsSince(startOfDayMillis(firstWeekStart))
-        return progressionFrom(sets, exerciseName, today, settings.weekStart)
+        return progressionFrom(sets, exerciseName, today, settings.weekStart, settings.oneRmFormula)
     }
 
     suspend fun trainingFrequency(): TrainingFrequency {
@@ -102,6 +105,7 @@ object InsightsRepository {
                 todayEpochDay = today,
                 weekStart = settings.weekStart,
                 progressionConfigs = settings.progressionCards,
+                formula = settings.oneRmFormula,
             )
         }
     }
@@ -205,20 +209,21 @@ internal fun personalRecordsFrom(
     sets: List<SetPoint>,
     limit: Int,
     exerciseName: String? = null,
+    formula: OneRmFormula,
 ): List<ExercisePr> =
     sets
         .filter { it.weight > 0 && it.reps > 0 }
         .filter { exerciseName == null || it.exerciseName.equals(exerciseName, ignoreCase = true) }
         .groupBy { it.exerciseId }
         .map { (_, exerciseSets) ->
-            val best = exerciseSets.maxBy { InsightMath.epley1Rm(it.weight, it.reps) }
+            val best = exerciseSets.maxBy { formula.estimate(it.weight, it.reps) }
             ExercisePr(
                 exerciseId = best.exerciseId,
                 exerciseName = best.exerciseName,
                 weight = best.weight,
                 reps = best.reps,
                 epochDay = best.epochDay,
-                est1Rm = InsightMath.epley1Rm(best.weight, best.reps),
+                est1Rm = formula.estimate(best.weight, best.reps),
             )
         }
         .sortedByDescending { it.est1Rm }
@@ -229,6 +234,7 @@ internal fun progressionFrom(
     exerciseName: String,
     todayEpochDay: Long,
     weekStart: WeekStart,
+    formula: OneRmFormula,
 ): ExerciseProgression? {
     val relevant = sets.filter {
         it.exerciseName.equals(exerciseName, ignoreCase = true) && it.weight > 0 && it.reps > 0
@@ -237,7 +243,7 @@ internal fun progressionFrom(
     val weeklyBest = relevant
         .groupBy { WeekMath.weekStartOnOrBefore(it.epochDay, weekStart) }
         .map { (weekStartDay, weekSets) ->
-            SparkPoint(weekStartDay, weekSets.maxOf { InsightMath.epley1Rm(it.weight, it.reps) })
+            SparkPoint(weekStartDay, weekSets.maxOf { formula.estimate(it.weight, it.reps) })
         }
         .sortedBy { it.epochDay }
     return ExerciseProgression(
@@ -294,6 +300,7 @@ internal fun buildCards(
     todayEpochDay: Long,
     weekStart: WeekStart,
     progressionConfigs: List<ProgressionCardConfig> = emptyList(),
+    formula: OneRmFormula,
 ): List<InsightCard> {
     val cards = mutableListOf<InsightCard>()
 
@@ -303,7 +310,7 @@ internal fun buildCards(
         val eligible = eligibleProgressionExercises(sets, todayEpochDay, weekStart)
         cards += effectiveProgressionConfigs(progressionConfigs, eligible)
             .mapIndexedNotNull { slot, config ->
-                progressionCard(sets, config, slot, todayEpochDay, weekStart)
+                progressionCard(sets, config, slot, todayEpochDay, weekStart, formula)
             }
     }
     if (bodyWeight != null) cards += bodyWeightCard(bodyWeight)
@@ -422,11 +429,12 @@ private fun progressionCard(
     slot: Int,
     todayEpochDay: Long,
     weekStart: WeekStart,
+    formula: OneRmFormula,
 ): InsightCard? {
     val window = todayEpochDay - 7L * 12
     val recent = sets.filter { it.weight > 0 && it.reps > 0 && it.epochDay >= window }
     val progressions = config.exercises
-        .mapNotNull { progressionFrom(recent, it, todayEpochDay, weekStart) }
+        .mapNotNull { progressionFrom(recent, it, todayEpochDay, weekStart, formula) }
         .filter { it.weeklyBest1Rm.size >= 2 }
     val series = progressions.map { p ->
         SparkSeries(
