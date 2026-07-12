@@ -12,6 +12,7 @@ struct RoutineDetailView: View {
     @State private var nameBeforeEdit = ""
     @State private var showExercisePicker = false
     @State private var weightUnit: WeightUnit = .metric
+    @State private var defaultRestTimer: RestTimerOption = .s90
 
     @State private var reorder = ExerciseReorderModel()
 
@@ -100,8 +101,16 @@ struct RoutineDetailView: View {
         .task {
             for await settings in UserSettingsRepository.shared.settings {
                 weightUnit = settings.weightUnit
+                defaultRestTimer = settings.defaultRestTimer
             }
         }
+    }
+
+    /// The routine's stored rest timer, or the user default while unset
+    /// (pre-v16 routines keep tracking the default until explicitly changed).
+    private var selectedRestTimer: RestTimerOption {
+        guard let seconds = uiState.restSeconds?.int32Value else { return defaultRestTimer }
+        return RestTimerOption.allCases.first { $0.seconds == seconds } ?? defaultRestTimer
     }
 
     // MARK: - Read-only view
@@ -141,6 +150,17 @@ struct RoutineDetailView: View {
 
     private var routineForm: some View {
         List {
+            Picker(selection: Binding(
+                get: { selectedRestTimer },
+                set: { formState.updateRestTimer(option: $0) }
+            )) {
+                ForEach(RestTimerOption.allCases, id: \.self) { option in
+                    Text(RestTimerFormat.label(option)).tag(option)
+                }
+            } label: {
+                Label(L10n.restTimer, systemImage: "stopwatch")
+            }
+
             ForEach(Array(uiState.workSets.enumerated()), id: \.element.id) { wsIndex, workSet in
                 ExerciseCardView(
                     wsIndex: wsIndex,

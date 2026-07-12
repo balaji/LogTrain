@@ -13,6 +13,7 @@ import dev.balaji.moonrose.logtrain.insights.InsightCard
 import dev.balaji.moonrose.logtrain.insights.InsightMath
 import dev.balaji.moonrose.logtrain.insights.OneRmFormula
 import dev.balaji.moonrose.logtrain.model.HeightConversion
+import dev.balaji.moonrose.logtrain.model.RestTimerOption
 import dev.balaji.moonrose.logtrain.model.SampleProgram
 import dev.balaji.moonrose.logtrain.model.SampleRoutine
 import dev.balaji.moonrose.logtrain.model.SetType
@@ -35,6 +36,15 @@ internal fun weightUnitLabel(unit: WeightUnit): String = stringResource(
         WeightUnit.IMPERIAL -> Res.string.unit_lb
     },
 )
+
+/** "Off" or the duration as digits ("1:30") — language-neutral past the Off case. */
+@Composable
+internal fun restTimerLabel(option: RestTimerOption): String =
+    if (option == RestTimerOption.OFF) {
+        stringResource(Res.string.rest_timer_off)
+    } else {
+        formatElapsed(option.seconds.toLong())
+    }
 
 /** Stored kilograms rendered in the display unit: "82 kg" / "180.8 lb". */
 @Composable

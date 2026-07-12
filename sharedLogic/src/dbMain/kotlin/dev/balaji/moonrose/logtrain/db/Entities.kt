@@ -90,6 +90,9 @@ data class RoutineEntity(
     @ColumnInfo(name = "program_id") val programId: Long,
     val name: String,
     val position: Int,
+    // Rest countdown between sets, seconds. 0 = off; null (pre-existing
+    // routines only — creation seeds it) = use the user's default setting.
+    @ColumnInfo(name = "rest_seconds") val restSeconds: Int? = null,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )
@@ -165,6 +168,12 @@ data class WorkoutSessionEntity(
     // Rows created by the developer test-data generator, so they can be
     // deleted in one statement without touching real history.
     @ColumnInfo(name = "test_data", defaultValue = "0") val testData: Boolean = false,
+    // Rest countdown between sets picked for this session, seconds. 0 = off;
+    // null = inherit from the routine (or the user default for empty workouts).
+    @ColumnInfo(name = "rest_seconds") val restSeconds: Int? = null,
+    // Epoch millis a running rest countdown ends, null when idle. Persisted so
+    // a relaunched process can resume the countdown mid-rest.
+    @ColumnInfo(name = "rest_timer_ends_at") val restTimerEndsAt: Long? = null,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )

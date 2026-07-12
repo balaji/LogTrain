@@ -39,7 +39,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.balaji.moonrose.logtrain.db.ActiveWorkoutSession
 import dev.balaji.moonrose.logtrain.db.ProfileRepository
+import dev.balaji.moonrose.logtrain.db.RestTimerController
 import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
+import dev.balaji.moonrose.logtrain.resttimer.rememberRestTimerAlerts
 import dev.balaji.moonrose.logtrain.db.WorkoutSessionRepository
 import dev.balaji.moonrose.logtrain.model.UserSettings
 import dev.balaji.moonrose.logtrain.navigation.CalendarRoute
@@ -69,6 +71,8 @@ private data class TabSpec(val route: TopLevelRoute, val icon: ImageVector)
 @Preview
 fun App() {
     val settings by UserSettingsRepository.settings.collectAsState(initial = UserSettings())
+    val restTimerAlerts = rememberRestTimerAlerts()
+    LaunchedEffect(restTimerAlerts) { RestTimerController.alerts = restTimerAlerts }
     PlatformTheme(appearance = settings.appearance) {
         val hasProfile by produceState<Boolean?>(initialValue = null) {
             ProfileRepository.profile.collect { value = it != null }

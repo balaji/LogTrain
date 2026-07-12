@@ -171,6 +171,15 @@
     <string name="appearance_system">System</string>
     <string name="units_metric">Metriskt</string>
     <string name="units_imperial">Imperiskt</string>
+    <string name="rest_timer">Vilotimer</string>
+    <string name="default_rest_timer">Standardvilotimer</string>
+    <string name="rest_timer_off">Av</string>
+    <string name="rest_timer_skip">Hoppa över</string>
+    <string name="rest_timer_minus_10">−10s</string>
+    <string name="rest_timer_plus_10">+10s</string>
+    <string name="rest_timer_notification_title">Vilan är över</string>
+    <string name="rest_timer_notification_body">Dags för nästa set.</string>
+    <string name="rest_timer_channel_name">Vilotimer</string>
 
     <!-- Developer tools -->
     <string name="developer">Utvecklare</string>

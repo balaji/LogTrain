@@ -173,6 +173,15 @@
     <string name="appearance_system">System</string>
     <string name="units_metric">Metric</string>
     <string name="units_imperial">Imperial</string>
+    <string name="rest_timer">Rest timer</string>
+    <string name="default_rest_timer">Default rest timer</string>
+    <string name="rest_timer_off">Off</string>
+    <string name="rest_timer_skip">Skip</string>
+    <string name="rest_timer_minus_10">−10s</string>
+    <string name="rest_timer_plus_10">+10s</string>
+    <string name="rest_timer_notification_title">Rest is over</string>
+    <string name="rest_timer_notification_body">Time for your next set.</string>
+    <string name="rest_timer_channel_name">Rest timer</string>
 
     <!-- Developer tools -->
     <string name="developer">Developer</string>

@@ -6,6 +6,7 @@ import dev.balaji.moonrose.logtrain.model.Program
 import dev.balaji.moonrose.logtrain.model.Routine
 import dev.balaji.moonrose.logtrain.model.SampleProgram
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 object ProgramRepository {
@@ -41,6 +42,9 @@ object ProgramRepository {
                 programId = programId,
                 name = validName,
                 position = dao.nextPosition(programId),
+                // Snapshot the current default so later changes to the user
+                // setting don't silently retune existing routines.
+                restSeconds = UserSettingsRepository.settings.first().defaultRestTimer.seconds,
                 createdAt = now,
                 updatedAt = now,
             ),

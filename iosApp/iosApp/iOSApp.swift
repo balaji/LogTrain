@@ -13,6 +13,7 @@ struct iOSApp: App {
                 .preferredColorScheme(preferredScheme)
                 .task {
                     seedTestDataIfRequested()
+                    RestTimerController.shared.alerts = RestTimerAlertsProvider()
                     for await settings in UserSettingsRepository.shared.settings {
                         appearance = settings.appearance
                     }

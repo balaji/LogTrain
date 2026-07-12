@@ -174,6 +174,23 @@ internal val MIGRATION_14_15 = object : Migration(14, 15) {
     }
 }
 
+// Additive only: rest-timer columns. NULL means "inherit" (routine falls back
+// to the user setting, session to the routine), so existing rows need no
+// backfill. SQL mirrors createSql in schemas/.../16.json exactly.
+internal val MIGRATION_15_16 = object : Migration(15, 16) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(
+            "ALTER TABLE `routines` ADD COLUMN `rest_seconds` INTEGER",
+        )
+        connection.execSQL(
+            "ALTER TABLE `workout_sessions` ADD COLUMN `rest_seconds` INTEGER",
+        )
+        connection.execSQL(
+            "ALTER TABLE `workout_sessions` ADD COLUMN `rest_timer_ends_at` INTEGER",
+        )
+    }
+}
+
 fun createDatabase(): AppDatabase =
     databaseBuilder()
         .setDriver(BundledSQLiteDriver())
@@ -186,6 +203,7 @@ fun createDatabase(): AppDatabase =
             MIGRATION_12_13,
             MIGRATION_13_14,
             MIGRATION_14_15,
+            MIGRATION_15_16,
         )
         // Pre-release safety net for schema history older than v9.
         .fallbackToDestructiveMigration(dropAllTables = true)

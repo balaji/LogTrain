@@ -3,6 +3,7 @@ package dev.balaji.moonrose.logtrain.db
 import dev.balaji.moonrose.logtrain.model.Exercise
 import dev.balaji.moonrose.logtrain.model.ExerciseType
 import dev.balaji.moonrose.logtrain.model.PlateMath
+import dev.balaji.moonrose.logtrain.model.RestTimerOption
 import dev.balaji.moonrose.logtrain.model.SetType
 import dev.balaji.moonrose.logtrain.model.isSetComplete
 import dev.balaji.moonrose.logtrain.model.requiredSetFields
@@ -15,6 +16,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -80,6 +82,10 @@ data class WorkoutSessionUiState(
     val discarded: Boolean = false,
     // Epoch millis the session was started; 0 while still loading.
     val startedAt: Long = 0L,
+    // Effective rest countdown for this session, seconds; 0 = off. Resolved
+    // session override -> routine value -> user default when the session
+    // loads, then updated directly by setSessionRestTimer.
+    val restSeconds: Int = 0,
 ) {
     /** Finishing is only allowed once at least one set is checked off. */
     val hasCompletedSets: Boolean
@@ -147,11 +153,34 @@ class WorkoutSessionFormState(private val sessionId: Long) {
             val withPrevious = grouped.map { draft ->
                 draft.copy(previousSets = loadPreviousSets(draft.exercise))
             }
+            val restSeconds = session?.restSeconds
+                ?: session?.routineId?.let { AppDb.db.routineDao().findById(it)?.restSeconds }
+                ?: UserSettingsRepository.settings.first().defaultRestTimer.seconds
             _uiState.value = _uiState.value.copy(
                 loading = false,
                 exercises = withPrevious,
                 startedAt = session?.performedAt ?: 0L,
+                restSeconds = restSeconds,
             )
+            // A countdown was mid-rest when the process died or the screen was
+            // rebuilt: resume it under the most recently completed set. Draft
+            // ids are regenerated on every load, so the anchor is re-derived.
+            val endsAt = session?.restTimerEndsAt
+            if (endsAt != null && !RestTimerController.uiState.value.running) {
+                val anchor = withPrevious.asReversed().firstNotNullOfOrNull { draft ->
+                    val setIndex = draft.sets.indexOfLast { it.completed }
+                    if (setIndex >= 0) draft.id to setIndex else null
+                }
+                if (anchor != null) {
+                    RestTimerController.restore(
+                        sessionId = sessionId,
+                        endsAtMillis = endsAt,
+                        totalSeconds = restSeconds,
+                        anchorExerciseId = anchor.first,
+                        anchorSetIndex = anchor.second,
+                    )
+                }
+            }
         }
     }
 
@@ -244,6 +273,27 @@ class WorkoutSessionFormState(private val sessionId: Long) {
         updateSet(exerciseIndex, setIndex) { set, type ->
             set.copy(completed = !set.completed && set.meetsRequirements(type))
         }
+        val state = _uiState.value
+        val exercise = state.exercises.getOrNull(exerciseIndex) ?: return
+        if (exercise.sets.getOrNull(setIndex)?.completed == true) {
+            if (state.restSeconds > 0) {
+                RestTimerController.start(sessionId, exercise.id, setIndex, state.restSeconds)
+            }
+        } else {
+            RestTimerController.cancelIfAnchored(exercise.id, setIndex)
+        }
+    }
+
+    /**
+     * Session-level rest-timer override from the top-bar stopwatch menu.
+     * Applies from the next completed set; a countdown already running keeps
+     * its duration (adjust it via the ±10s controls instead).
+     */
+    fun setSessionRestTimer(option: RestTimerOption) {
+        _uiState.value = _uiState.value.copy(restSeconds = option.seconds)
+        scope.launch {
+            AppDb.db.workoutSessionDao().setRestSeconds(sessionId, option.seconds, nowMillis())
+        }
     }
 
     /** Rewrite-on-save mirroring RoutineFormState — simpler than diffing. */
@@ -262,6 +312,7 @@ class WorkoutSessionFormState(private val sessionId: Long) {
         val state = _uiState.value
         _uiState.value = state.copy(saving = true)
         closed = true
+        RestTimerController.cancel()
         autosaveJob?.cancel()
         scope.launch {
             persistMutex.withLock {
@@ -276,6 +327,7 @@ class WorkoutSessionFormState(private val sessionId: Long) {
     fun discard(onDone: () -> Unit = {}) {
         _uiState.value = _uiState.value.copy(saving = true)
         closed = true
+        RestTimerController.cancel()
         autosaveJob?.cancel()
         scope.launch {
             persistMutex.withLock { WorkoutSessionRepository.discard(sessionId) }

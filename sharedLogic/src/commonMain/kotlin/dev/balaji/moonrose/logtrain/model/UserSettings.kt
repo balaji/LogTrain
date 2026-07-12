@@ -47,6 +47,31 @@ enum class WeightUnit(val value: String) {
 }
 
 /**
+ * Rest countdown between sets. Persisted as the [value] string in
+ * user_settings; routine/session overrides store raw [seconds] in their own
+ * columns (0 = off, NULL = inherit).
+ */
+enum class RestTimerOption(val seconds: Int, val value: String) {
+    OFF(0, "off"),
+    S30(30, "30"),
+    S60(60, "60"),
+    S90(90, "90"),
+    S120(120, "120"),
+    S150(150, "150"),
+    S180(180, "180"),
+    ;
+
+    companion object {
+        fun fromValue(value: String?): RestTimerOption =
+            entries.firstOrNull { it.value == value } ?: S90
+
+        /** DB columns store raw seconds; unknown values snap to the nearest option. */
+        fun fromSeconds(seconds: Int?): RestTimerOption? =
+            seconds?.let { s -> entries.minByOrNull { kotlin.math.abs(it.seconds - s) } }
+    }
+}
+
+/**
  * One user-configured progression card on the Progress tab: which exercises
  * its chart overlays and how its y-axis scales. Persisted in user_settings.
  */
@@ -77,6 +102,11 @@ data class UserSettings(
      * nothing sends notifications yet.
      */
     val notificationsEnabled: Boolean = false,
+    /**
+     * Default rest time between sets. Routines snapshot this at creation and
+     * sessions may override it, so it only reaches a workout that has neither.
+     */
+    val defaultRestTimer: RestTimerOption = RestTimerOption.S90,
     /**
      * Progression cards the user configured on the Progress tab, display
      * order. Empty means "never configured" — the Progress tab then defaults

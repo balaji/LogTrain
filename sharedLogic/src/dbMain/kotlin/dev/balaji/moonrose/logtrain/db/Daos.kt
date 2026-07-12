@@ -101,6 +101,9 @@ interface RoutineDao {
     @Query("UPDATE routines SET name = :name, updated_at = :now WHERE id = :id")
     suspend fun rename(id: Long, name: String, now: Long)
 
+    @Query("UPDATE routines SET rest_seconds = :restSeconds, updated_at = :now WHERE id = :id")
+    suspend fun setRestSeconds(id: Long, restSeconds: Int?, now: Long)
+
     @Query("DELETE FROM routines WHERE id = :id")
     suspend fun delete(id: Long)
 }
@@ -268,6 +271,12 @@ interface WorkoutSessionDao {
 
     @Query("UPDATE workout_sessions SET completed_at = :completedAt, updated_at = :now WHERE id = :id")
     suspend fun setCompletedAt(id: Long, completedAt: Long, now: Long)
+
+    @Query("UPDATE workout_sessions SET rest_seconds = :restSeconds, updated_at = :now WHERE id = :id")
+    suspend fun setRestSeconds(id: Long, restSeconds: Int?, now: Long)
+
+    @Query("UPDATE workout_sessions SET rest_timer_ends_at = :endsAt, updated_at = :now WHERE id = :id")
+    suspend fun setRestTimerEndsAt(id: Long, endsAt: Long?, now: Long)
 
     @Query("DELETE FROM workout_sessions WHERE id = :id")
     suspend fun delete(id: Long)

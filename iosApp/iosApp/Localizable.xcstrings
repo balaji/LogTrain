@@ -4505,6 +4505,142 @@
           }
         }
       }
+    },
+    "rest_timer": {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vilotimer"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest timer"
+          }
+        }
+      }
+    },
+    "default_rest_timer": {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standardvilotimer"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default rest timer"
+          }
+        }
+      }
+    },
+    "rest_timer_off": {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Av"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off"
+          }
+        }
+      }
+    },
+    "rest_timer_skip": {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hoppa över"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip"
+          }
+        }
+      }
+    },
+    "rest_timer_minus_10": {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "−10s"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "−10s"
+          }
+        }
+      }
+    },
+    "rest_timer_plus_10": {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+10s"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+10s"
+          }
+        }
+      }
+    },
+    "rest_timer_notification_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vilan är över"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest is over"
+          }
+        }
+      }
+    },
+    "rest_timer_notification_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dags för nästa set."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time for your next set."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

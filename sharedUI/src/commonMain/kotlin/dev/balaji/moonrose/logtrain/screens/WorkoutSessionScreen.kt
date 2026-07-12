@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
@@ -94,10 +95,12 @@ import androidx.compose.ui.focus.onFocusChanged
 import dev.balaji.moonrose.logtrain.db.BarbellKeyboardState
 import dev.balaji.moonrose.logtrain.db.DraftSessionExercise
 import dev.balaji.moonrose.logtrain.db.DraftSessionSet
+import dev.balaji.moonrose.logtrain.db.RestTimerController
 import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
 import dev.balaji.moonrose.logtrain.db.WorkoutSessionFormState
 import dev.balaji.moonrose.logtrain.db.WorkoutSessionRepository
 import dev.balaji.moonrose.logtrain.db.WorkoutSessionUiState
+import dev.balaji.moonrose.logtrain.model.RestTimerOption
 import dev.balaji.moonrose.logtrain.model.SetField
 import dev.balaji.moonrose.logtrain.model.SetType
 import dev.balaji.moonrose.logtrain.model.UserSettings
@@ -149,6 +152,8 @@ fun WorkoutSessionScreen(route: WorkoutSessionRoute, onGoBack: () -> Unit) {
             if (uiState.hasCompletedSets) formState.finish() else showNothingToSave = true
         },
         finishEnabled = !uiState.saving && !uiState.loading,
+        restSeconds = uiState.restSeconds.takeIf { !uiState.loading },
+        onSelectRestTimer = { formState.setSessionRestTimer(it) },
     ) { padding ->
         WorkoutSessionBody(
             formState = formState,
@@ -209,6 +214,8 @@ private fun WorkoutSessionShell(
     onDiscard: (() -> Unit)? = null,
     onFinish: (() -> Unit)? = null,
     finishEnabled: Boolean = false,
+    restSeconds: Int? = null,
+    onSelectRestTimer: ((RestTimerOption) -> Unit)? = null,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     if (LocalUseNativeNavigation.current) {
@@ -235,6 +242,9 @@ private fun WorkoutSessionShell(
                         }
                     },
                     actions = {
+                        if (onSelectRestTimer != null && restSeconds != null) {
+                            RestTimerMenuAction(restSeconds, onSelectRestTimer)
+                        }
                         if (onDiscard != null) {
                             IconButton(onClick = onDiscard) {
                                 Icon(
@@ -257,6 +267,43 @@ private fun WorkoutSessionShell(
                 )
             },
         ) { padding -> content(padding) }
+    }
+}
+
+/**
+ * Stopwatch action in the session top bar: picks the rest countdown for this
+ * session only (persisted on the session row, not the routine or setting).
+ */
+@Composable
+private fun RestTimerMenuAction(
+    restSeconds: Int,
+    onSelectRestTimer: (RestTimerOption) -> Unit,
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { showMenu = true }) {
+            Icon(
+                Icons.Default.Timer,
+                contentDescription = stringResource(Res.string.rest_timer),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+            RestTimerOption.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(restTimerLabel(option)) },
+                    trailingIcon = {
+                        if (option.seconds == restSeconds) {
+                            Icon(Icons.Default.Check, contentDescription = null)
+                        }
+                    },
+                    onClick = {
+                        showMenu = false
+                        onSelectRestTimer(option)
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -622,6 +669,7 @@ private fun SessionExerciseCard(
 
         // Only normal sets take a working-set number; warm-up and drop sets show
         // a marker, and the cell opens the set-type menu.
+        val restTimer by RestTimerController.uiState.collectAsState()
         var workingSetNumber = 0
         exercise.sets.forEachIndexed { setIdx, set ->
             if (set.setType == SetType.NORMAL) workingSetNumber++
@@ -644,6 +692,13 @@ private fun SessionExerciseCard(
                 onUpdateDistance = { onUpdateDistance(setIdx, it) },
                 onToggleCompleted = { onToggleCompleted(setIdx) },
             )
+            AnimatedVisibility(
+                visible = restTimer.running &&
+                    restTimer.anchorExerciseId == exercise.id &&
+                    restTimer.anchorSetIndex == setIdx,
+            ) {
+                RestTimerRow(restTimer)
+            }
         }
 
         TextButton(

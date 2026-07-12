@@ -2,6 +2,7 @@ package dev.balaji.moonrose.logtrain.db
 
 import dev.balaji.moonrose.logtrain.model.Exercise
 import dev.balaji.moonrose.logtrain.model.ExerciseType
+import dev.balaji.moonrose.logtrain.model.RestTimerOption
 import dev.balaji.moonrose.logtrain.model.SetType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +34,9 @@ data class RoutineDetailUiState(
     val name: String = "",
     val workSets: List<DraftWorkSet> = emptyList(),
     val saving: Boolean = false,
+    // Rest countdown between sets, seconds; 0 = off. Pre-v16 routines load
+    // null and are shown/saved as the user's default.
+    val restSeconds: Int? = null,
 )
 
 class RoutineFormState(private val routineId: Long, initialName: String) {
@@ -64,8 +68,16 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
                     },
                 )
             }
-            _uiState.value = _uiState.value.copy(loading = false, workSets = draftWorkSets)
+            _uiState.value = _uiState.value.copy(
+                loading = false,
+                workSets = draftWorkSets,
+                restSeconds = AppDb.db.routineDao().findById(routineId)?.restSeconds,
+            )
         }
+    }
+
+    fun updateRestTimer(option: RestTimerOption) {
+        _uiState.value = _uiState.value.copy(restSeconds = option.seconds)
     }
 
     fun updateName(value: String) {
@@ -147,6 +159,7 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
                 routineId,
                 filterProgramName(state.name).trim().ifBlank { "Routine" },
             )
+            state.restSeconds?.let { AppDb.db.routineDao().setRestSeconds(routineId, it, now) }
             AppDb.db.workSetDao().deleteForRoutine(routineId)
             state.workSets.forEachIndexed { wsIdx, draft ->
                 val wsId = AppDb.db.workSetDao().insert(

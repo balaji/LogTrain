@@ -6,6 +6,7 @@ import dev.balaji.moonrose.logtrain.insights.BmiFormula
 import dev.balaji.moonrose.logtrain.insights.OneRmFormula
 import dev.balaji.moonrose.logtrain.model.Appearance
 import dev.balaji.moonrose.logtrain.model.ProgressionCardConfig
+import dev.balaji.moonrose.logtrain.model.RestTimerOption
 import dev.balaji.moonrose.logtrain.model.UserSettings
 import dev.balaji.moonrose.logtrain.model.WeightUnit
 import kotlinx.coroutines.flow.Flow
@@ -15,6 +16,7 @@ internal const val SETTING_WEEK_START = "week_start"
 internal const val SETTING_APPEARANCE = "appearance"
 internal const val SETTING_WEIGHT_UNIT = "weight_unit"
 internal const val SETTING_NOTIFICATIONS_ENABLED = "notifications_enabled"
+internal const val SETTING_DEFAULT_REST_TIMER = "default_rest_timer"
 internal const val SETTING_ONE_RM_FORMULA = "one_rm_formula"
 internal const val SETTING_BMI_FORMULA = "bmi_formula"
 internal const val SETTING_BMI_CLASSIFICATION = "bmi_classification"
@@ -42,6 +44,9 @@ object UserSettingsRepository {
 
     suspend fun setNotificationsEnabled(enabled: Boolean) =
         set(SETTING_NOTIFICATIONS_ENABLED, enabled.toString())
+
+    suspend fun setDefaultRestTimer(option: RestTimerOption) =
+        set(SETTING_DEFAULT_REST_TIMER, option.value)
 
     suspend fun setOneRmFormula(formula: OneRmFormula) = set(SETTING_ONE_RM_FORMULA, formula.value)
 
@@ -94,6 +99,7 @@ internal fun List<UserSettingEntity>.toUserSettings(): UserSettings {
         bmiFormula = BmiFormula.fromValue(byKey[SETTING_BMI_FORMULA]),
         bmiClassification = BmiClassification.fromValue(byKey[SETTING_BMI_CLASSIFICATION]),
         notificationsEnabled = byKey[SETTING_NOTIFICATIONS_ENABLED].toBoolean(),
+        defaultRestTimer = RestTimerOption.fromValue(byKey[SETTING_DEFAULT_REST_TIMER]),
         progressionCards = decodeProgressionCards(byKey[SETTING_PROGRESSION_CARDS]),
     )
 }

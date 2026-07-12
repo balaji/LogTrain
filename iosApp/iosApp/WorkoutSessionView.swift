@@ -16,8 +16,10 @@ struct WorkoutSessionView: View {
         saving: false,
         finished: false,
         discarded: false,
-        startedAt: 0
+        startedAt: 0,
+        restSeconds: 0
     )
+    @State private var restTimer: RestTimerUiState = RestTimerController.shared.uiState.value
     @State private var showExercisePicker = false
     @State private var showDiscardConfirm = false
     @State private var showNothingToSave = false
@@ -53,6 +55,11 @@ struct WorkoutSessionView: View {
                 weightUnit = settings.weightUnit
             }
         }
+        .task {
+            for await state in RestTimerController.shared.uiState {
+                withAnimation(.easeOut(duration: 0.2)) { restTimer = state }
+            }
+        }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { WorkoutSessionPresentation.shared.sessionScreenDidAppear() }
@@ -71,6 +78,24 @@ struct WorkoutSessionView: View {
                 }
             }
             if formState != nil {
+                // Session-only rest-timer override, persisted on the session
+                // row; the routine and the user default are untouched.
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Picker(L10n.restTimer, selection: Binding(
+                            get: {
+                                RestTimerOption.allCases.first { $0.seconds == uiState.restSeconds } ?? .s90
+                            },
+                            set: { formState?.setSessionRestTimer(option: $0) }
+                        )) {
+                            ForEach(RestTimerOption.allCases, id: \.self) { option in
+                                Text(RestTimerFormat.label(option)).tag(option)
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "stopwatch")
+                    }
+                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .destructive) {
                         // The plate keyboard's weight field is a raw UIKit
@@ -213,7 +238,8 @@ struct WorkoutSessionView: View {
                         formState: formState,
                         plateKeyboard: plateKeyboard,
                         plateNumericMode: plateNumericMode,
-                        weightUnit: weightUnit
+                        weightUnit: weightUnit,
+                        restTimer: restTimer
                     )
                 } header: {
                     HStack {
@@ -279,6 +305,7 @@ private struct SessionExerciseSection: View {
     let plateKeyboard: BarbellKeyboardState?
     let plateNumericMode: Bool
     let weightUnit: WeightUnit
+    let restTimer: RestTimerUiState
 
     private var setsCount: Int { Int(exercise.sets.count) }
 
@@ -370,6 +397,14 @@ private struct SessionExerciseSection: View {
                             Label(L10n.delete, systemImage: "trash")
                         }
                     }
+                }
+
+                if restTimer.running,
+                   restTimer.anchorExerciseId == exercise.id,
+                   restTimer.anchorSetIndex == Int32(setIdx) {
+                    RestTimerRowView(state: restTimer)
+                        .listRowSeparator(.hidden)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
 

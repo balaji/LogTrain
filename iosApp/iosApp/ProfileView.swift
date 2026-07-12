@@ -86,6 +86,13 @@ struct ProfileView: View {
                                     Text(L10n.unitsMetric).tag(WeightUnit.metric)
                                     Text(L10n.unitsImperial).tag(WeightUnit.imperial)
                                 }
+                                Picker(L10n.defaultRestTimer, selection: settingBinding(settings.defaultRestTimer, save: {
+                                    try await UserSettingsRepository.shared.setDefaultRestTimer(option: $0)
+                                })) {
+                                    ForEach(RestTimerOption.allCases, id: \.self) { option in
+                                        Text(RestTimerFormat.label(option)).tag(option)
+                                    }
+                                }
                                 // Opting in first asks the OS for notification
                                 // permission and only persists as on when the
                                 // grant succeeds; the repository echo snaps the

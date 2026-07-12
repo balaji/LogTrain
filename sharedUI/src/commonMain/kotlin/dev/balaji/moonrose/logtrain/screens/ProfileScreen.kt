@@ -2,6 +2,7 @@ package dev.balaji.moonrose.logtrain.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -16,10 +17,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Brightness6
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -51,6 +56,7 @@ import dev.balaji.moonrose.logtrain.db.TestDataRepository
 import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
 import dev.balaji.moonrose.logtrain.model.Appearance
 import dev.balaji.moonrose.logtrain.model.Profile
+import dev.balaji.moonrose.logtrain.model.RestTimerOption
 import dev.balaji.moonrose.logtrain.model.WeightUnit
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import dev.balaji.moonrose.logtrain.notifications.NotificationPermissionResult
@@ -176,6 +182,15 @@ private fun SettingsSection() {
     HorizontalDivider()
     SettingRow(stringResource(Res.string.weight_units), WeightUnit.entries, current.weightUnit, { weightUnitSettingLabel(it) }) {
         scope.launch { UserSettingsRepository.setWeightUnit(it) }
+    }
+    HorizontalDivider()
+    SettingDropdownRow(
+        label = stringResource(Res.string.default_rest_timer),
+        options = RestTimerOption.entries,
+        selected = current.defaultRestTimer,
+        optionLabel = { restTimerLabel(it) },
+    ) {
+        scope.launch { UserSettingsRepository.setDefaultRestTimer(it) }
     }
     HorizontalDivider()
     SettingSwitchRow(stringResource(Res.string.send_notifications), current.notificationsEnabled) { enabled ->
@@ -390,6 +405,48 @@ private fun <T> SettingRow(
                     shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
                 ) {
                     Text(optionLabel(option))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Like [SettingRow] but for option sets too wide for a segmented row: the
+ * current value opens a dropdown of all options.
+ */
+@Composable
+private fun <T> SettingDropdownRow(
+    label: String,
+    options: List<T>,
+    selected: T,
+    optionLabel: @Composable (T) -> String,
+    onSelect: (T) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Box {
+            TextButton(onClick = { expanded = true }) {
+                Text(optionLabel(selected))
+                Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(optionLabel(option)) },
+                        trailingIcon = {
+                            if (option == selected) Icon(Icons.Filled.Check, contentDescription = null)
+                        },
+                        onClick = {
+                            expanded = false
+                            onSelect(option)
+                        },
+                    )
                 }
             }
         }

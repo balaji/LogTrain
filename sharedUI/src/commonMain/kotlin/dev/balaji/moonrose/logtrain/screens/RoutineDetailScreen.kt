@@ -13,6 +13,7 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -36,13 +37,17 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
@@ -87,6 +92,7 @@ import dev.balaji.moonrose.logtrain.db.DraftWorkSet
 import dev.balaji.moonrose.logtrain.db.RoutineDetailUiState
 import dev.balaji.moonrose.logtrain.db.RoutineFormState
 import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
+import dev.balaji.moonrose.logtrain.model.RestTimerOption
 import dev.balaji.moonrose.logtrain.model.SetField
 import dev.balaji.moonrose.logtrain.model.SetType
 import dev.balaji.moonrose.logtrain.model.UserSettings
@@ -216,6 +222,16 @@ private fun RoutineDetailBody(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 16.dp),
             ) {
+                item {
+                    RoutineRestTimerRow(
+                        // Pre-v16 routines have no stored value: they show and
+                        // keep tracking the user default until explicitly set.
+                        selected = RestTimerOption.fromSeconds(uiState.restSeconds)
+                            ?: settings.defaultRestTimer,
+                        onSelect = { formState.updateRestTimer(it) },
+                    )
+                }
+
                 itemsIndexed(uiState.workSets, key = { _, ws -> ws.id }) { wsIndex, workSet ->
                     ExerciseCard(
                         workSet = workSet,
@@ -291,6 +307,54 @@ private fun RoutineDetailBody(
                     scope.launch { pickerSheetState.hide() }.invokeOnCompletion { showPicker = false }
                 },
             )
+        }
+    }
+}
+
+/** Routine-level rest countdown, applied to every workout started from it. */
+@Composable
+private fun RoutineRestTimerRow(
+    selected: RestTimerOption,
+    onSelect: (RestTimerOption) -> Unit,
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Default.Timer,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(Res.string.rest_timer), style = MaterialTheme.typography.bodyLarge)
+        }
+        Box {
+            TextButton(onClick = { showMenu = true }) {
+                Text(restTimerLabel(selected))
+                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+            }
+            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                RestTimerOption.entries.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(restTimerLabel(option)) },
+                        trailingIcon = {
+                            if (option == selected) {
+                                Icon(Icons.Default.Check, contentDescription = null)
+                            }
+                        },
+                        onClick = {
+                            showMenu = false
+                            onSelect(option)
+                        },
+                    )
+                }
+            }
         }
     }
 }
