@@ -1,5 +1,8 @@
 package dev.balaji.moonrose.logtrain
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -18,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
@@ -47,6 +51,7 @@ import dev.balaji.moonrose.logtrain.navigation.PlatformBackHandler
 import dev.balaji.moonrose.logtrain.navigation.ProgressRoute
 import dev.balaji.moonrose.logtrain.navigation.ScreenContent
 import dev.balaji.moonrose.logtrain.navigation.TopLevelRoute
+import dev.balaji.moonrose.logtrain.screens.ProfileScreen
 import dev.balaji.moonrose.logtrain.screens.ProfileSetupFlow
 import dev.balaji.moonrose.logtrain.screens.formatElapsed
 import dev.balaji.moonrose.logtrain.screens.rememberElapsedSeconds
@@ -98,6 +103,9 @@ private fun MainTabs() {
     val scope = rememberCoroutineScope()
     var showDiscardConfirm by remember { mutableStateOf(false) }
     var showNothingToSave by remember { mutableStateOf(false) }
+    // Profile is a single app-level overlay (mirroring the iOS sheet) rather
+    // than a route pushed onto a tab's stack, so it can't stack per-tab.
+    var showProfile by remember { mutableStateOf(false) }
 
     // Once a session ends from the overlay, any WorkoutSessionRoute still
     // sitting on a tab stack is stale — revisiting it would immediately
@@ -167,7 +175,21 @@ private fun MainTabs() {
                 route = stack.current,
                 onNavigate = stack::push,
                 onGoBack = stack::pop,
+                onOpenProfile = { showProfile = true },
             )
+        }
+    }
+
+    // Registered after the tab stack's handler so it wins while the overlay
+    // is up: back closes the profile, not the tab underneath it.
+    PlatformBackHandler(enabled = showProfile) { showProfile = false }
+    AnimatedVisibility(
+        visible = showProfile,
+        enter = slideInVertically(initialOffsetY = { it }),
+        exit = slideOutVertically(targetOffsetY = { it }),
+    ) {
+        Surface(Modifier.fillMaxSize()) {
+            ProfileScreen(onGoBack = { showProfile = false })
         }
     }
 

@@ -96,7 +96,9 @@ private fun ProfileContent(modifier: Modifier = Modifier) {
 
     val current = profile ?: return
 
-    Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+    // No verticalScroll here: ProfileForm scrolls itself, and nesting it in
+    // another scrollable would give it infinite height constraints and crash.
+    Column(modifier = modifier.fillMaxSize()) {
         if (editing) {
             ProfileForm(
                 initial = current,
@@ -110,7 +112,10 @@ private fun ProfileContent(modifier: Modifier = Modifier) {
 
 @Composable
 private fun ProfileDetails(profile: Profile, onEdit: () -> Unit) {
-    Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(
+        modifier = Modifier.verticalScroll(rememberScrollState()).padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
         ProfileField(stringResource(Res.string.name), profile.name)
         HorizontalDivider()
         ProfileField(stringResource(Res.string.age), profile.age?.toString())

@@ -49,7 +49,6 @@ import dev.balaji.moonrose.logtrain.model.SampleProgram
 import dev.balaji.moonrose.logtrain.model.SamplePrograms
 import dev.balaji.moonrose.logtrain.model.SampleRoutine
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
-import dev.balaji.moonrose.logtrain.navigation.ProfileRoute
 import dev.balaji.moonrose.logtrain.navigation.Route
 import dev.balaji.moonrose.logtrain.navigation.RoutineDetailRoute
 import dev.balaji.moonrose.logtrain.navigation.WorkoutSessionRoute
@@ -72,7 +71,7 @@ private sealed interface ProgramDialog {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProgramsScreen(onNavigate: (Route) -> Unit) {
+fun ProgramsScreen(onNavigate: (Route) -> Unit, onOpenProfile: () -> Unit = {}) {
     val programs by ProgramRepository.programs.collectAsState(initial = null)
     val routinesByProgram by remember {
         ProgramRepository.routines.map { routines -> routines.groupBy(Routine::programId) }
@@ -137,7 +136,7 @@ fun ProgramsScreen(onNavigate: (Route) -> Unit) {
             topBar = {
                 TopAppBar(
                     title = { Text(stringResource(Res.string.programs_title)) },
-                    navigationIcon = { ProfileTopBarButton(onClick = { onNavigate(ProfileRoute) }) },
+                    navigationIcon = { ProfileTopBarButton(onClick = onOpenProfile) },
                 )
             },
             floatingActionButton = {

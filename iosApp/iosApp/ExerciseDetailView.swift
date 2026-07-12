@@ -5,10 +5,10 @@ import SharedUI
 /// the exercise read-only with an Edit link that swaps in `ExerciseEditForm`,
 /// bound to the shared `ExerciseFormState` via SKIE's Swift `StateFlow` bridge.
 struct ExerciseDetailView: View {
+    @Environment(\.openURL) private var openURL
     @State private var formState: ExerciseFormState
     @State private var uiState: ExerciseFormUiState
     @State private var editing = false
-    @State private var showingSearch = false
 
     init(exerciseId: Int64) {
         let state = ExerciseFormState(exerciseId: exerciseId)
@@ -32,11 +32,7 @@ struct ExerciseDetailView: View {
                 List {
                     if let searchUrl {
                         Section {
-                            Button(L10n.searchInGoogle) { showingSearch = true }
-                        }
-                        .sheet(isPresented: $showingSearch) {
-                            SafariView(url: searchUrl)
-                                .ignoresSafeArea()
+                            Button(L10n.searchInGoogle) { openURL(searchUrl) }
                         }
                     }
 

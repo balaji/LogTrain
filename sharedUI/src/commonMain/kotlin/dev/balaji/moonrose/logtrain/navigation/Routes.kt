@@ -28,11 +28,6 @@ data object ProgressRoute : TopLevelRoute {
     override val title get() = "Progress"
 }
 
-// Not a tab: reached from the profile button on each tab root's top bar.
-data object ProfileRoute : Route {
-    override val title get() = "Profile"
-}
-
 data class RoutineDetailRoute(
     val routineId: Long,
     override val title: String = "Routine",

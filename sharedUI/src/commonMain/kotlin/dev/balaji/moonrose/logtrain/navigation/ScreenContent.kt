@@ -7,7 +7,6 @@ import dev.balaji.moonrose.logtrain.screens.ExerciseCreateScreen
 import dev.balaji.moonrose.logtrain.screens.ExerciseDetailScreen
 import dev.balaji.moonrose.logtrain.screens.ExercisesScreen
 import dev.balaji.moonrose.logtrain.screens.ProgramsScreen
-import dev.balaji.moonrose.logtrain.screens.ProfileScreen
 import dev.balaji.moonrose.logtrain.screens.ProgressScreen
 import dev.balaji.moonrose.logtrain.screens.RoutineDetailScreen
 import dev.balaji.moonrose.logtrain.screens.WorkoutSessionScreen
@@ -22,16 +21,18 @@ fun ScreenContent(
     route: Route,
     onNavigate: (Route) -> Unit,
     onGoBack: () -> Unit,
+    // Profile is an app-level overlay (like the iOS sheet), not a route, so
+    // opening it is a callback up to the scaffold rather than a navigation.
+    onOpenProfile: () -> Unit = {},
 ) {
     when (route) {
-        ExercisesRoute -> ExercisesScreen(onNavigate = onNavigate)
-        WorkoutsRoute -> ProgramsScreen(onNavigate = onNavigate)
+        ExercisesRoute -> ExercisesScreen(onNavigate = onNavigate, onOpenProfile = onOpenProfile)
+        WorkoutsRoute -> ProgramsScreen(onNavigate = onNavigate, onOpenProfile = onOpenProfile)
         CalendarRoute -> CalendarScreen(
             onDayClick = { epochDay -> onNavigate(DayDetailRoute(epochDay)) },
-            onOpenProfile = { onNavigate(ProfileRoute) },
+            onOpenProfile = onOpenProfile,
         )
-        ProgressRoute -> ProgressScreen(onOpenProfile = { onNavigate(ProfileRoute) })
-        ProfileRoute -> ProfileScreen(onGoBack = onGoBack)
+        ProgressRoute -> ProgressScreen(onOpenProfile = onOpenProfile)
         is RoutineDetailRoute -> RoutineDetailScreen(route = route, onNavigate = onNavigate, onGoBack = onGoBack)
         ExerciseCreateRoute -> ExerciseCreateScreen(onGoBack = onGoBack)
         is ExerciseDetailRoute -> ExerciseDetailScreen(route = route, onGoBack = onGoBack)

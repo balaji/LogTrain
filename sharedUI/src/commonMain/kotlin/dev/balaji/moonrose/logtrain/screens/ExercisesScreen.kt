@@ -59,7 +59,6 @@ import dev.balaji.moonrose.logtrain.model.Exercise
 import dev.balaji.moonrose.logtrain.navigation.ExerciseCreateRoute
 import dev.balaji.moonrose.logtrain.navigation.ExerciseDetailRoute
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
-import dev.balaji.moonrose.logtrain.navigation.ProfileRoute
 import dev.balaji.moonrose.logtrain.navigation.Route
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
@@ -71,6 +70,7 @@ import dev.balaji.moonrose.logtrain.sharedui.resources.*
 fun ExercisesScreen(
     onNavigate: (Route) -> Unit,
     onExerciseSelected: ((Exercise) -> Unit)? = null,
+    onOpenProfile: () -> Unit = {},
 ) {
     val onOpen: (Exercise) -> Unit = { exercise ->
         if (onExerciseSelected != null) {
@@ -86,7 +86,7 @@ fun ExercisesScreen(
             topBar = {
                 TopAppBar(
                     title = { Text(stringResource(Res.string.tab_exercises)) },
-                    navigationIcon = { ProfileTopBarButton(onClick = { onNavigate(ProfileRoute) }) },
+                    navigationIcon = { ProfileTopBarButton(onClick = onOpenProfile) },
                 )
             },
             floatingActionButton = {
