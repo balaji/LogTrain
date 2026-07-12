@@ -56,7 +56,7 @@ struct ProfileView: View {
                                 Button {
                                     showBmiCalculator = true
                                 } label: {
-                                    Text(L10n.bmiCalculator)
+                                    LabeledContent(L10n.bmiCalculator, value: bmiFormulaName(settings.bmiFormula))
                                 }
                                 .tint(.primary)
                             }
@@ -176,7 +176,9 @@ struct ProfileView: View {
                                     .navigationTitle(L10n.bmiCalculator)
                                     .navigationBarTitleDisplayMode(.inline)
                             }
-                            .presentationDetents([.medium, .large])
+                            // Full-height cover: the inputs plus the formula and
+                            // classification groups don't fit a partial sheet.
+                            .presentationDetents([.large])
                         }
                     }
                     .toolbar {

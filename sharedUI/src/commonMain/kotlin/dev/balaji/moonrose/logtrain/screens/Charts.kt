@@ -19,6 +19,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import dev.balaji.moonrose.logtrain.insights.BmiCategory
+import dev.balaji.moonrose.logtrain.insights.BmiClassification
 import dev.balaji.moonrose.logtrain.insights.InsightMath
 import dev.balaji.moonrose.logtrain.insights.SparkPoint
 import dev.balaji.moonrose.logtrain.insights.SparkSeries
@@ -145,11 +146,11 @@ private val BmiColorsDark = mapOf(
 /**
  * Horizontal color-banded scale from [BmiCategory.CHART_MIN] to
  * [BmiCategory.CHART_MAX] with a marker at the calculated [bmi]. Each band is
- * one WHO category; the marker is clamped to the drawn range so extreme values
- * still land at an end rather than off-canvas.
+ * one category under [classification]; the marker is clamped to the drawn
+ * range so extreme values still land at an end rather than off-canvas.
  */
 @Composable
-internal fun BmiSpectrum(bmi: Double, modifier: Modifier = Modifier) {
+internal fun BmiSpectrum(bmi: Double, classification: BmiClassification, modifier: Modifier = Modifier) {
     val colors = if (isSystemInDarkTheme()) BmiColorsDark else BmiColorsLight
     val markerColor = MaterialTheme.colorScheme.onSurface
     val trackColor = MaterialTheme.colorScheme.surface
@@ -167,8 +168,12 @@ internal fun BmiSpectrum(bmi: Double, modifier: Modifier = Modifier) {
         }
         clipPath(clip) {
             BmiCategory.entries.forEachIndexed { i, category ->
-                val start = if (i == 0) min else category.lowerBound
-                val end = if (i == BmiCategory.entries.lastIndex) max else BmiCategory.entries[i + 1].lowerBound
+                val start = if (i == 0) min else classification.lowerBound(category)
+                val end = if (i == BmiCategory.entries.lastIndex) {
+                    max
+                } else {
+                    classification.lowerBound(BmiCategory.entries[i + 1])
+                }
                 val left = xFor(start)
                 drawRect(
                     color = colors.getValue(category),

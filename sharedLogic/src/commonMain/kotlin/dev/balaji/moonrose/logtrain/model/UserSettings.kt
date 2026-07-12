@@ -1,6 +1,8 @@
 package dev.balaji.moonrose.logtrain.model
 
 import dev.balaji.moonrose.logtrain.calendar.WeekStart
+import dev.balaji.moonrose.logtrain.insights.BmiClassification
+import dev.balaji.moonrose.logtrain.insights.BmiFormula
 import dev.balaji.moonrose.logtrain.insights.OneRmFormula
 
 /**
@@ -65,6 +67,10 @@ data class UserSettings(
     val weightUnit: WeightUnit = WeightUnit.METRIC,
     /** Formula used everywhere an estimated 1RM is shown or ranked. */
     val oneRmFormula: OneRmFormula = OneRmFormula.EPLEY,
+    /** Formula used everywhere a BMI is computed or shown. */
+    val bmiFormula: BmiFormula = BmiFormula.STANDARD,
+    /** Cutoffs used everywhere a BMI is categorized or banded. */
+    val bmiClassification: BmiClassification = BmiClassification.WHO,
     /**
      * Whether the user opted in to notifications. Off by default; enabling
      * it triggers the OS permission prompt. Stored preference only for now;

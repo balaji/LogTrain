@@ -1,6 +1,8 @@
 package dev.balaji.moonrose.logtrain.db
 
 import dev.balaji.moonrose.logtrain.calendar.WeekStart
+import dev.balaji.moonrose.logtrain.insights.BmiClassification
+import dev.balaji.moonrose.logtrain.insights.BmiFormula
 import dev.balaji.moonrose.logtrain.insights.OneRmFormula
 import dev.balaji.moonrose.logtrain.model.Appearance
 import dev.balaji.moonrose.logtrain.model.ProgressionCardConfig
@@ -14,6 +16,8 @@ internal const val SETTING_APPEARANCE = "appearance"
 internal const val SETTING_WEIGHT_UNIT = "weight_unit"
 internal const val SETTING_NOTIFICATIONS_ENABLED = "notifications_enabled"
 internal const val SETTING_ONE_RM_FORMULA = "one_rm_formula"
+internal const val SETTING_BMI_FORMULA = "bmi_formula"
+internal const val SETTING_BMI_CLASSIFICATION = "bmi_classification"
 internal const val SETTING_PROGRESSION_CARDS = "progression_cards"
 internal const val SETTING_BARBELL_BAR_WEIGHTS = "barbell_bar_weights"
 
@@ -40,6 +44,11 @@ object UserSettingsRepository {
         set(SETTING_NOTIFICATIONS_ENABLED, enabled.toString())
 
     suspend fun setOneRmFormula(formula: OneRmFormula) = set(SETTING_ONE_RM_FORMULA, formula.value)
+
+    suspend fun setBmiFormula(formula: BmiFormula) = set(SETTING_BMI_FORMULA, formula.value)
+
+    suspend fun setBmiClassification(classification: BmiClassification) =
+        set(SETTING_BMI_CLASSIFICATION, classification.value)
 
     suspend fun setProgressionCards(configs: List<ProgressionCardConfig>) =
         set(SETTING_PROGRESSION_CARDS, encodeProgressionCards(configs))
@@ -82,6 +91,8 @@ internal fun List<UserSettingEntity>.toUserSettings(): UserSettings {
         appearance = Appearance.fromValue(byKey[SETTING_APPEARANCE]),
         weightUnit = WeightUnit.fromValue(byKey[SETTING_WEIGHT_UNIT]),
         oneRmFormula = OneRmFormula.fromValue(byKey[SETTING_ONE_RM_FORMULA]),
+        bmiFormula = BmiFormula.fromValue(byKey[SETTING_BMI_FORMULA]),
+        bmiClassification = BmiClassification.fromValue(byKey[SETTING_BMI_CLASSIFICATION]),
         notificationsEnabled = byKey[SETTING_NOTIFICATIONS_ENABLED].toBoolean(),
         progressionCards = decodeProgressionCards(byKey[SETTING_PROGRESSION_CARDS]),
     )

@@ -241,6 +241,7 @@ private fun ToolsSection() {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(stringResource(Res.string.bmi_calculator), style = MaterialTheme.typography.bodyLarge)
+        Text(bmiFormulaLabel(currentSettings.bmiFormula), color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     if (showOneRmCalculator) {
         OneRmCalculatorSheet(settings = currentSettings, onDismiss = { showOneRmCalculator = false })

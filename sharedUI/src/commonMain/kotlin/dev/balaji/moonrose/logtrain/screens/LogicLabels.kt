@@ -7,6 +7,8 @@ import dev.balaji.moonrose.logtrain.db.MAX_NAME_LENGTH
 import dev.balaji.moonrose.logtrain.db.MIN_AGE
 import dev.balaji.moonrose.logtrain.db.ProfileNameError
 import dev.balaji.moonrose.logtrain.insights.BmiCategory
+import dev.balaji.moonrose.logtrain.insights.BmiClassification
+import dev.balaji.moonrose.logtrain.insights.BmiFormula
 import dev.balaji.moonrose.logtrain.insights.InsightCard
 import dev.balaji.moonrose.logtrain.insights.InsightMath
 import dev.balaji.moonrose.logtrain.insights.OneRmFormula
@@ -68,6 +70,38 @@ internal fun bmiCategoryLabel(category: BmiCategory): String = stringResource(
         BmiCategory.NORMAL -> Res.string.bmi_category_normal
         BmiCategory.OVERWEIGHT -> Res.string.bmi_category_overweight
         BmiCategory.OBESE -> Res.string.bmi_category_obese
+    },
+)
+
+@Composable
+internal fun bmiFormulaLabel(formula: BmiFormula): String = stringResource(
+    when (formula) {
+        BmiFormula.STANDARD -> Res.string.bmi_formula_standard
+        BmiFormula.TREFETHEN -> Res.string.bmi_formula_trefethen
+    },
+)
+
+@Composable
+internal fun bmiClassificationLabel(classification: BmiClassification): String = stringResource(
+    when (classification) {
+        BmiClassification.WHO -> Res.string.bmi_classification_who
+        BmiClassification.ASIAN_PACIFIC -> Res.string.bmi_classification_asian_pacific
+    },
+)
+
+@Composable
+internal fun bmiFormulaInfoText(formula: BmiFormula): String = stringResource(
+    when (formula) {
+        BmiFormula.STANDARD -> Res.string.bmi_info_standard
+        BmiFormula.TREFETHEN -> Res.string.bmi_info_trefethen
+    },
+)
+
+@Composable
+internal fun bmiClassificationInfoText(classification: BmiClassification): String = stringResource(
+    when (classification) {
+        BmiClassification.WHO -> Res.string.bmi_info_who
+        BmiClassification.ASIAN_PACIFIC -> Res.string.bmi_info_asian_pacific
     },
 )
 

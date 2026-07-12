@@ -1,51 +1,82 @@
 package dev.balaji.moonrose.logtrain.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import dev.balaji.moonrose.logtrain.insights.BmiCategory
+import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
+import dev.balaji.moonrose.logtrain.insights.BmiClassification
+import dev.balaji.moonrose.logtrain.insights.BmiFormula
 import dev.balaji.moonrose.logtrain.insights.InsightMath
 import dev.balaji.moonrose.logtrain.model.HeightConversion
 import dev.balaji.moonrose.logtrain.model.Profile
 import dev.balaji.moonrose.logtrain.model.UserSettings
 import dev.balaji.moonrose.logtrain.model.WeightUnit
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
 /** Fallback height when the profile has none, so the wheels start somewhere sane. */
 private const val DEFAULT_HEIGHT_CM = 170.0
 
+/** Which option's explainer dialog is open, if any. */
+private sealed interface BmiInfo {
+    data class Formula(val formula: BmiFormula) : BmiInfo
+
+    data class Classification(val classification: BmiClassification) : BmiInfo
+}
+
 /**
  * Bottom-sheet BMI calculator reached from Profile > Tools. Weight and height
  * prefill from the saved profile in the user's unit system: kg/cm text fields
  * in metric, or lb text plus a tap-to-reveal feet/inches wheel in imperial.
  * Everything is converted to kg/cm for the calculation, and either input can
- * be overridden for a one-off estimate.
+ * be overridden for a one-off estimate. Tapping a formula or classification
+ * row saves it as the app-wide default and re-derives the shown result, so
+ * the options can be compared in place.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun BmiCalculatorSheet(settings: UserSettings, profile: Profile?, onDismiss: () -> Unit) {
     val unit = settings.weightUnit
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
     var weightText by remember {
         mutableStateOf(profile?.weight?.let { InsightMath.formatNumber(unit.fromKilograms(it)) } ?: "")
     }
@@ -54,7 +85,11 @@ internal fun BmiCalculatorSheet(settings: UserSettings, profile: Profile?, onDis
     var feet by remember { mutableStateOf(initialFeetInches.feet) }
     var inches by remember { mutableStateOf(initialFeetInches.inches) }
     var wheelsExpanded by remember { mutableStateOf(false) }
-    var result by remember { mutableStateOf<Double?>(null) }
+
+    // Inputs captured at Calculate time (kg, cm); BMI and category derive from
+    // the current settings so option taps update the shown result live.
+    var calculated by remember { mutableStateOf<Pair<Double, Double>?>(null) }
+    var infoFor by remember { mutableStateOf<BmiInfo?>(null) }
 
     val weight = weightText.toDoubleOrNull()?.takeIf { it > 0 }
     val heightCm = when (unit) {
@@ -62,9 +97,20 @@ internal fun BmiCalculatorSheet(settings: UserSettings, profile: Profile?, onDis
         WeightUnit.IMPERIAL -> HeightConversion.feetInchesToCm(feet, inches)
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    // Full-height sheet: the inputs plus the formula and classification
+    // groups don't fit a content-sized one. Kept below the status bar with a
+    // small gap, like a full-height iOS sheet.
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        modifier = Modifier.statusBarsPadding().padding(top = 12.dp),
+    ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(stringResource(Res.string.bmi_calculator), style = MaterialTheme.typography.titleLarge)
@@ -108,19 +154,124 @@ internal fun BmiCalculatorSheet(settings: UserSettings, profile: Profile?, onDis
                 enabled = weight != null && heightCm != null,
                 onClick = {
                     wheelsExpanded = false
-                    result = InsightMath.bmi(unit.toKilograms(weight!!), heightCm!!)
+                    calculated = unit.toKilograms(weight!!) to heightCm!!
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(stringResource(Res.string.calculate))
             }
-            result?.let { bmi ->
+            calculated?.let { (kg, cm) ->
+                val bmi = settings.bmiFormula.bmi(kg, cm)
                 Text(
-                    stringResource(Res.string.bmi_result, InsightMath.formatNumber(bmi), bmiCategoryLabel(BmiCategory.of(bmi))),
+                    stringResource(
+                        Res.string.bmi_result,
+                        InsightMath.formatNumber(bmi),
+                        bmiCategoryLabel(settings.bmiClassification.of(bmi)),
+                    ),
                     style = MaterialTheme.typography.bodyLarge,
                 )
-                BmiSpectrum(bmi)
+                BmiSpectrum(bmi, settings.bmiClassification)
+            }
+            Text(
+                stringResource(Res.string.bmi_selected_formula_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(stringResource(Res.string.bmi_formula_heading), style = MaterialTheme.typography.titleSmall)
+            Column {
+                BmiFormula.entries.forEach { formula ->
+                    BmiOptionRow(
+                        label = bmiFormulaLabel(formula),
+                        selected = formula == settings.bmiFormula,
+                        value = calculated?.let { (kg, cm) -> InsightMath.formatNumber(formula.bmi(kg, cm)) },
+                        onSelect = { scope.launch { UserSettingsRepository.setBmiFormula(formula) } },
+                        onInfo = { infoFor = BmiInfo.Formula(formula) },
+                    )
+                    HorizontalDivider()
+                }
+            }
+            Text(stringResource(Res.string.bmi_classification_heading), style = MaterialTheme.typography.titleSmall)
+            Column {
+                BmiClassification.entries.forEach { classification ->
+                    BmiOptionRow(
+                        label = bmiClassificationLabel(classification),
+                        selected = classification == settings.bmiClassification,
+                        value = calculated?.let { (kg, cm) ->
+                            bmiCategoryLabel(classification.of(settings.bmiFormula.bmi(kg, cm)))
+                        },
+                        onSelect = { scope.launch { UserSettingsRepository.setBmiClassification(classification) } },
+                        onInfo = { infoFor = BmiInfo.Classification(classification) },
+                    )
+                    HorizontalDivider()
+                }
             }
         }
     }
+    infoFor?.let { info -> BmiInfoDialog(info, onDismiss = { infoFor = null }) }
+}
+
+@Composable
+private fun BmiOptionRow(
+    label: String,
+    selected: Boolean,
+    value: String?,
+    onSelect: () -> Unit,
+    onInfo: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onSelect).padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (selected) {
+            Icon(
+                Icons.Filled.Check,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp),
+            )
+        } else {
+            Spacer(Modifier.size(24.dp))
+        }
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Spacer(Modifier.weight(1f))
+        Text(
+            value ?: "—",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        IconButton(onClick = onInfo) {
+            Icon(Icons.Outlined.Info, contentDescription = stringResource(Res.string.find_out_more))
+        }
+    }
+}
+
+@Composable
+private fun BmiInfoDialog(info: BmiInfo, onDismiss: () -> Unit) {
+    val uriHandler = LocalUriHandler.current
+    val title = when (info) {
+        is BmiInfo.Formula -> bmiFormulaLabel(info.formula)
+        is BmiInfo.Classification -> bmiClassificationLabel(info.classification)
+    }
+    val body = when (info) {
+        is BmiInfo.Formula -> bmiFormulaInfoText(info.formula)
+        is BmiInfo.Classification -> bmiClassificationInfoText(info.classification)
+    }
+    val searchQuery = stringResource(Res.string.bmi_search_query, title)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        // ~200 words; scrolls on short screens instead of clipping.
+        text = { Text(body, modifier = Modifier.verticalScroll(rememberScrollState())) },
+        confirmButton = {
+            TextButton(
+                onClick = { uriHandler.openUri("https://google.com/search?q=" + searchQuery.replace(" ", "%20")) },
+            ) {
+                Text(stringResource(Res.string.find_out_more))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.close)) }
+        },
+    )
 }
