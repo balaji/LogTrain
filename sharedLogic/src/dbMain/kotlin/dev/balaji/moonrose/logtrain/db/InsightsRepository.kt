@@ -6,6 +6,7 @@ import dev.balaji.moonrose.logtrain.insights.BodyPartSlice
 import dev.balaji.moonrose.logtrain.insights.BodyWeightTrend
 import dev.balaji.moonrose.logtrain.insights.ExercisePr
 import dev.balaji.moonrose.logtrain.insights.ExerciseProgression
+import dev.balaji.moonrose.logtrain.insights.ExerciseSetCount
 import dev.balaji.moonrose.logtrain.insights.InsightCard
 import dev.balaji.moonrose.logtrain.insights.InsightMath
 import dev.balaji.moonrose.logtrain.insights.OneRmFormula
@@ -36,6 +37,8 @@ internal data class SetPoint(
     val bodyPart: String?,
     val weight: Double,
     val reps: Int,
+    val duration: Int,
+    val distance: Double,
 )
 
 /**
@@ -78,6 +81,12 @@ object InsightsRepository {
             .map { millisToEpochDay(it, zone) }
         return frequencyFrom(sessionDays, WeekMath.todayEpochDay(), settings.weekStart)
     }
+
+    /** All-time completed working-set count per exercise; used for the exercises list badge. */
+    fun observeCompletedSetCountsByExercise(): Flow<List<ExerciseSetCount>> =
+        AppDb.db.workoutSessionDetailDao()
+            .observeCompletedSetCountsByExercise(PROFILE_ID)
+            .map { rows -> rows.map { ExerciseSetCount(it.exerciseId, it.setCount) } }
 
     /** Exercises that have at least one completed working set, most trained first. */
     suspend fun trainedExerciseNames(limit: Int = 10): List<String> =
@@ -164,6 +173,8 @@ internal fun CompletedSetRow.toSetPoint(zone: TimeZone): SetPoint =
         bodyPart = bodyPart,
         weight = actualWeight ?: 0.0,
         reps = actualReps ?: 0,
+        duration = actualDuration ?: 0,
+        distance = actualDistance ?: 0.0,
     )
 
 @OptIn(ExperimentalTime::class)
@@ -261,6 +272,71 @@ internal fun progressionFrom(
         slopePerWeek = InsightMath.slopePerDay(weeklyBest) * 7,
         plateau = InsightMath.isPlateau(weeklyBest),
     )
+}
+
+/** Max estimated 1RM per calendar week for one exercise; 0.0 for weeks without eligible sets. */
+internal fun singleExerciseWeeklyOneRm(
+    sets: List<SetPoint>,
+    weeks: Int,
+    todayEpochDay: Long,
+    weekStart: WeekStart,
+    formula: OneRmFormula,
+): List<SparkPoint> {
+    val firstWeekStart = WeekMath.weekStartOnOrBefore(todayEpochDay, weekStart) - 7L * (weeks - 1)
+    val eligible = sets.filter { it.weight > 0 && it.reps > 0 }
+    val byWeek = eligible.groupBy { WeekMath.weekStartOnOrBefore(it.epochDay, weekStart) }
+    return (0 until weeks).map { i ->
+        val ws = firstWeekStart + 7L * i
+        SparkPoint(ws, byWeek[ws]?.maxOfOrNull { formula.estimate(it.weight, it.reps) } ?: 0.0)
+    }
+}
+
+/** Total volume (weight × reps) per calendar week for one exercise; 0.0 for empty weeks. */
+internal fun singleExerciseWeeklyVolume(
+    sets: List<SetPoint>,
+    weeks: Int,
+    todayEpochDay: Long,
+    weekStart: WeekStart,
+): List<SparkPoint> {
+    val firstWeekStart = WeekMath.weekStartOnOrBefore(todayEpochDay, weekStart) - 7L * (weeks - 1)
+    val eligible = sets.filter { it.weight > 0 && it.reps > 0 }
+    val byWeek = eligible.groupBy { WeekMath.weekStartOnOrBefore(it.epochDay, weekStart) }
+    return (0 until weeks).map { i ->
+        val ws = firstWeekStart + 7L * i
+        SparkPoint(ws, byWeek[ws]?.sumOf { it.weight * it.reps } ?: 0.0)
+    }
+}
+
+/** Total duration in seconds per calendar week for one exercise; 0.0 for empty weeks. */
+internal fun singleExerciseWeeklyDuration(
+    sets: List<SetPoint>,
+    weeks: Int,
+    todayEpochDay: Long,
+    weekStart: WeekStart,
+): List<SparkPoint> {
+    val firstWeekStart = WeekMath.weekStartOnOrBefore(todayEpochDay, weekStart) - 7L * (weeks - 1)
+    val eligible = sets.filter { it.duration > 0 }
+    val byWeek = eligible.groupBy { WeekMath.weekStartOnOrBefore(it.epochDay, weekStart) }
+    return (0 until weeks).map { i ->
+        val ws = firstWeekStart + 7L * i
+        SparkPoint(ws, byWeek[ws]?.sumOf { it.duration.toDouble() } ?: 0.0)
+    }
+}
+
+/** Total distance per calendar week for one exercise; 0.0 for empty weeks. */
+internal fun singleExerciseWeeklyDistance(
+    sets: List<SetPoint>,
+    weeks: Int,
+    todayEpochDay: Long,
+    weekStart: WeekStart,
+): List<SparkPoint> {
+    val firstWeekStart = WeekMath.weekStartOnOrBefore(todayEpochDay, weekStart) - 7L * (weeks - 1)
+    val eligible = sets.filter { it.distance > 0.0 }
+    val byWeek = eligible.groupBy { WeekMath.weekStartOnOrBefore(it.epochDay, weekStart) }
+    return (0 until weeks).map { i ->
+        val ws = firstWeekStart + 7L * i
+        SparkPoint(ws, byWeek[ws]?.sumOf { it.distance } ?: 0.0)
+    }
 }
 
 /**

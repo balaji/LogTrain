@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -174,6 +175,7 @@ fun RoutineDetailScreen(route: RoutineDetailRoute, onNavigate: (Route) -> Unit, 
                     }
                 }
             },
+            floatingActionButtonPosition = FabPosition.Center,
         ) { padding ->
             if (isEditing) {
                 RoutineDetailBody(

@@ -16,6 +16,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Brightness6
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -50,7 +53,9 @@ import dev.balaji.moonrose.logtrain.model.Appearance
 import dev.balaji.moonrose.logtrain.model.Profile
 import dev.balaji.moonrose.logtrain.model.WeightUnit
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
+import dev.balaji.moonrose.logtrain.notifications.NotificationPermissionResult
 import dev.balaji.moonrose.logtrain.notifications.rememberNotificationPermissionRequester
+import dev.balaji.moonrose.logtrain.notifications.rememberNotificationSettingsOpener
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import dev.balaji.moonrose.logtrain.sharedui.resources.*
@@ -112,6 +117,8 @@ private fun ProfileContent(modifier: Modifier = Modifier) {
 
 @Composable
 private fun ProfileDetails(profile: Profile, onEdit: () -> Unit) {
+    val settings by UserSettingsRepository.settings.collectAsState(initial = null)
+    val unit = settings?.weightUnit ?: WeightUnit.METRIC
     Column(
         modifier = Modifier.verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -122,14 +129,16 @@ private fun ProfileDetails(profile: Profile, onEdit: () -> Unit) {
         HorizontalDivider()
         ProfileField(stringResource(Res.string.gender), profile.gender?.let { genderLabel(it) })
         HorizontalDivider()
-        ProfileField(stringResource(Res.string.weight), profile.weight?.let { stringResource(Res.string.weight_kg_value, it.toString()) })
+        ProfileField(stringResource(Res.string.weight), profile.weight?.let { weightValueLabel(it, unit) })
         HorizontalDivider()
-        ProfileField(stringResource(Res.string.height), profile.height?.let { stringResource(Res.string.height_cm_value, it.toString()) })
+        ProfileField(stringResource(Res.string.height), profile.height?.let { heightValueLabel(it, unit) })
         HorizontalDivider()
         TextButton(onClick = onEdit, modifier = Modifier.align(Alignment.End)) {
             Text(stringResource(Res.string.edit))
         }
+        ToolsSection()
         SettingsSection()
+        DeveloperSection()
     }
 }
 
@@ -142,7 +151,13 @@ private fun ProfileDetails(profile: Profile, onEdit: () -> Unit) {
 private fun SettingsSection() {
     val settings by UserSettingsRepository.settings.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
-    val requestNotificationPermission = rememberNotificationPermissionRequester()
+    var showNotificationsDeniedHint by remember { mutableStateOf(false) }
+    val requestNotificationPermission = rememberNotificationPermissionRequester { result ->
+        if (result == NotificationPermissionResult.DeniedPermanently) showNotificationsDeniedHint = true
+        scope.launch {
+            UserSettingsRepository.setNotificationsEnabled(result == NotificationPermissionResult.Granted)
+        }
+    }
     val current = settings ?: return
 
     Text(
@@ -155,7 +170,7 @@ private fun SettingsSection() {
         scope.launch { UserSettingsRepository.setWeekStart(it) }
     }
     HorizontalDivider()
-    SettingRow(stringResource(Res.string.appearance), Appearance.entries, current.appearance, { appearanceLabel(it) }) {
+    AppearanceSettingRow(current.appearance) {
         scope.launch { UserSettingsRepository.setAppearance(it) }
     }
     HorizontalDivider()
@@ -163,25 +178,76 @@ private fun SettingsSection() {
         scope.launch { UserSettingsRepository.setWeightUnit(it) }
     }
     HorizontalDivider()
+    SettingSwitchRow(stringResource(Res.string.send_notifications), current.notificationsEnabled) { enabled ->
+        // Opting in persists only once the OS grants permission — the switch
+        // renders the stored value, so a denied prompt leaves it off.
+        if (enabled) {
+            requestNotificationPermission()
+        } else {
+            scope.launch { UserSettingsRepository.setNotificationsEnabled(false) }
+        }
+    }
+    if (showNotificationsDeniedHint) {
+        val openNotificationSettings = rememberNotificationSettingsOpener()
+        AlertDialog(
+            onDismissRequest = { showNotificationsDeniedHint = false },
+            title = { Text(stringResource(Res.string.notifications_denied_title)) },
+            text = { Text(stringResource(Res.string.notifications_denied_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showNotificationsDeniedHint = false
+                    openNotificationSettings()
+                }) { Text(stringResource(Res.string.open_settings)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNotificationsDeniedHint = false }) {
+                    Text(stringResource(Res.string.cancel))
+                }
+            },
+        )
+    }
+}
+
+/**
+ * Standalone calculators that don't belong to a saved setting — 1RM and BMI
+ * today, with room for more (e.g. macro or plate-math calculators) later.
+ */
+@Composable
+private fun ToolsSection() {
+    val settings by UserSettingsRepository.settings.collectAsState(initial = null)
+    val profile by ProfileRepository.profile.collectAsState(initial = null)
     var showOneRmCalculator by remember { mutableStateOf(false) }
+    var showBmiCalculator by remember { mutableStateOf(false) }
+    val currentSettings = settings ?: return
+
+    Text(
+        stringResource(Res.string.tools),
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 24.dp, bottom = 4.dp),
+    )
     Row(
         modifier = Modifier.fillMaxWidth().clickable { showOneRmCalculator = true }.padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(stringResource(Res.string.one_rm_calculator), style = MaterialTheme.typography.bodyLarge)
-        Text(oneRmFormulaLabel(current.oneRmFormula), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(oneRmFormulaLabel(currentSettings.oneRmFormula), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    HorizontalDivider()
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable { showBmiCalculator = true }.padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(stringResource(Res.string.bmi_calculator), style = MaterialTheme.typography.bodyLarge)
     }
     if (showOneRmCalculator) {
-        OneRmCalculatorSheet(settings = current, onDismiss = { showOneRmCalculator = false })
+        OneRmCalculatorSheet(settings = currentSettings, onDismiss = { showOneRmCalculator = false })
     }
-    HorizontalDivider()
-    SettingSwitchRow(stringResource(Res.string.send_notifications), current.notificationsEnabled) { enabled ->
-        if (enabled) requestNotificationPermission()
-        scope.launch { UserSettingsRepository.setNotificationsEnabled(enabled) }
+    if (showBmiCalculator) {
+        BmiCalculatorSheet(settings = currentSettings, profile = profile, onDismiss = { showBmiCalculator = false })
     }
-    HorizontalDivider()
-    DeveloperSection()
 }
 
 /**
@@ -350,6 +416,36 @@ private fun SettingSwitchRow(
     ) {
         Text(label, style = MaterialTheme.typography.bodyLarge)
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+private fun AppearanceSettingRow(selected: Appearance, onSelect: (Appearance) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(stringResource(Res.string.appearance), style = MaterialTheme.typography.bodyLarge)
+        SingleChoiceSegmentedButtonRow {
+            Appearance.entries.forEachIndexed { index, appearance ->
+                SegmentedButton(
+                    selected = appearance == selected,
+                    onClick = { onSelect(appearance) },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = Appearance.entries.size),
+                    icon = {},
+                ) {
+                    Icon(
+                        imageVector = when (appearance) {
+                            Appearance.LIGHT -> Icons.Filled.LightMode
+                            Appearance.DARK -> Icons.Filled.DarkMode
+                            Appearance.SYSTEM -> Icons.Filled.Brightness6
+                        },
+                        contentDescription = appearanceLabel(appearance),
+                    )
+                }
+            }
+        }
     }
 }
 

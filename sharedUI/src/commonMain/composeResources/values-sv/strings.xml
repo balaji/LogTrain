@@ -119,6 +119,20 @@
     <string name="name_required">Namn krävs</string>
     <string name="duplicate_exercise_name">En övning med det här namnet finns redan</string>
 
+    <!-- Exercise detail — 12-week history chart -->
+    <string name="exercise_history_section">12-veckors historik</string>
+    <string name="exercise_history_no_data">Logga några set för att se historik här.</string>
+    <string name="exercise_history_metric_1rm">1RM</string>
+    <string name="exercise_history_metric_volume">Volym</string>
+    <string name="exercise_history_metric_duration">Tid</string>
+    <string name="exercise_history_metric_distance">Distans</string>
+
+    <!-- Exercise list — completed set count badge -->
+    <plurals name="exercise_set_count">
+        <item quantity="one">%1$d set</item>
+        <item quantity="other">%1$d set</item>
+    </plurals>
+
     <!-- Profile -->
     <string name="profile">Profil</string>
     <string name="age">Ålder</string>
@@ -139,6 +153,9 @@
     <!-- Settings -->
     <string name="settings">Inställningar</string>
     <string name="send_notifications">Skicka aviseringar</string>
+    <string name="notifications_denied_title">Aviseringar är avstängda</string>
+    <string name="notifications_denied_message">LogTrain har inte tillåtelse att skicka aviseringar. Tillåt aviseringar för LogTrain i systeminställningarna för att slå på detta.</string>
+    <string name="open_settings">Öppna inställningar</string>
     <string name="week_starts_on">Veckan börjar på</string>
     <string name="appearance">Utseende</string>
     <string name="weight_units">Viktenheter</string>

@@ -6,8 +6,11 @@ import dev.balaji.moonrose.logtrain.db.MAX_AGE
 import dev.balaji.moonrose.logtrain.db.MAX_NAME_LENGTH
 import dev.balaji.moonrose.logtrain.db.MIN_AGE
 import dev.balaji.moonrose.logtrain.db.ProfileNameError
+import dev.balaji.moonrose.logtrain.insights.BmiCategory
 import dev.balaji.moonrose.logtrain.insights.InsightCard
+import dev.balaji.moonrose.logtrain.insights.InsightMath
 import dev.balaji.moonrose.logtrain.insights.OneRmFormula
+import dev.balaji.moonrose.logtrain.model.HeightConversion
 import dev.balaji.moonrose.logtrain.model.SampleProgram
 import dev.balaji.moonrose.logtrain.model.SampleRoutine
 import dev.balaji.moonrose.logtrain.model.SetType
@@ -31,6 +34,23 @@ internal fun weightUnitLabel(unit: WeightUnit): String = stringResource(
     },
 )
 
+/** Stored kilograms rendered in the display unit: "82 kg" / "180.8 lb". */
+@Composable
+internal fun weightValueLabel(kg: Double, unit: WeightUnit): String = when (unit) {
+    WeightUnit.METRIC -> stringResource(Res.string.weight_kg_value, InsightMath.formatNumber(kg))
+    WeightUnit.IMPERIAL ->
+        stringResource(Res.string.weight_lb_value, InsightMath.formatNumber(unit.fromKilograms(kg)))
+}
+
+/** Stored centimeters rendered in the display unit: "180 cm" / "5 ft 11 in". */
+@Composable
+internal fun heightValueLabel(cm: Double, unit: WeightUnit): String = when (unit) {
+    WeightUnit.METRIC -> stringResource(Res.string.height_cm_value, InsightMath.formatNumber(cm))
+    WeightUnit.IMPERIAL -> HeightConversion.cmToFeetInches(cm).let {
+        stringResource(Res.string.height_ft_in_value, it.feet.toString(), it.inches.toString())
+    }
+}
+
 @Composable
 internal fun oneRmFormulaLabel(formula: OneRmFormula): String = stringResource(
     when (formula) {
@@ -38,6 +58,16 @@ internal fun oneRmFormulaLabel(formula: OneRmFormula): String = stringResource(
         OneRmFormula.BRZYCKI -> Res.string.one_rm_formula_brzycki
         OneRmFormula.LOMBARDI -> Res.string.one_rm_formula_lombardi
         OneRmFormula.OCONNER -> Res.string.one_rm_formula_oconner
+    },
+)
+
+@Composable
+internal fun bmiCategoryLabel(category: BmiCategory): String = stringResource(
+    when (category) {
+        BmiCategory.UNDERWEIGHT -> Res.string.bmi_category_underweight
+        BmiCategory.NORMAL -> Res.string.bmi_category_normal
+        BmiCategory.OVERWEIGHT -> Res.string.bmi_category_overweight
+        BmiCategory.OBESE -> Res.string.bmi_category_obese
     },
 )
 

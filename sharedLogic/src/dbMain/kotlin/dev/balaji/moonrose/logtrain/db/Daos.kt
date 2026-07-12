@@ -31,6 +31,14 @@ data class CompletedSetRow(
     @ColumnInfo(name = "body_part") val bodyPart: String?,
     @ColumnInfo(name = "actual_weight") val actualWeight: Double?,
     @ColumnInfo(name = "actual_reps") val actualReps: Int?,
+    @ColumnInfo(name = "actual_duration") val actualDuration: Int?,
+    @ColumnInfo(name = "actual_distance") val actualDistance: Double?,
+)
+
+/** Projection for the exercises list badge: completed set count per exercise. */
+data class ExerciseSetCountRow(
+    @ColumnInfo(name = "exercise_id") val exerciseId: Long,
+    @ColumnInfo(name = "set_count") val setCount: Int,
 )
 
 @Dao
@@ -301,7 +309,8 @@ interface WorkoutSessionDetailDao {
     @Query(
         "SELECT s.performed_at AS performed_at, d.exercise_id AS exercise_id, " +
             "e.name AS exercise_name, e.body_part AS body_part, " +
-            "d.actual_weight AS actual_weight, d.actual_reps AS actual_reps " +
+            "d.actual_weight AS actual_weight, d.actual_reps AS actual_reps, " +
+            "d.actual_duration AS actual_duration, d.actual_distance AS actual_distance " +
             "FROM workout_session_details d " +
             "JOIN workout_sessions s ON s.id = d.workout_session_id " +
             "JOIN exercises e ON e.id = d.exercise_id " +
@@ -314,7 +323,8 @@ interface WorkoutSessionDetailDao {
     @Query(
         "SELECT s.performed_at AS performed_at, d.exercise_id AS exercise_id, " +
             "e.name AS exercise_name, e.body_part AS body_part, " +
-            "d.actual_weight AS actual_weight, d.actual_reps AS actual_reps " +
+            "d.actual_weight AS actual_weight, d.actual_reps AS actual_reps, " +
+            "d.actual_duration AS actual_duration, d.actual_distance AS actual_distance " +
             "FROM workout_session_details d " +
             "JOIN workout_sessions s ON s.id = d.workout_session_id " +
             "JOIN exercises e ON e.id = d.exercise_id " +
@@ -323,6 +333,35 @@ interface WorkoutSessionDetailDao {
             "ORDER BY s.performed_at",
     )
     suspend fun getCompletedSets(profileId: Long, startMillis: Long): List<CompletedSetRow>
+
+    @Query(
+        "SELECT s.performed_at AS performed_at, d.exercise_id AS exercise_id, " +
+            "e.name AS exercise_name, e.body_part AS body_part, " +
+            "d.actual_weight AS actual_weight, d.actual_reps AS actual_reps, " +
+            "d.actual_duration AS actual_duration, d.actual_distance AS actual_distance " +
+            "FROM workout_session_details d " +
+            "JOIN workout_sessions s ON s.id = d.workout_session_id " +
+            "JOIN exercises e ON e.id = d.exercise_id " +
+            "WHERE s.profile_id = :profileId AND s.completed_at IS NOT NULL " +
+            "AND d.completed != 0 AND d.set_type != 'warmup' " +
+            "AND d.exercise_id = :exerciseId AND s.performed_at >= :startMillis " +
+            "ORDER BY s.performed_at",
+    )
+    fun observeCompletedSetsForExercise(
+        profileId: Long,
+        exerciseId: Long,
+        startMillis: Long,
+    ): Flow<List<CompletedSetRow>>
+
+    @Query(
+        "SELECT d.exercise_id AS exercise_id, COUNT(*) AS set_count " +
+            "FROM workout_session_details d " +
+            "JOIN workout_sessions s ON s.id = d.workout_session_id " +
+            "WHERE s.profile_id = :profileId AND s.completed_at IS NOT NULL " +
+            "AND d.completed != 0 AND d.set_type != 'warmup' " +
+            "GROUP BY d.exercise_id",
+    )
+    fun observeCompletedSetCountsByExercise(profileId: Long): Flow<List<ExerciseSetCountRow>>
 
     /**
      * Sets of the most recent completed session that includes the exercise, in

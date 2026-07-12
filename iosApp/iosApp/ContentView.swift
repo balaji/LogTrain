@@ -63,18 +63,35 @@ private struct ProfileToolbar: ViewModifier {
 }
 
 private struct ProfileSheet: View {
-    @Environment(\.dismiss) private var dismiss
+    @State private var appearance: Appearance = .system
+    @State private var systemColorScheme: ColorScheme = .light
 
     var body: some View {
         NavigationStack {
+            // ProfileView owns the nav-bar buttons: Done (dismisses this
+            // sheet) in view mode, Back (exits edit mode only) while editing.
             ProfileView()
                 .navigationTitle(L10n.profile)
                 .toolbarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(L10n.done) { dismiss() }
-                    }
-                }
+        }
+        .observeSystemColorScheme($systemColorScheme)
+        .preferredColorScheme(preferredScheme)
+        .task {
+            for await settings in UserSettingsRepository.shared.settings {
+                appearance = settings.appearance
+            }
+        }
+    }
+
+    // Resolving to nil here doesn't reliably clear a previously-set
+    // .preferredColorScheme override on a *presented* sheet (SwiftUI/UIKit
+    // bug), so "system" resolves to a concrete tracked value instead; see
+    // SystemColorScheme.swift.
+    private var preferredScheme: ColorScheme? {
+        switch appearance {
+        case .light: .light
+        case .dark: .dark
+        case .system: systemColorScheme
         }
     }
 }

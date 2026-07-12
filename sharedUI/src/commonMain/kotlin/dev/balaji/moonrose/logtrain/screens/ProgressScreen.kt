@@ -55,11 +55,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.balaji.moonrose.logtrain.db.ProgressScreenState
@@ -382,72 +378,6 @@ private fun SeriesLegendRow(series: SparkSeries, color: Color, unitLabel: String
     }
 }
 
-@Composable
-private fun seriesColor(index: Int): Color {
-    val palette = if (isSystemInDarkTheme()) PieColorsDark else PieColorsLight
-    return palette[index % palette.size]
-}
-
-/**
- * Overlaid line chart for 1–3 series sharing one x/y domain, with min/max
- * y-axis labels so the %-change toggle has a visible effect. In %-change
- * mode every series is re-based to percent moved since its first week.
- */
-@Composable
-private fun ProgressionChart(
-    series: List<SparkSeries>,
-    showPctChange: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    val colors = series.indices.map { seriesColor(it) }
-    val labelStyle = MaterialTheme.typography.labelSmall
-        .copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-    val textMeasurer = rememberTextMeasurer()
-    val lines = series.map { s ->
-        if (showPctChange) {
-            val base = s.points.first().value
-            s.points.map { SparkPoint(it.epochDay, if (base == 0.0) 0.0 else (it.value / base - 1) * 100) }
-        } else {
-            s.points
-        }
-    }
-    Canvas(modifier) {
-        val all = lines.flatten()
-        val minX = all.minOf { it.epochDay }
-        val maxX = all.maxOf { it.epochDay }
-        val minY = all.minOf { it.value }
-        val maxY = all.maxOf { it.value }
-        val spanX = (maxX - minX).coerceAtLeast(1).toFloat()
-        val spanY = (maxY - minY).toFloat().coerceAtLeast(1e-3f)
-
-        fun label(value: Double) =
-            if (showPctChange) "${InsightMath.formatNumber(value, 0)}%" else InsightMath.formatNumber(value, 0)
-        val maxLabel = textMeasurer.measure(label(maxY), labelStyle)
-        val minLabel = textMeasurer.measure(label(minY), labelStyle)
-        val chartLeft = maxOf(maxLabel.size.width, minLabel.size.width) + 6.dp.toPx()
-        val chartWidth = (size.width - chartLeft).coerceAtLeast(1f)
-
-        drawText(maxLabel, topLeft = Offset(0f, 0f))
-        drawText(minLabel, topLeft = Offset(0f, size.height - minLabel.size.height))
-
-        lines.forEachIndexed { seriesIndex, points ->
-            if (points.size < 2) return@forEachIndexed
-            val color = colors[seriesIndex]
-            val path = Path()
-            points.forEachIndexed { i, p ->
-                val x = chartLeft + (p.epochDay - minX) / spanX * chartWidth
-                val y = size.height - (p.value - minY).toFloat() / spanY * size.height
-                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-            }
-            drawPath(path, color, style = Stroke(width = 2.dp.toPx()))
-            points.last().let { p ->
-                val x = chartLeft + (p.epochDay - minX) / spanX * chartWidth
-                val y = size.height - (p.value - minY).toFloat() / spanY * size.height
-                drawCircle(color, radius = 3.dp.toPx(), center = Offset(x, y))
-            }
-        }
-    }
-}
 
 @Composable
 private fun TrendIcon(trend: String) {
@@ -502,42 +432,6 @@ private fun WeeklyVisitBars(points: List<SparkPoint>, modifier: Modifier = Modif
     }
 }
 
-@Composable
-private fun Sparkline(points: List<SparkPoint>, modifier: Modifier = Modifier) {
-    val color = MaterialTheme.colorScheme.primary
-    Canvas(modifier) {
-        val minX = points.minOf { it.epochDay }
-        val maxX = points.maxOf { it.epochDay }
-        val minY = points.minOf { it.value }
-        val maxY = points.maxOf { it.value }
-        val spanX = (maxX - minX).coerceAtLeast(1).toFloat()
-        val spanY = (maxY - minY).toFloat().coerceAtLeast(1e-3f)
-        val path = Path()
-        points.forEachIndexed { i, p ->
-            val x = (p.epochDay - minX) / spanX * size.width
-            val y = size.height - (p.value - minY).toFloat() / spanY * size.height
-            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-        }
-        drawPath(path, color, style = Stroke(width = 2.dp.toPx()))
-        points.lastOrNull()?.let { p ->
-            val x = (p.epochDay - minX) / spanX * size.width
-            val y = size.height - (p.value - minY).toFloat() / spanY * size.height
-            drawCircle(color, radius = 3.dp.toPx(), center = Offset(x, y))
-        }
-    }
-}
-
-// Categorical palette for the body-part pie, in a fixed CVD-safe order with a
-// separate step set per color mode; the folded "Other" tail is always gray.
-private val PieColorsLight = listOf(
-    Color(0xFF2A78D6), Color(0xFF1BAF7A), Color(0xFFEDA100), Color(0xFF008300),
-    Color(0xFF4A3AA7), Color(0xFFE34948), Color(0xFFE87BA4), Color(0xFFEB6834),
-)
-private val PieColorsDark = listOf(
-    Color(0xFF3987E5), Color(0xFF199E70), Color(0xFFC98500), Color(0xFF008300),
-    Color(0xFF9085E9), Color(0xFFE66767), Color(0xFFD55181), Color(0xFFD95926),
-)
-private val PieOtherColor = Color(0xFF898781)
 
 /** A pie can carry at most this many slices; smaller shares fold into "Other". */
 private const val MAX_PIE_SLICES = 8

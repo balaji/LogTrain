@@ -89,4 +89,10 @@ object InsightMath {
         val digits = frac.toString().padStart(maxDecimals, '0').trimEnd('0')
         return "$sign$whole.$digits"
     }
+
+    /** Body mass index from kilograms and centimeters: weight / height(m)^2. */
+    fun bmi(weightKg: Double, heightCm: Double): Double {
+        val heightM = heightCm / 100.0
+        return weightKg / (heightM * heightM)
+    }
 }

@@ -2109,6 +2109,57 @@
         }
       }
     },
+    "notifications_denied_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aviseringar är avstängda"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifications are off"
+          }
+        }
+      }
+    },
+    "notifications_denied_message": {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LogTrain har inte tillåtelse att skicka aviseringar. Tillåt aviseringar för LogTrain i systeminställningarna för att slå på detta."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LogTrain is not allowed to send notifications. Allow notifications for LogTrain in system settings to turn this on."
+          }
+        }
+      }
+    },
+    "open_settings": {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna inställningar"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open settings"
+          }
+        }
+      }
+    },
     "week_starts_on": {
       "extractionState": "manual",
       "localizations": {

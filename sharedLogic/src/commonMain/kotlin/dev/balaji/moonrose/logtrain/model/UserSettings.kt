@@ -22,15 +22,24 @@ enum class Appearance(val value: String) {
 
 /**
  * Weight display units. Persisted as the lowercase [value] string in
- * user_settings. Stored preference only for now; display conversion is not
- * wired up yet.
+ * user_settings. Logged set weights are unit-agnostic raw numbers that this
+ * setting only relabels; the conversions below exist for the BMI calculator,
+ * which needs true kilograms regardless of the display unit.
  */
 enum class WeightUnit(val value: String) {
     METRIC("metric"),
     IMPERIAL("imperial"),
     ;
 
+    /** A weight the user typed in this unit, expressed in kilograms. */
+    fun toKilograms(value: Double): Double = if (this == IMPERIAL) value * KG_PER_LB else value
+
+    /** A weight in kilograms, expressed in this unit for display. */
+    fun fromKilograms(kg: Double): Double = if (this == IMPERIAL) kg / KG_PER_LB else kg
+
     companion object {
+        private const val KG_PER_LB = 0.45359237
+
         fun fromValue(value: String?): WeightUnit = entries.firstOrNull { it.value == value } ?: METRIC
     }
 }

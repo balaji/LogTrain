@@ -107,7 +107,7 @@ struct RoutineDetailView: View {
     // MARK: - Read-only view
 
     private var routineReadOnly: some View {
-        ZStack(alignment: .bottomTrailing) {
+        ZStack(alignment: .bottom) {
             List {
                 if uiState.workSets.isEmpty {
                     Text(L10n.routineNoExercises)
@@ -132,7 +132,7 @@ struct RoutineDetailView: View {
                         .clipShape(Circle())
                         .shadow(color: .blue.opacity(0.3), radius: 8, y: 4)
                 }
-                .padding(24)
+                .padding(.bottom, 24)
             }
         }
     }

@@ -20,5 +20,5 @@ with rich generated test data.
 Use the `run-android` skill to build, install, and launch
 (`scripts/run-android.sh`) on the "Medium_Phone" AVD.
 
-- App DB: pull it with `adb exec-out run-as dev.balaji.moonrose.logtrain cat databases/logtrain.db > /tmp/logtrain.db` (app must be debuggable), then query with sqlite3.
+- App DB: pull it with `adb exec-out run-as dev.balaji.moonrose.logtrain cat databases/logtrain.db > /tmp/logtrain.db` (app must be debuggable), then query with sqlite3. Pull `logtrain.db-wal` and `logtrain.db-shm` alongside it into the same directory — the app runs in WAL mode, so recent (or on a fresh install, all) writes live in the WAL and the main file alone can be missing whole tables.
 - Screenshot: `adb exec-out screencap -p > <file>.png`. adb cannot tap UI reliably from this harness; treat it the same as the simulator — inspect state via DB/screenshot rather than driving it.

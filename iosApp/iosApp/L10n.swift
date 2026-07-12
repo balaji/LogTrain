@@ -155,6 +155,17 @@ enum L10n {
     static func describeExerciseQuery(_ name: String) -> String {
         String(localized: "describe_exercise_query", defaultValue: "Describe the exercise \(name)")
     }
+    static let exerciseHistorySection = String(localized: "exercise_history_section", defaultValue: "12-week history")
+    static let exerciseHistoryNoData = String(localized: "exercise_history_no_data", defaultValue: "Log some sets to see history here.")
+    static let exerciseHistoryMetric1rm = String(localized: "exercise_history_metric_1rm", defaultValue: "1RM")
+    static let exerciseHistoryMetricVolume = String(localized: "exercise_history_metric_volume", defaultValue: "Volume")
+    static let exerciseHistoryMetricDuration = String(localized: "exercise_history_metric_duration", defaultValue: "Duration")
+    static let exerciseHistoryMetricDistance = String(localized: "exercise_history_metric_distance", defaultValue: "Distance")
+    static func exerciseSetCount(_ count: Int) -> String {
+        count == 1
+            ? String(localized: "exercise_set_count_one", defaultValue: "1 set")
+            : String(localized: "exercise_set_count_other", defaultValue: "\(count) sets")
+    }
     // iOS-only
     static let cannotDelete = String(localized: "cannot_delete", defaultValue: "Can't delete")
     /// Navigation-title fallbacks when no user data is available yet.
@@ -173,8 +184,15 @@ enum L10n {
     static func heightCmValue(_ value: String) -> String {
         String(localized: "height_cm_value", defaultValue: "\(value) cm")
     }
+    static func weightLbValue(_ value: String) -> String {
+        String(localized: "weight_lb_value", defaultValue: "\(value) lb")
+    }
+    static func heightFtInValue(_ feet: String, _ inches: String) -> String {
+        String(localized: "height_ft_in_value", defaultValue: "\(feet) ft \(inches) in")
+    }
     static let weightKgLabel = String(localized: "weight_kg_label", defaultValue: "Weight (kg)")
     static let heightCmLabel = String(localized: "height_cm_label", defaultValue: "Height (cm)")
+    static let back = String(localized: "back", defaultValue: "Back")
     static let genderMale = String(localized: "gender_male", defaultValue: "Male")
     static let genderFemale = String(localized: "gender_female", defaultValue: "Female")
     static let genderOther = String(localized: "gender_other", defaultValue: "Other")
@@ -208,6 +226,9 @@ enum L10n {
     // MARK: - Settings
     static let settings = String(localized: "settings", defaultValue: "Settings")
     static let sendNotifications = String(localized: "send_notifications", defaultValue: "Send notifications")
+    static let notificationsDeniedTitle = String(localized: "notifications_denied_title", defaultValue: "Notifications are off")
+    static let notificationsDeniedMessage = String(localized: "notifications_denied_message", defaultValue: "LogTrain is not allowed to send notifications. Allow notifications for LogTrain in system settings to turn this on.")
+    static let openSettings = String(localized: "open_settings", defaultValue: "Open settings")
     static let weekStartsOn = String(localized: "week_starts_on", defaultValue: "Week starts on")
     static let appearance = String(localized: "appearance", defaultValue: "Appearance")
     static let weightUnits = String(localized: "weight_units", defaultValue: "Weight units")
@@ -265,6 +286,9 @@ enum L10n {
     // MARK: - Weight units
     static let unitKg = String(localized: "unit_kg", defaultValue: "kg")
     static let unitLb = String(localized: "unit_lb", defaultValue: "lb")
+    static let unitCm = String(localized: "unit_cm", defaultValue: "cm")
+    static let unitFt = String(localized: "unit_ft", defaultValue: "ft")
+    static let unitIn = String(localized: "unit_in", defaultValue: "in")
 
     // MARK: - Dates
     static let monthsShort: [String] = [
@@ -376,6 +400,17 @@ enum L10n {
     static let oneRmInfoBrzycki = String(localized: "one_rm_info_brzycki", defaultValue: "Matt Brzycki, a strength coach and author at Princeton University, published this formula in 1993 and it has since become the estimator most often cited in academic validation studies. Unlike Epley's straight line, Brzycki is hyperbolic: the estimate is the weight multiplied by 36 divided by (37 minus reps). Each additional rep therefore counts a little more than the one before it, and the curve accelerates as reps climb. In the low-rep range, up to about 10 reps, Brzycki tracks measured maxes closely and research generally rates it among the most accurate of the classic formulas there. Beyond 10 reps the denominator shrinks quickly and the estimate grows aggressively, so treat high-rep predictions with skepticism — a 20-rep set of a light weight will produce a flattering number that few lifters could actually lift for a single. Brzycki and Epley agree exactly at 10 reps, with Brzycki slightly higher below that point. Choose it if you usually test with heavy sets of 3 to 8 reps and want the estimator with the strongest research pedigree in that range. LogTrain clamps the rep count at 36 so the math stays finite.")
     static let oneRmInfoLombardi = String(localized: "one_rm_info_lombardi", defaultValue: "The Lombardi formula takes a completely different mathematical shape from its linear and hyperbolic siblings: it multiplies the weight by the rep count raised to the power of 0.1. A power law with such a small exponent produces the gentlest curve of any common estimator — the estimate rises quickly over the first few reps and then flattens dramatically, so a 10-rep set is credited only about 26 percent above the bar weight and a 20-rep set barely more. That restraint is the whole point. Where Epley and especially Brzycki inflate high-rep sets into eye-catching maxes, Lombardi stays skeptical, which makes it the best fit for lifters who log endurance-style sets of 12, 15, or 20 reps and want a number they could plausibly hit on a heavy single. The trade-off is the mirror image: for genuinely heavy doubles and triples Lombardi gives the least credit of the four, so pure strength athletes testing at low reps may find it undersells them. Pick Lombardi if your training lives in the higher rep ranges and you would rather be pleasantly surprised at the bar than let down by it.")
     static let oneRmInfoOconner = String(localized: "one_rm_info_oconner", defaultValue: "Published by O'Conner and colleagues in 1989, this formula is the cautious sibling of Epley. It uses the same linear idea — every rep beyond the first adds a fixed fraction of the bar weight — but the fraction is 1/40 instead of Epley's 1/30, so each rep earns 25 percent less credit. The result is a deliberately conservative estimate across the entire rep range: at 5 reps O'Conner predicts 12.5 percent over the bar weight where Epley predicts nearly 17 percent. That restraint is valuable in situations where overestimating a max is riskier than underestimating it. Coaches programming percentages for beginners often prefer it, because a novice's estimated max sets their working weights for weeks, and an inflated number bakes in loads they cannot recover from. It also suits older lifters, rehab settings, and anyone returning from a layoff, where a margin of safety matters more than bragging rights. Because it is linear, it remains stable and predictable at higher reps rather than accelerating like Brzycki. Choose O'Conner when you want your training numbers anchored to what you can almost certainly lift, not what you might lift on a perfect day.")
+
+    // MARK: - Tools (Profile > Tools)
+    static let tools = String(localized: "tools", defaultValue: "Tools")
+    static let bmiCalculator = String(localized: "bmi_calculator", defaultValue: "BMI Calculator")
+    static func bmiResult(_ bmi: String, _ category: String) -> String {
+        String(localized: "bmi_result", defaultValue: "\(bmi) BMI — \(category)")
+    }
+    static let bmiCategoryUnderweight = String(localized: "bmi_category_underweight", defaultValue: "Underweight")
+    static let bmiCategoryNormal = String(localized: "bmi_category_normal", defaultValue: "Normal")
+    static let bmiCategoryOverweight = String(localized: "bmi_category_overweight", defaultValue: "Overweight")
+    static let bmiCategoryObese = String(localized: "bmi_category_obese", defaultValue: "Obese")
 
     // MARK: - Exercise catalog keys (lowercase DB values → display labels)
     /// Display label for a lowercase exercise-catalog key (bodyPart, equipment,

@@ -34,6 +34,23 @@ scripts/run-ios.sh --clean
 scripts/run-ios.sh --clean sv
 ```
 
+Pass `--seed [days]` to land a fresh install on a populated app instead of
+the profile-setup screen. It implies `--clean` (the hook only fires when no
+profile exists, so the script starts from an empty install): on launch, a
+debug-only hook (`DevSeed` in sharedLogic, triggered via the
+`-seedTestData` launch argument) creates a default profile ("Test User",
+metric) and generates that many days of workout history (default 60) using
+the same generator as the in-app Developer link. This is the usual way to
+start a test session:
+
+```bash
+scripts/run-ios.sh --seed        # fresh install + 60 days of data
+scripts/run-ios.sh --seed 120 sv # 120 days, Swedish
+```
+
+Seeding is asynchronous — give the app a second or two after launch before
+screenshotting or querying the DB.
+
 If there are uncommitted schema changes (anything modified or untracked
 under `sharedLogic/schemas/`), pass `--clean` on the **first** run of the
 test session: a previous session may have installed a build with an

@@ -7,6 +7,7 @@ struct ExercisesView: View {
     var onExerciseSelected: ((Exercise) -> Void)? = nil
 
     @State private var exercises: [Exercise]?
+    @State private var setCountsByExercise: [Int64: Int] = [:]
     @State private var searchText = ""
     @State private var selectedBodyPart: String?
     @State private var selectedEquipment: String?
@@ -144,6 +145,13 @@ struct ExercisesView: View {
                 exercises = list
             }
         }
+        .task {
+            for await counts in InsightsRepository.shared.observeCompletedSetCountsByExercise() {
+                setCountsByExercise = Dictionary(
+                    uniqueKeysWithValues: counts.map { ($0.exerciseId, Int($0.setCount)) }
+                )
+            }
+        }
     }
 
     @ViewBuilder
@@ -154,12 +162,12 @@ struct ExercisesView: View {
                     Button {
                         onSelect(exercise)
                     } label: {
-                        ExerciseRowLabel(exercise: exercise)
+                        ExerciseRowLabel(exercise: exercise, setCount: setCountsByExercise[exercise.id] ?? 0)
                     }
                     .foregroundStyle(.primary)
                 } else {
                     NavigationLink(value: exercise.id) {
-                        ExerciseRowLabel(exercise: exercise)
+                        ExerciseRowLabel(exercise: exercise, setCount: setCountsByExercise[exercise.id] ?? 0)
                     }
                 }
             }
@@ -223,14 +231,23 @@ private struct ExerciseCreateView: View {
 
 private struct ExerciseRowLabel: View {
     let exercise: Exercise
+    var setCount: Int = 0
 
     var body: some View {
-        VStack(alignment: .leading) {
-            Text(exercise.name)
-            let details = [exercise.bodyPart, exercise.equipment].compactMap { $0 }
-                .map(L10n.exerciseCatalogLabel)
-            if !details.isEmpty {
-                Text(details.joined(separator: " • "))
+        HStack {
+            VStack(alignment: .leading) {
+                Text(exercise.name)
+                let details = [exercise.bodyPart, exercise.equipment].compactMap { $0 }
+                    .map(L10n.exerciseCatalogLabel)
+                if !details.isEmpty {
+                    Text(details.joined(separator: " • "))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            if setCount > 0 {
+                Text(L10n.exerciseSetCount(setCount))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

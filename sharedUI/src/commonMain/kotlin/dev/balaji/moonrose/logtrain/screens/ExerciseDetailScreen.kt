@@ -8,9 +8,12 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -20,6 +23,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,6 +46,10 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import dev.balaji.moonrose.logtrain.db.ExerciseFormState
 import dev.balaji.moonrose.logtrain.db.ExerciseFormUiState
+import dev.balaji.moonrose.logtrain.db.ExerciseHistoryState
+import dev.balaji.moonrose.logtrain.insights.ExerciseHistoryUiState
+import dev.balaji.moonrose.logtrain.insights.SparkPoint
+import dev.balaji.moonrose.logtrain.insights.SparkSeries
 import dev.balaji.moonrose.logtrain.model.ExerciseType
 import dev.balaji.moonrose.logtrain.navigation.ExerciseDetailRoute
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
@@ -131,6 +139,8 @@ private fun ExerciseCreateContent(onSaved: () -> Unit, modifier: Modifier = Modi
 private fun ExerciseDetailContent(route: ExerciseDetailRoute, modifier: Modifier = Modifier) {
     val formState = remember(route.exerciseId) { ExerciseFormState(route.exerciseId) }
     val uiState by formState.uiState.collectAsState()
+    val historyState = remember(route.exerciseId) { ExerciseHistoryState(route.exerciseId) }
+    val historyUiState by historyState.uiState.collectAsState()
     var editing by remember(route.exerciseId) { mutableStateOf(false) }
 
     if (uiState.loading) {
@@ -150,6 +160,13 @@ private fun ExerciseDetailContent(route: ExerciseDetailRoute, modifier: Modifier
             ExerciseEditForm(uiState = uiState, formState = formState, onDone = { editing = false })
         } else {
             ExerciseReadOnlyDetails(uiState = uiState, onEdit = { editing = true })
+            if (!historyUiState.loading) {
+                HorizontalDivider()
+                ExerciseHistorySection(
+                    historyUiState = historyUiState,
+                    exerciseType = ExerciseType.fromValue(uiState.exerciseType),
+                )
+            }
         }
     }
 }
@@ -323,6 +340,89 @@ private fun ExerciseEditForm(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(Res.string.save))
+        }
+    }
+}
+
+private data class HistoryMetricEntry(val label: String, val points: List<SparkPoint>)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ExerciseHistorySection(
+    historyUiState: ExerciseHistoryUiState,
+    exerciseType: ExerciseType?,
+) {
+    val showOneRmVolume = exerciseType == null ||
+        exerciseType in listOf(ExerciseType.STRENGTH, ExerciseType.REPS_DURATION, ExerciseType.REPS_DISTANCE)
+    val showDuration = exerciseType == null ||
+        exerciseType in listOf(ExerciseType.DURATION, ExerciseType.REPS_DURATION, ExerciseType.DISTANCE_DURATION)
+    val showDistance = exerciseType == null ||
+        exerciseType in listOf(ExerciseType.DISTANCE, ExerciseType.REPS_DISTANCE, ExerciseType.DISTANCE_DURATION)
+
+    val metrics = buildList {
+        if (showOneRmVolume) {
+            add(HistoryMetricEntry(stringResource(Res.string.exercise_history_metric_1rm), historyUiState.weeklyOneRm))
+            add(HistoryMetricEntry(stringResource(Res.string.exercise_history_metric_volume), historyUiState.weeklyVolume))
+        }
+        if (showDuration) add(HistoryMetricEntry(stringResource(Res.string.exercise_history_metric_duration), historyUiState.weeklyDuration))
+        if (showDistance) add(HistoryMetricEntry(stringResource(Res.string.exercise_history_metric_distance), historyUiState.weeklyDistance))
+    }
+    if (metrics.isEmpty()) return
+
+    var selectedLabel by remember(metrics.first().label) { mutableStateOf(metrics.first().label) }
+    val selectedPoints = metrics.firstOrNull { it.label == selectedLabel }?.points ?: metrics.first().points
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            stringResource(Res.string.exercise_history_section),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        if (metrics.size > 1) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(metrics) { entry ->
+                    FilterChip(
+                        selected = selectedLabel == entry.label,
+                        onClick = { selectedLabel = entry.label },
+                        label = { Text(entry.label) },
+                    )
+                }
+            }
+        }
+
+        if (!historyUiState.hasAnyData) {
+            Text(
+                stringResource(Res.string.exercise_history_no_data),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            val nonZeroPoints = selectedPoints.filter { it.value > 0.0 }
+            if (nonZeroPoints.size >= 2) {
+                ProgressionChart(
+                    series = listOf(
+                        SparkSeries(
+                            name = selectedLabel,
+                            latest = nonZeroPoints.last().value,
+                            slopePerWeek = 0.0,
+                            trend = "none",
+                            points = nonZeroPoints,
+                        ),
+                    ),
+                    showPctChange = false,
+                    modifier = Modifier.fillMaxWidth().height(80.dp),
+                )
+            } else {
+                Text(
+                    stringResource(Res.string.exercise_history_no_data),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

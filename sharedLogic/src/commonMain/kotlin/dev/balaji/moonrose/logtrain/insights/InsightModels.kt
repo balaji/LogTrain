@@ -168,3 +168,25 @@ data class BodyWeightTrend(
 )
 
 data class StreakResult(val currentWeeks: Int, val longestWeeks: Int)
+
+/** All-time completed working-set count for one exercise; used for the exercises list badge. */
+data class ExerciseSetCount(val exerciseId: Long, val setCount: Int)
+
+/**
+ * Pre-aggregated chart data for the exercise detail history section. All four
+ * weekly series have one entry per calendar week (12 weeks, oldest first);
+ * weeks with no logged sets have value 0.0. [hasAnyData] shortcuts the
+ * "no history yet" empty-state check.
+ */
+data class ExerciseHistoryUiState(
+    val loading: Boolean = true,
+    /** Max estimated 1RM per week. Non-empty only for STRENGTH / REPS_DURATION / REPS_DISTANCE. */
+    val weeklyOneRm: List<SparkPoint> = emptyList(),
+    /** Total weight × reps per week. Non-empty only for STRENGTH / REPS_DURATION / REPS_DISTANCE. */
+    val weeklyVolume: List<SparkPoint> = emptyList(),
+    /** Total duration in seconds per week. Non-empty only for DURATION / REPS_DURATION / DISTANCE_DURATION. */
+    val weeklyDuration: List<SparkPoint> = emptyList(),
+    /** Total distance per week. Non-empty only for DISTANCE / REPS_DISTANCE / DISTANCE_DURATION. */
+    val weeklyDistance: List<SparkPoint> = emptyList(),
+    val hasAnyData: Boolean = false,
+)

@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import dev.balaji.moonrose.logtrain.db.ExerciseDeleteError
 import dev.balaji.moonrose.logtrain.db.ExerciseRepository
+import dev.balaji.moonrose.logtrain.db.InsightsRepository
 import dev.balaji.moonrose.logtrain.model.Exercise
 import dev.balaji.moonrose.logtrain.navigation.ExerciseCreateRoute
 import dev.balaji.moonrose.logtrain.navigation.ExerciseDetailRoute
@@ -62,6 +63,7 @@ import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import dev.balaji.moonrose.logtrain.navigation.Route
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
@@ -108,6 +110,9 @@ private fun ExercisesBody(
     allowDelete: Boolean = true,
 ) {
     val exercises by ExerciseRepository.exercises.collectAsState(initial = null)
+    val setCountRows by InsightsRepository.observeCompletedSetCountsByExercise()
+        .collectAsState(initial = emptyList())
+    val setCounts = remember(setCountRows) { setCountRows.associate { it.exerciseId to it.setCount } }
     val scope = rememberCoroutineScope()
     var query by remember { mutableStateOf("") }
     var selectedBodyPart by remember { mutableStateOf<String?>(null) }
@@ -179,10 +184,10 @@ private fun ExercisesBody(
                     items(customExercises, key = Exercise::id) { exercise ->
                         if (allowDelete) {
                             SwipeToDeleteRow(key = exercise.id, onDelete = { deleteTarget = exercise }) {
-                                ExerciseRow(exercise, onOpen)
+                                ExerciseRow(exercise, setCounts[exercise.id] ?: 0, onOpen)
                             }
                         } else {
-                            ExerciseRow(exercise, onOpen)
+                            ExerciseRow(exercise, setCounts[exercise.id] ?: 0, onOpen)
                         }
                     }
                     if (builtinExercises.isNotEmpty()) {
@@ -193,7 +198,7 @@ private fun ExercisesBody(
                     }
                 }
                 items(builtinExercises, key = Exercise::id) { exercise ->
-                    ExerciseRow(exercise, onOpen)
+                    ExerciseRow(exercise, setCounts[exercise.id] ?: 0, onOpen)
                 }
             }
         }
@@ -279,7 +284,7 @@ private fun SwipeToDeleteRow(
 }
 
 @Composable
-private fun ExerciseRow(exercise: Exercise, onOpen: (Exercise) -> Unit) {
+private fun ExerciseRow(exercise: Exercise, setCount: Int, onOpen: (Exercise) -> Unit) {
     ListItem(
         headlineContent = { Text(exercise.name) },
         supportingContent = {
@@ -287,6 +292,15 @@ private fun ExerciseRow(exercise: Exercise, onOpen: (Exercise) -> Unit) {
                 .map { exerciseCatalogLabel(it) }
             if (details.isNotEmpty()) Text(details.joinToString(" • "))
         },
+        trailingContent = if (setCount > 0) {
+            {
+                Text(
+                    pluralStringResource(Res.plurals.exercise_set_count, setCount, setCount),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else null,
         modifier = Modifier.fillMaxWidth().clickable { onOpen(exercise) },
     )
     HorizontalDivider()

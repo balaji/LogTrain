@@ -22,17 +22,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import dev.balaji.moonrose.logtrain.db.GENDER_KEYS
 import dev.balaji.moonrose.logtrain.db.ProfileFormState
+import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
 import dev.balaji.moonrose.logtrain.model.Profile
+import dev.balaji.moonrose.logtrain.model.WeightUnit
 import org.jetbrains.compose.resources.stringResource
 import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
 /**
  * Profile create/edit form, shared by the first-run setup flow and the
- * Profile tab's edit mode.
+ * Profile tab's edit mode. Weight and height are entered in the user's unit
+ * system (kg/cm or lb + ft/in); the shared form state converts back to the
+ * canonical kg/cm on save.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,9 +46,14 @@ fun ProfileForm(
     saveLabel: String = stringResource(Res.string.save),
     onSaved: () -> Unit = {},
 ) {
-    val formState = remember { ProfileFormState(initial) }
+    val settings by UserSettingsRepository.settings.collectAsState(initial = null)
+    val unit = settings?.weightUnit ?: return
+    val formState = remember(unit) { ProfileFormState(initial, unit) }
     val uiState by formState.uiState.collectAsState()
     var genderExpanded by remember { mutableStateOf(false) }
+    var heightWheelsExpanded by remember { mutableStateOf(false) }
+    // Typing in any text field puts the height wheels away.
+    val collapseWheels = Modifier.onFocusChanged { if (it.isFocused) heightWheelsExpanded = false }
 
     Column(
         modifier = Modifier
@@ -62,7 +72,7 @@ fun ProfileForm(
                 { Text(profileNameErrorText(error)) }
             },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().then(collapseWheels),
         )
         OutlinedTextField(
             value = uiState.age,
@@ -76,7 +86,7 @@ fun ProfileForm(
             },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().then(collapseWheels),
         )
         ExposedDropdownMenuBox(
             expanded = genderExpanded,
@@ -108,19 +118,31 @@ fun ProfileForm(
         OutlinedTextField(
             value = uiState.weight,
             onValueChange = formState::updateWeight,
-            label = { Text(stringResource(Res.string.weight_kg_label)) },
+            label = { Text("${stringResource(Res.string.weight)} (${weightUnitLabel(unit)})") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().then(collapseWheels),
         )
-        OutlinedTextField(
-            value = uiState.height,
-            onValueChange = formState::updateHeight,
-            label = { Text(stringResource(Res.string.height_cm_label)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        if (unit == WeightUnit.METRIC) {
+            OutlinedTextField(
+                value = uiState.height,
+                onValueChange = formState::updateHeight,
+                label = { Text("${stringResource(Res.string.height)} (${stringResource(Res.string.unit_cm)})") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            FeetInchesField(
+                label = stringResource(Res.string.height),
+                feet = uiState.heightFeet,
+                inches = uiState.heightInches,
+                expanded = heightWheelsExpanded,
+                onExpandedChange = { heightWheelsExpanded = it },
+                onChange = formState::updateHeightFeetInches,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         Button(
             onClick = { formState.save(onSaved) },
             enabled = !uiState.saving,

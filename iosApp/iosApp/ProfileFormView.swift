@@ -22,17 +22,27 @@ private enum ProfileFormField: Hashable {
 }
 
 /// Native SwiftUI replacement for the Compose `ProfileForm`, bound to the
-/// shared `ProfileFormState` via SKIE's Swift `StateFlow` bridge.
+/// shared `ProfileFormState` via SKIE's Swift `StateFlow` bridge. Weight and
+/// height are entered in the user's unit system (kg/cm or lb + ft/in); the
+/// shared form state converts back to the canonical kg/cm on save.
 struct ProfileFormView: View {
     let saveLabel: String
     let onSaved: () -> Void
 
+    private let unit: WeightUnit
     @State private var formState: ProfileFormState
     @State private var uiState: ProfileFormUiState
+    @State private var heightWheelsExpanded = false
     @FocusState private var focusedField: ProfileFormField?
 
-    init(initial: Profile? = nil, saveLabel: String = L10n.save, onSaved: @escaping () -> Void = {}) {
-        let state = ProfileFormState(initial: initial)
+    init(
+        initial: Profile? = nil,
+        unit: WeightUnit = .metric,
+        saveLabel: String = L10n.save,
+        onSaved: @escaping () -> Void = {}
+    ) {
+        let state = ProfileFormState(initial: initial, unit: unit)
+        self.unit = unit
         _formState = State(initialValue: state)
         _uiState = State(initialValue: state.uiState.value)
         self.saveLabel = saveLabel
@@ -42,11 +52,14 @@ struct ProfileFormView: View {
     var body: some View {
         Form {
             Section {
-                TextField(L10n.name, text: Binding(
-                    get: { uiState.name },
-                    set: { formState.updateName(value: $0) }
-                ))
-                .focused($focusedField, equals: .name)
+                LabeledContent(L10n.name) {
+                    TextField("", text: Binding(
+                        get: { uiState.name },
+                        set: { formState.updateName(value: $0) }
+                    ))
+                    .multilineTextAlignment(.trailing)
+                    .focused($focusedField, equals: .name)
+                }
 
                 if let nameError = uiState.nameError {
                     Text(nameErrorText(nameError))
@@ -54,12 +67,15 @@ struct ProfileFormView: View {
                         .foregroundStyle(.red)
                 }
 
-                TextField(L10n.age, text: Binding(
-                    get: { uiState.age },
-                    set: { formState.updateAge(value: $0) }
-                ))
-                .keyboardType(.numberPad)
-                .focused($focusedField, equals: .age)
+                LabeledContent(L10n.age) {
+                    TextField("", text: Binding(
+                        get: { uiState.age },
+                        set: { formState.updateAge(value: $0) }
+                    ))
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .focused($focusedField, equals: .age)
+                }
 
                 if uiState.ageError {
                     // Bounds match MIN_AGE/MAX_AGE in the shared ProfileFormState.
@@ -78,19 +94,40 @@ struct ProfileFormView: View {
                     }
                 }
 
-                TextField(L10n.weightKgLabel, text: Binding(
-                    get: { uiState.weight },
-                    set: { formState.updateWeight(value: $0) }
-                ))
-                .keyboardType(.decimalPad)
-                .focused($focusedField, equals: .weight)
+                LabeledContent("\(L10n.weight) (\(unit == .imperial ? L10n.unitLb : L10n.unitKg))") {
+                    TextField("", text: Binding(
+                        get: { uiState.weight },
+                        set: { formState.updateWeight(value: $0) }
+                    ))
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .focused($focusedField, equals: .weight)
+                }
 
-                TextField(L10n.heightCmLabel, text: Binding(
-                    get: { uiState.height },
-                    set: { formState.updateHeight(value: $0) }
-                ))
-                .keyboardType(.decimalPad)
-                .focused($focusedField, equals: .height)
+                if unit == .imperial {
+                    FeetInchesField(
+                        label: L10n.height,
+                        feet: Binding(
+                            get: { Int(uiState.heightFeet) },
+                            set: { formState.updateHeightFeetInches(feet: Int32($0), inches: uiState.heightInches) }
+                        ),
+                        inches: Binding(
+                            get: { Int(uiState.heightInches) },
+                            set: { formState.updateHeightFeetInches(feet: uiState.heightFeet, inches: Int32($0)) }
+                        ),
+                        expanded: $heightWheelsExpanded
+                    )
+                } else {
+                    LabeledContent("\(L10n.height) (\(L10n.unitCm))") {
+                        TextField("", text: Binding(
+                            get: { uiState.height },
+                            set: { formState.updateHeight(value: $0) }
+                        ))
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .focused($focusedField, equals: .height)
+                    }
+                }
             }
 
             Section {
@@ -98,6 +135,12 @@ struct ProfileFormView: View {
                     formState.save(onSaved: onSaved)
                 }
                 .disabled(uiState.saving)
+            }
+        }
+        // Typing in any text field puts the height wheels away.
+        .onChange(of: focusedField) { _, newValue in
+            if newValue != nil {
+                withAnimation { heightWheelsExpanded = false }
             }
         }
         .toolbar {
