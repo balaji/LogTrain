@@ -98,9 +98,11 @@ import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
 import dev.balaji.moonrose.logtrain.db.WorkoutSessionFormState
 import dev.balaji.moonrose.logtrain.db.WorkoutSessionRepository
 import dev.balaji.moonrose.logtrain.db.WorkoutSessionUiState
+import dev.balaji.moonrose.logtrain.model.SetField
 import dev.balaji.moonrose.logtrain.model.SetType
 import dev.balaji.moonrose.logtrain.model.UserSettings
 import dev.balaji.moonrose.logtrain.model.WeightUnit
+import dev.balaji.moonrose.logtrain.model.displaySetFields
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import dev.balaji.moonrose.logtrain.navigation.WorkoutSessionRoute
 import kotlinx.coroutines.launch
@@ -304,6 +306,10 @@ private fun WorkoutSessionBody(
                             onRemoveSet = { setIdx -> formState.removeSet(exIndex, setIdx) },
                             onUpdateWeight = { setIdx, v -> formState.updateActualWeight(exIndex, setIdx, v) },
                             onUpdateReps = { setIdx, v -> formState.updateActualReps(exIndex, setIdx, v) },
+                            onUpdateDuration = { setIdx, v ->
+                                formState.updateActualDuration(exIndex, setIdx, v)
+                            },
+                            onUpdateDistance = { setIdx, v -> formState.updateActualDistance(exIndex, setIdx, v) },
                             onSetTypeChange = { setIdx, setType -> formState.setSetType(exIndex, setIdx, setType) },
                             onToggleCompleted = { setIdx -> formState.toggleCompleted(exIndex, setIdx) },
                             onDelete = { formState.removeExercise(exIndex) },
@@ -504,6 +510,8 @@ private fun SessionExerciseCard(
     onRemoveSet: (Int) -> Unit,
     onUpdateWeight: (Int, String) -> Unit,
     onUpdateReps: (Int, String) -> Unit,
+    onUpdateDuration: (Int, String) -> Unit,
+    onUpdateDistance: (Int, String) -> Unit,
     onSetTypeChange: (Int, SetType) -> Unit,
     onToggleCompleted: (Int) -> Unit,
     onDelete: () -> Unit,
@@ -601,12 +609,14 @@ private fun SessionExerciseCard(
                 style = MaterialTheme.typography.labelSmall,
                 textAlign = TextAlign.Center,
             )
-            Text(
-                stringResource(Res.string.column_reps),
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.labelSmall,
-                textAlign = TextAlign.Center,
-            )
+            exercise.type.displaySetFields().forEach { field ->
+                Text(
+                    setFieldColumnLabel(field, weightUnit),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.Center,
+                )
+            }
             Spacer(Modifier.width(40.dp))
         }
 
@@ -617,9 +627,11 @@ private fun SessionExerciseCard(
             if (set.setType == SetType.NORMAL) workingSetNumber++
             SessionSetRow(
                 set = set,
+                fields = exercise.type.displaySetFields(),
                 workingSetNumber = workingSetNumber,
                 previous = exercise.previousSets.getOrNull(setIdx)?.takeIf { it.isNotBlank() },
                 canDelete = exercise.sets.size > 1,
+                canComplete = exercise.isSetReadyToComplete(setIdx),
                 usesPlateKeypad = exercise.usesPlateKeyboard,
                 plateKeypadActive = plateKeypadSetIndex == setIdx,
                 onOpenPlateKeypad = { onOpenPlateKeypad(setIdx, set.actualWeight) },
@@ -628,6 +640,8 @@ private fun SessionExerciseCard(
                 onSetTypeChange = { onSetTypeChange(setIdx, it) },
                 onUpdateWeight = { onUpdateWeight(setIdx, it) },
                 onUpdateReps = { onUpdateReps(setIdx, it) },
+                onUpdateDuration = { onUpdateDuration(setIdx, it) },
+                onUpdateDistance = { onUpdateDistance(setIdx, it) },
                 onToggleCompleted = { onToggleCompleted(setIdx) },
             )
         }
@@ -652,9 +666,11 @@ private fun SessionExerciseCard(
 @Composable
 private fun SessionSetRow(
     set: DraftSessionSet,
+    fields: List<SetField>,
     workingSetNumber: Int,
     previous: String?,
     canDelete: Boolean,
+    canComplete: Boolean,
     usesPlateKeypad: Boolean,
     plateKeypadActive: Boolean,
     onOpenPlateKeypad: () -> Unit,
@@ -663,6 +679,8 @@ private fun SessionSetRow(
     onSetTypeChange: (SetType) -> Unit,
     onUpdateWeight: (String) -> Unit,
     onUpdateReps: (String) -> Unit,
+    onUpdateDuration: (String) -> Unit,
+    onUpdateDistance: (String) -> Unit,
     onToggleCompleted: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -761,21 +779,42 @@ private fun SessionSetRow(
                     modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
                 )
             }
-            CompactActualInput(
-                value = set.actualReps,
-                target = set.targetReps,
-                onValueChange = onUpdateReps,
-                keyboardType = KeyboardType.Number,
-                onFocused = onFieldFocused,
-                modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
-            )
+            fields.forEach { field ->
+                when (field) {
+                    SetField.REPS -> CompactActualInput(
+                        value = set.actualReps,
+                        target = set.targetReps,
+                        onValueChange = onUpdateReps,
+                        keyboardType = KeyboardType.Number,
+                        onFocused = onFieldFocused,
+                        modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
+                    )
+                    SetField.DURATION -> CompactActualInput(
+                        value = set.actualDuration,
+                        target = set.targetDuration,
+                        emptyPlaceholder = stringResource(Res.string.duration_placeholder),
+                        onValueChange = onUpdateDuration,
+                        keyboardType = KeyboardType.Number,
+                        onFocused = onFieldFocused,
+                        modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
+                    )
+                    SetField.DISTANCE -> CompactActualInput(
+                        value = set.actualDistance,
+                        target = set.targetDistance,
+                        onValueChange = onUpdateDistance,
+                        keyboardType = KeyboardType.Decimal,
+                        onFocused = onFieldFocused,
+                        modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
+                    )
+                }
+            }
             Checkbox(
                 checked = set.completed,
                 onCheckedChange = { onToggleCompleted() },
-                // A set needs at least one rep before it can be
-                // completed; completed stays enabled so stale rows can
-                // still be unchecked.
-                enabled = set.completed || (set.actualReps.toIntOrNull() ?: 0) > 0,
+                // A set needs every field its exercise type requires before
+                // it can be completed; completed stays enabled so stale rows
+                // can still be unchecked.
+                enabled = set.completed || canComplete,
                 colors = CheckboxDefaults.colors(checkedColor = CompletedGreen),
                 modifier = Modifier.size(40.dp),
             )
@@ -835,6 +874,9 @@ private fun CompactActualInput(
     onValueChange: (String) -> Unit,
     keyboardType: KeyboardType,
     modifier: Modifier = Modifier,
+    // Shown when there is no target either — "0" for plain numbers, "h:mm"
+    // for the duration box.
+    emptyPlaceholder: String = "0",
     onFocused: (() -> Unit)? = null,
 ) {
     // Target shows as the placeholder so the user sees what they were aiming
@@ -867,7 +909,11 @@ private fun CompactActualInput(
             ) {
                 if (value.isEmpty()) {
                     Text(
-                        target.ifBlank { "0" },
+                        target.ifBlank { emptyPlaceholder },
+                        // Never wrap: narrow cells (the hh/mm pair) would
+                        // otherwise stack a two-digit placeholder vertically.
+                        maxLines = 1,
+                        softWrap = false,
                         style = TextStyle(
                             fontSize = 14.sp,
                             textAlign = TextAlign.Center,

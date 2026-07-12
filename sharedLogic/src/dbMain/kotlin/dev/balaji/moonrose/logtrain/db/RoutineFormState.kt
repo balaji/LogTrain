@@ -1,6 +1,7 @@
 package dev.balaji.moonrose.logtrain.db
 
 import dev.balaji.moonrose.logtrain.model.Exercise
+import dev.balaji.moonrose.logtrain.model.ExerciseType
 import dev.balaji.moonrose.logtrain.model.SetType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -12,6 +13,9 @@ import kotlinx.coroutines.launch
 data class DraftSet(
     val weight: String = "",
     val reps: String = "",
+    // Single h:mm box text, e.g. "1:30" or bare minutes "45".
+    val duration: String = "",
+    val distance: String = "",
     val setType: SetType = SetType.NORMAL,
 )
 
@@ -19,7 +23,10 @@ data class DraftWorkSet(
     val id: Long,
     val exercise: Exercise,
     val sets: List<DraftSet> = listOf(DraftSet()),
-)
+) {
+    /** Which measured fields this exercise's sets take; unrecognized types fall back to strength (reps). */
+    val type: ExerciseType get() = ExerciseType.fromValue(exercise.exerciseType) ?: ExerciseType.STRENGTH
+}
 
 data class RoutineDetailUiState(
     val loading: Boolean = true,
@@ -49,6 +56,8 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
                             DraftSet(
                                 weight = d.targetWeight?.formatWeight() ?: "",
                                 reps = d.targetReps?.toString() ?: "",
+                                duration = formatDurationText(d.targetDuration),
+                                distance = d.targetDistance?.formatWeight() ?: "",
                                 setType = d.setType,
                             )
                         }
@@ -85,6 +94,20 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
         val reps = value.filterDigits()
         updateWorkSet(workSetIndex) { ws ->
             ws.copy(sets = ws.sets.mapIndexed { i, s -> if (i == setIndex) s.copy(reps = reps) else s })
+        }
+    }
+
+    fun updateDuration(workSetIndex: Int, setIndex: Int, value: String) {
+        val duration = value.filterDurationText()
+        updateWorkSet(workSetIndex) { ws ->
+            ws.copy(sets = ws.sets.mapIndexed { i, s -> if (i == setIndex) s.copy(duration = duration) else s })
+        }
+    }
+
+    fun updateDistance(workSetIndex: Int, setIndex: Int, value: String) {
+        val distance = value.filterDistance()
+        updateWorkSet(workSetIndex) { ws ->
+            ws.copy(sets = ws.sets.mapIndexed { i, s -> if (i == setIndex) s.copy(distance = distance) else s })
         }
     }
 
@@ -142,7 +165,8 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
                             position = sIdx + 1,
                             targetWeight = set.weight.toDoubleOrNull(),
                             targetReps = set.reps.toIntOrNull(),
-                            targetDuration = null,
+                            targetDuration = parseDurationSeconds(set.duration),
+                            targetDistance = set.distance.toDoubleOrNull(),
                             setType = set.setType,
                             createdAt = now,
                             updatedAt = now,

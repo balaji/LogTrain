@@ -18,6 +18,8 @@ data class CompletedSessionRow(
 data class PreviousSetRow(
     @ColumnInfo(name = "actual_weight") val actualWeight: Double?,
     @ColumnInfo(name = "actual_reps") val actualReps: Int?,
+    @ColumnInfo(name = "actual_duration") val actualDuration: Int?,
+    @ColumnInfo(name = "actual_distance") val actualDistance: Double?,
 )
 
 /** Projection for insights: one row per completed working set in a completed session. */
@@ -281,11 +283,8 @@ interface WorkoutSessionDetailDao {
     @Query("DELETE FROM workout_session_details WHERE workout_session_id = :sessionId")
     suspend fun deleteForSession(sessionId: Long)
 
-    @Query(
-        "DELETE FROM workout_session_details " +
-            "WHERE workout_session_id = :sessionId AND (actual_reps IS NULL OR actual_reps <= 0)",
-    )
-    suspend fun deleteEmptySetsForSession(sessionId: Long)
+    @Query("DELETE FROM workout_session_details WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<Long>)
 
     @Query(
         "SELECT EXISTS(SELECT 1 FROM workout_session_details " +
@@ -330,7 +329,8 @@ interface WorkoutSessionDetailDao {
      * position order — the source for the session screen's "Previous" column.
      */
     @Query(
-        "SELECT d.actual_weight AS actual_weight, d.actual_reps AS actual_reps " +
+        "SELECT d.actual_weight AS actual_weight, d.actual_reps AS actual_reps, " +
+            "d.actual_duration AS actual_duration, d.actual_distance AS actual_distance " +
             "FROM workout_session_details d " +
             "JOIN workout_sessions s ON s.id = d.workout_session_id " +
             "WHERE d.exercise_id = :exerciseId AND s.id = (" +

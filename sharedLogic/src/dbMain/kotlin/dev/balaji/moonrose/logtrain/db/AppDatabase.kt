@@ -29,7 +29,9 @@ import androidx.room.TypeConverters
     // v12: ai_insight_cache table for LLM-narrated insight card text.
     // v13: profile.gender rewritten from English display text to language-neutral keys.
     // v14: warmup flag replaced by the set_type enum ('normal'/'warmup'/'drop').
-    version = 14,
+    // v15: distance columns on work_set_details/workout_session_details for
+    //      distance-measured exercise types.
+    version = 15,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

@@ -25,5 +25,22 @@ scripts/run-ios.sh sv   # Swedish
 scripts/run-ios.sh en   # English
 ```
 
+Pass `--clean` to uninstall the app (if installed) before installing,
+wiping its data — useful for testing first-run behavior or fresh-install
+database migrations. Combines with a language code in any order:
+
+```bash
+scripts/run-ios.sh --clean
+scripts/run-ios.sh --clean sv
+```
+
+If there are uncommitted schema changes (anything modified or untracked
+under `sharedLogic/schemas/`), pass `--clean` on the **first** run of the
+test session: a previous session may have installed a build with an
+earlier draft of the in-flux migration, and re-running on top of that
+database produces misleading migration failures. Subsequent runs in the
+same session can drop `--clean` — upgrading over the now-consistent
+install is then exactly what you want to exercise.
+
 To then observe what changed, see the `verify` skill (app DB inspection,
 screenshots).

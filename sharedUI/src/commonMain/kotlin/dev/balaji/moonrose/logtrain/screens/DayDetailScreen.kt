@@ -129,10 +129,14 @@ private fun ExerciseSummaryRow(exercise: DaySessionExercise) {
                 )
                 val weight = set.actualWeight.ifBlank { set.targetWeight }
                 val reps = set.actualReps.ifBlank { set.targetReps }
+                val duration = set.actualDuration.ifBlank { set.targetDuration }
+                val distance = set.actualDistance.ifBlank { set.targetDistance }
                 Text(
                     listOfNotNull(
                         weight.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.weight_kg_value, it) },
                         reps.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.reps_value, it) },
+                        duration.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.duration_value, it) },
+                        distance.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.distance_km_value, it) },
                     ).joinToString(" · ").ifBlank { "—" },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

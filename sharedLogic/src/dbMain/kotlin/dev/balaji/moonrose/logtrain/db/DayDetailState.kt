@@ -11,8 +11,13 @@ import kotlinx.datetime.atStartOfDayIn
 data class DaySessionSet(
     val targetWeight: String,
     val targetReps: String,
+    // "1:05"-style hh:mm, blank when the set has no duration.
+    val targetDuration: String,
+    val targetDistance: String,
     val actualWeight: String,
     val actualReps: String,
+    val actualDuration: String,
+    val actualDistance: String,
     val setType: SetType,
     val completed: Boolean,
 )
@@ -81,8 +86,12 @@ class DayDetailState(private val epochDay: Long) {
                 DaySessionSet(
                     targetWeight = detail.targetWeight?.formatDayDetailNumber().orEmpty(),
                     targetReps = detail.targetReps?.toString().orEmpty(),
+                    targetDuration = detail.targetDuration?.let(::formatDurationHhMm).orEmpty(),
+                    targetDistance = detail.targetDistance?.formatDayDetailNumber().orEmpty(),
                     actualWeight = detail.actualWeight?.formatDayDetailNumber().orEmpty(),
                     actualReps = detail.actualReps?.toString().orEmpty(),
+                    actualDuration = detail.actualDuration?.let(::formatDurationHhMm).orEmpty(),
+                    actualDistance = detail.actualDistance?.formatDayDetailNumber().orEmpty(),
                     setType = detail.setType,
                     completed = detail.completed,
                 ),

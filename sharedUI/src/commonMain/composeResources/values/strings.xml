@@ -45,6 +45,10 @@
     <string name="column_kg">KG</string>
     <string name="column_lb">LB</string>
     <string name="column_reps">REPS</string>
+    <string name="column_time">TIME</string>
+    <string name="column_km">KM</string>
+    <string name="column_mi">MI</string>
+    <string name="duration_placeholder">h:mm</string>
     <string name="warmup_marker">W</string>
     <string name="dropset_marker">D</string>
     <string name="set_type">Set type</string>
@@ -187,6 +191,8 @@
     <string name="drop_set">Drop set</string>
     <string name="set_number">Set %1$d</string>
     <string name="reps_value">%1$s reps</string>
+    <string name="duration_value">%1$s h</string>
+    <string name="distance_km_value">%1$s km</string>
 
     <!-- Weight units -->
     <string name="unit_kg">kg</string>

@@ -1,5 +1,7 @@
 package dev.balaji.moonrose.logtrain.db
 
+import dev.balaji.moonrose.logtrain.model.ExerciseType
+import dev.balaji.moonrose.logtrain.model.isSetComplete
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -80,9 +82,11 @@ object WorkoutSessionRepository {
                         targetWeight = null,
                         targetReps = null,
                         targetDuration = null,
+                        targetDistance = null,
                         actualWeight = null,
                         actualReps = null,
                         actualDuration = null,
+                        actualDistance = null,
                         completed = false,
                         createdAt = now,
                         updatedAt = now,
@@ -99,9 +103,11 @@ object WorkoutSessionRepository {
                             targetWeight = detail.targetWeight,
                             targetReps = detail.targetReps,
                             targetDuration = detail.targetDuration,
+                            targetDistance = detail.targetDistance,
                             actualWeight = null,
                             actualReps = null,
                             actualDuration = null,
+                            actualDistance = null,
                             setType = detail.setType,
                             completed = false,
                             createdAt = now,
@@ -149,14 +155,22 @@ object WorkoutSessionRepository {
         AppDb.db.workoutSessionDetailDao().hasCompletedSets(sessionId)
 
     /**
-     * Sets without logged reps are dropped so the completed workout only
-     * records work that was actually performed. Pruning here (rather than in
-     * the form) keeps the session-screen finish and the mini-bar finish
-     * consistent.
+     * Sets missing a value their exercise type requires (reps, duration or
+     * distance) are dropped so the completed workout only records work that
+     * was actually performed. Pruning here (rather than in the form) keeps
+     * the session-screen finish and the mini-bar finish consistent.
      */
     suspend fun finish(sessionId: Long) {
         val now = nowMillis()
-        AppDb.db.workoutSessionDetailDao().deleteEmptySetsForSession(sessionId)
+        val details = AppDb.db.workoutSessionDetailDao().getForSession(sessionId)
+        val typeByExercise = details.map { it.exerciseId }.distinct().associateWith { id ->
+            ExerciseType.fromValue(ExerciseRepository.findById(id)?.exerciseType) ?: ExerciseType.STRENGTH
+        }
+        val emptyIds = details.filter { d ->
+            val type = typeByExercise.getValue(d.exerciseId)
+            !type.isSetComplete(d.actualReps, d.actualDuration, d.actualDistance)
+        }.map { it.id }
+        if (emptyIds.isNotEmpty()) AppDb.db.workoutSessionDetailDao().deleteByIds(emptyIds)
         AppDb.db.workoutSessionDao().setCompletedAt(sessionId, now, now)
     }
 

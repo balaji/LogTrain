@@ -293,13 +293,18 @@ private struct SessionExerciseSection: View {
         return value.isEmpty ? nil : value
     }
 
+    private var fields: [SetField] { SetFieldColumns.fields(for: exercise.type) }
+
     var body: some View {
         Group {
             HStack(spacing: 8) {
                 Text(L10n.columnSet).frame(width: 28)
                 Text(L10n.columnPrevious).frame(maxWidth: .infinity)
                 Text(weightUnit == .imperial ? L10n.columnLb : L10n.columnKg).frame(maxWidth: .infinity)
-                Text(L10n.columnReps).frame(maxWidth: .infinity)
+                ForEach(fields, id: \.self) { field in
+                    Text(SetFieldColumns.label(for: field, weightUnit: weightUnit))
+                        .frame(maxWidth: .infinity)
+                }
                 Spacer().frame(width: 28)
             }
             .font(.caption)
@@ -311,6 +316,8 @@ private struct SessionExerciseSection: View {
                     workingSetNumber: workingSetNumber(setIdx),
                     previous: previousLabel(setIdx),
                     set: set,
+                    fields: fields,
+                    readyToComplete: exercise.isSetReadyToComplete(setIndex: Int32(setIdx)),
                     plateKeyboard: exercise.usesPlateKeyboard ? plateKeyboard : nil,
                     plateNumericMode: plateNumericMode,
                     onOpenPlateKeypad: {
@@ -333,6 +340,20 @@ private struct SessionExerciseSection: View {
                     },
                     onRepsChange: {
                         formState.updateActualReps(exerciseIndex: Int32(exIndex), setIndex: Int32(setIdx), value: $0)
+                    },
+                    onDurationChange: {
+                        formState.updateActualDuration(
+                            exerciseIndex: Int32(exIndex),
+                            setIndex: Int32(setIdx),
+                            value: $0
+                        )
+                    },
+                    onDistanceChange: {
+                        formState.updateActualDistance(
+                            exerciseIndex: Int32(exIndex),
+                            setIndex: Int32(setIdx),
+                            value: $0
+                        )
                     },
                     onToggleCompleted: {
                         formState.toggleCompleted(exerciseIndex: Int32(exIndex), setIndex: Int32(setIdx))
@@ -372,6 +393,12 @@ private struct SessionSetRow: View {
     let workingSetNumber: Int
     let previous: String?
     let set: DraftSessionSet
+    /// Measured columns for the owning exercise's type, in display order.
+    let fields: [SetField]
+    /// Whether the set holds every value its type requires (from the shared
+    /// `DraftSessionExercise.isSetReadyToComplete`, so the gating rule lives
+    /// in Kotlin).
+    let readyToComplete: Bool
     /// Non-nil only for barbell exercises; switches the weight input to the
     /// custom plate keyboard.
     let plateKeyboard: BarbellKeyboardState?
@@ -380,6 +407,8 @@ private struct SessionSetRow: View {
     let onSetTypeChange: (SetType) -> Void
     let onWeightChange: (String) -> Void
     let onRepsChange: (String) -> Void
+    let onDurationChange: (String) -> Void
+    let onDistanceChange: (String) -> Void
     let onToggleCompleted: () -> Void
 
     @State private var pop = false
@@ -423,20 +452,14 @@ private struct SessionSetRow: View {
             .background(Color(.secondarySystemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 6))
 
-            TextField(
-                set.targetReps.isEmpty ? "0" : set.targetReps,
-                text: Binding(get: { set.actualReps }, set: onRepsChange)
-            )
-            .keyboardType(.numberPad)
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            ForEach(fields, id: \.self) { field in
+                fieldInput(field)
+            }
 
-            // A set needs at least one rep before it can be completed;
-            // stays enabled while checked so stale rows can be unchecked.
-            let canComplete = set.completed || (Int(set.actualReps) ?? 0) > 0
+            // A set needs every field its exercise type requires before it
+            // can be completed; stays enabled while checked so stale rows
+            // can be unchecked.
+            let canComplete = set.completed || readyToComplete
             Button(action: onToggleCompleted) {
                 Image(systemName: set.completed ? "checkmark.square.fill" : "square")
                     .foregroundStyle(
@@ -458,5 +481,50 @@ private struct SessionSetRow: View {
                 withAnimation(.easeOut(duration: 0.18)) { pop = false }
             }
         }
+    }
+
+    /// The input cell for one measured column. Duration is a single h:mm box
+    /// — the colon is auto-inserted by the shared filter, so the number pad
+    /// suffices; the routine's target shows as the placeholder.
+    @ViewBuilder
+    private func fieldInput(_ field: SetField) -> some View {
+        switch field {
+        case .duration:
+            actualBox(
+                placeholder: set.targetDuration.isEmpty ? L10n.durationPlaceholder : set.targetDuration,
+                value: set.actualDuration,
+                keyboard: .numberPad,
+                onChange: onDurationChange
+            )
+        case .distance:
+            actualBox(
+                placeholder: set.targetDistance.isEmpty ? "0" : set.targetDistance,
+                value: set.actualDistance,
+                keyboard: .decimalPad,
+                onChange: onDistanceChange
+            )
+        default:
+            actualBox(
+                placeholder: set.targetReps.isEmpty ? "0" : set.targetReps,
+                value: set.actualReps,
+                keyboard: .numberPad,
+                onChange: onRepsChange
+            )
+        }
+    }
+
+    private func actualBox(
+        placeholder: String,
+        value: String,
+        keyboard: UIKeyboardType,
+        onChange: @escaping (String) -> Void
+    ) -> some View {
+        TextField(placeholder, text: Binding(get: { value }, set: onChange))
+            .keyboardType(keyboard)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 }

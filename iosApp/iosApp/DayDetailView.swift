@@ -85,9 +85,13 @@ private struct ExerciseSummaryRow: View {
     private func summary(for set: DaySessionSet) -> String {
         let weight = set.actualWeight.isEmpty ? set.targetWeight : set.actualWeight
         let reps = set.actualReps.isEmpty ? set.targetReps : set.actualReps
+        let duration = set.actualDuration.isEmpty ? set.targetDuration : set.actualDuration
+        let distance = set.actualDistance.isEmpty ? set.targetDistance : set.actualDistance
         var parts: [String] = []
         if !weight.isEmpty { parts.append(L10n.weightKgValue(weight)) }
         if !reps.isEmpty { parts.append(L10n.repsValue(reps)) }
+        if !duration.isEmpty { parts.append(L10n.durationValue(duration)) }
+        if !distance.isEmpty { parts.append(L10n.distanceKmValue(distance)) }
         return parts.isEmpty ? "—" : parts.joined(separator: " · ")
     }
 }

@@ -11,6 +11,7 @@ struct RoutineDetailView: View {
     @State private var formVersion = 0
     @State private var nameBeforeEdit = ""
     @State private var showExercisePicker = false
+    @State private var weightUnit: WeightUnit = .metric
 
     @State private var reorder = ExerciseReorderModel()
 
@@ -96,6 +97,11 @@ struct RoutineDetailView: View {
                 uiState = state
             }
         }
+        .task {
+            for await settings in UserSettingsRepository.shared.settings {
+                weightUnit = settings.weightUnit
+            }
+        }
     }
 
     // MARK: - Read-only view
@@ -140,6 +146,7 @@ struct RoutineDetailView: View {
                     wsIndex: wsIndex,
                     workSet: workSet,
                     formState: formState,
+                    weightUnit: weightUnit,
                     onReorderStart: { startY in
                         withAnimation(.easeOut(duration: 0.15)) {
                             reorder.begin(index: wsIndex, fingerY: startY)
@@ -185,6 +192,7 @@ private struct ExerciseCardView: View {
     let wsIndex: Int
     let workSet: DraftWorkSet
     let formState: RoutineFormState
+    let weightUnit: WeightUnit
     var onReorderStart: (CGFloat) -> Void
     var onReorderChanged: (CGFloat) -> Void
     var onReorderEnded: () -> Void
@@ -193,6 +201,8 @@ private struct ExerciseCardView: View {
     private func workingSetNumber(_ setIdx: Int) -> Int {
         workSet.sets.prefix(setIdx + 1).filter { $0.setType == .normal }.count
     }
+
+    private var fields: [SetField] { SetFieldColumns.fields(for: workSet.type) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -209,10 +219,12 @@ private struct ExerciseCardView: View {
             HStack {
                 Text(L10n.columnSet)
                     .frame(width: 28)
-                Text(L10n.columnKg)
+                Text(weightUnit == .imperial ? L10n.columnLb : L10n.columnKg)
                     .frame(maxWidth: .infinity)
-                Text(L10n.columnReps)
-                    .frame(maxWidth: .infinity)
+                ForEach(fields, id: \.self) { field in
+                    Text(SetFieldColumns.label(for: field, weightUnit: weightUnit))
+                        .frame(maxWidth: .infinity)
+                }
                 Spacer().frame(width: 36)
             }
             .font(.caption)
@@ -254,25 +266,9 @@ private struct ExerciseCardView: View {
                     .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 6))
 
-                    TextField(
-                        "0",
-                        text: Binding(
-                            get: { set.reps },
-                            set: {
-                                formState.updateReps(
-                                    workSetIndex: Int32(wsIndex),
-                                    setIndex: Int32(setIdx),
-                                    value: $0
-                                )
-                            }
-                        )
-                    )
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    ForEach(fields, id: \.self) { field in
+                        fieldInput(field, setIdx: setIdx, set: set)
+                    }
 
                     Button {
                         formState.removeSet(
@@ -305,4 +301,74 @@ private struct ExerciseCardView: View {
         }
         .padding(.vertical, 4)
     }
+
+    /// The input cell for one measured column of a set row. Duration is a
+    /// single h:mm box — the colon is auto-inserted by the shared filter, so
+    /// the number pad suffices.
+    @ViewBuilder
+    private func fieldInput(_ field: SetField, setIdx: Int, set: DraftSet) -> some View {
+        switch field {
+        case .duration:
+            TextField(
+                L10n.durationPlaceholder,
+                text: Binding(
+                    get: { set.duration },
+                    set: {
+                        formState.updateDuration(
+                            workSetIndex: Int32(wsIndex),
+                            setIndex: Int32(setIdx),
+                            value: $0
+                        )
+                    }
+                )
+            )
+            .keyboardType(.numberPad)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        case .distance:
+            TextField(
+                "0",
+                text: Binding(
+                    get: { set.distance },
+                    set: {
+                        formState.updateDistance(
+                            workSetIndex: Int32(wsIndex),
+                            setIndex: Int32(setIdx),
+                            value: $0
+                        )
+                    }
+                )
+            )
+            .keyboardType(.decimalPad)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        default:
+            TextField(
+                "0",
+                text: Binding(
+                    get: { set.reps },
+                    set: {
+                        formState.updateReps(
+                            workSetIndex: Int32(wsIndex),
+                            setIndex: Int32(setIdx),
+                            value: $0
+                        )
+                    }
+                )
+            )
+            .keyboardType(.numberPad)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+    }
+
 }

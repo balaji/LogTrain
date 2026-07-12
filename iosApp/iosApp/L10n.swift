@@ -58,6 +58,10 @@ enum L10n {
     static let columnKg = String(localized: "column_kg", defaultValue: "KG")
     static let columnLb = String(localized: "column_lb", defaultValue: "LB")
     static let columnReps = String(localized: "column_reps", defaultValue: "REPS")
+    static let columnTime = String(localized: "column_time", defaultValue: "TIME")
+    static let columnKm = String(localized: "column_km", defaultValue: "KM")
+    static let columnMi = String(localized: "column_mi", defaultValue: "MI")
+    static let durationPlaceholder = String(localized: "duration_placeholder", defaultValue: "h:mm")
     static let warmupMarker = String(localized: "warmup_marker", defaultValue: "W")
     static let dropsetMarker = String(localized: "dropset_marker", defaultValue: "D")
     static let setType = String(localized: "set_type", defaultValue: "Set type")
@@ -250,6 +254,12 @@ enum L10n {
     }
     static func repsValue(_ reps: String) -> String {
         String(localized: "reps_value", defaultValue: "\(reps) reps")
+    }
+    static func durationValue(_ duration: String) -> String {
+        String(localized: "duration_value", defaultValue: "\(duration) h")
+    }
+    static func distanceKmValue(_ distance: String) -> String {
+        String(localized: "distance_km_value", defaultValue: "\(distance) km")
     }
 
     // MARK: - Weight units

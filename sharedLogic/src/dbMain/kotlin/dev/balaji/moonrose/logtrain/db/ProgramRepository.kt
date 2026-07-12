@@ -140,6 +140,7 @@ internal suspend fun AppDatabase.insertSampleProgram(
                                 targetWeight = set.targetWeight,
                                 targetReps = set.targetReps,
                                 targetDuration = null,
+                                targetDistance = null,
                                 setType = set.setType,
                                 createdAt = now,
                                 updatedAt = now,

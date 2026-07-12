@@ -1,6 +1,7 @@
 #!/bin/bash
 # Build sharedLogic/sharedUI + iosApp and run it in the iOS Simulator.
-# Usage: run-ios.sh [language-code]
+# Usage: run-ios.sh [--clean] [language-code]
+#   --clean: uninstall the app (if present) before installing, wiping its data.
 #   language-code: optional, e.g. "en" or "sv". Overrides the app's language
 #   for this launch only (via -AppleLanguages/-AppleLocale), without changing
 #   the simulator's system-wide language setting.
@@ -13,7 +14,14 @@ export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 
 SIM_NAME="iPhone 17"
 APP_ID="dev.balaji.moonrose.logtrain.LogTrain"
-LANG_CODE="${1:-}"
+CLEAN=0
+LANG_CODE=""
+for arg in "$@"; do
+    case "$arg" in
+        --clean) CLEAN=1 ;;
+        *) LANG_CODE="$arg" ;;
+    esac
+done
 
 # Boot the simulator if nothing is booted yet.
 if ! xcrun simctl list devices | grep -q "Booted"; then
@@ -24,6 +32,15 @@ fi
 # Open Simulator.app if it isn't running.
 if ! pgrep -x "Simulator" > /dev/null; then
     open -a Simulator
+fi
+
+if [[ "$CLEAN" = "1" ]]; then
+    if xcrun simctl get_app_container booted "$APP_ID" > /dev/null 2>&1; then
+        echo "Uninstalling $APP_ID..."
+        xcrun simctl uninstall booted "$APP_ID"
+    else
+        echo "$APP_ID not installed — nothing to uninstall."
+    fi
 fi
 
 xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug \

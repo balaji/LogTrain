@@ -51,9 +51,11 @@ class Migration13To14Test {
                 MIGRATION_11_12,
                 MIGRATION_12_13,
                 MIGRATION_13_14,
+                MIGRATION_14_15,
             )
             // Deliberately NO fallbackToDestructiveMigration: Room validates the
-            // migrated schema against 14.json and throws on any mismatch.
+            // migrated schema against the current version's json and throws on
+            // any mismatch.
             .build()
 
         runBlocking {
@@ -90,9 +92,11 @@ class Migration13To14Test {
                     targetWeight = null,
                     targetReps = null,
                     targetDuration = null,
+                    targetDistance = null,
                     actualWeight = 60.0,
                     actualReps = 8,
                     actualDuration = null,
+                    actualDistance = null,
                     setType = SetType.DROP,
                     completed = true,
                     createdAt = 1L,

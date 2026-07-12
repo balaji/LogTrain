@@ -85,7 +85,12 @@ import androidx.compose.ui.unit.sp
 import dev.balaji.moonrose.logtrain.db.DraftWorkSet
 import dev.balaji.moonrose.logtrain.db.RoutineDetailUiState
 import dev.balaji.moonrose.logtrain.db.RoutineFormState
+import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
+import dev.balaji.moonrose.logtrain.model.SetField
 import dev.balaji.moonrose.logtrain.model.SetType
+import dev.balaji.moonrose.logtrain.model.UserSettings
+import dev.balaji.moonrose.logtrain.model.WeightUnit
+import dev.balaji.moonrose.logtrain.model.displaySetFields
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import dev.balaji.moonrose.logtrain.navigation.Route
 import dev.balaji.moonrose.logtrain.navigation.RoutineDetailRoute
@@ -200,6 +205,7 @@ private fun RoutineDetailBody(
     val rowHeight = 56.dp
     val rowHeightPx = with(LocalDensity.current) { rowHeight.toPx() }
     val haptics = LocalHapticFeedback.current
+    val settings by UserSettingsRepository.settings.collectAsState(initial = UserSettings())
 
     Box(modifier = modifier.fillMaxSize()) {
         when {
@@ -212,10 +218,13 @@ private fun RoutineDetailBody(
                     ExerciseCard(
                         workSet = workSet,
                         wsIndex = wsIndex,
+                        weightUnit = settings.weightUnit,
                         onAddSet = { formState.addSet(wsIndex) },
                         onRemoveSet = { setIdx -> formState.removeSet(wsIndex, setIdx) },
                         onUpdateWeight = { setIdx, v -> formState.updateWeight(wsIndex, setIdx, v) },
                         onUpdateReps = { setIdx, v -> formState.updateReps(wsIndex, setIdx, v) },
+                        onUpdateDuration = { setIdx, v -> formState.updateDuration(wsIndex, setIdx, v) },
+                        onUpdateDistance = { setIdx, v -> formState.updateDistance(wsIndex, setIdx, v) },
                         onSetTypeChange = { setIdx, setType -> formState.setSetType(wsIndex, setIdx, setType) },
                         onDelete = { formState.removeExercise(wsIndex) },
                         onReorderStart = { startRootY ->
@@ -459,10 +468,13 @@ private fun ReorderRow(name: String, rowHeight: Dp, modifier: Modifier = Modifie
 private fun ExerciseCard(
     workSet: DraftWorkSet,
     wsIndex: Int,
+    weightUnit: WeightUnit,
     onAddSet: () -> Unit,
     onRemoveSet: (Int) -> Unit,
     onUpdateWeight: (Int, String) -> Unit,
     onUpdateReps: (Int, String) -> Unit,
+    onUpdateDuration: (Int, String) -> Unit,
+    onUpdateDistance: (Int, String) -> Unit,
     onSetTypeChange: (Int, SetType) -> Unit,
     onDelete: () -> Unit,
     onReorderStart: (Float) -> Unit,
@@ -542,7 +554,7 @@ private fun ExerciseCard(
                 )
             }
 
-            // Column headers
+            // Column headers: weight always, then the exercise type's fields.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -556,17 +568,24 @@ private fun ExerciseCard(
                     textAlign = TextAlign.Center,
                 )
                 Text(
-                    stringResource(Res.string.column_kg),
+                    stringResource(
+                        when (weightUnit) {
+                            WeightUnit.METRIC -> Res.string.column_kg
+                            WeightUnit.IMPERIAL -> Res.string.column_lb
+                        },
+                    ),
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelSmall,
                     textAlign = TextAlign.Center,
                 )
-                Text(
-                    stringResource(Res.string.column_reps),
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelSmall,
-                    textAlign = TextAlign.Center,
-                )
+                workSet.type.displaySetFields().forEach { field ->
+                    Text(
+                        setFieldColumnLabel(field, weightUnit),
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.labelSmall,
+                        textAlign = TextAlign.Center,
+                    )
+                }
                 Spacer(Modifier.width(40.dp))
             }
 
@@ -594,13 +613,31 @@ private fun ExerciseCard(
                         keyboardType = KeyboardType.Decimal,
                         modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
                     )
-                    CompactInput(
-                        value = set.reps,
-                        onValueChange = { onUpdateReps(setIdx, it) },
-                        placeholder = "0",
-                        keyboardType = KeyboardType.Number,
-                        modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
-                    )
+                    workSet.type.displaySetFields().forEach { field ->
+                        when (field) {
+                            SetField.REPS -> CompactInput(
+                                value = set.reps,
+                                onValueChange = { onUpdateReps(setIdx, it) },
+                                placeholder = "0",
+                                keyboardType = KeyboardType.Number,
+                                modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
+                            )
+                            SetField.DURATION -> CompactInput(
+                                value = set.duration,
+                                onValueChange = { onUpdateDuration(setIdx, it) },
+                                placeholder = stringResource(Res.string.duration_placeholder),
+                                keyboardType = KeyboardType.Number,
+                                modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
+                            )
+                            SetField.DISTANCE -> CompactInput(
+                                value = set.distance,
+                                onValueChange = { onUpdateDistance(setIdx, it) },
+                                placeholder = "0",
+                                keyboardType = KeyboardType.Decimal,
+                                modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
+                            )
+                        }
+                    }
                     IconButton(
                         onClick = { onRemoveSet(setIdx) },
                         modifier = Modifier.size(40.dp),
@@ -672,6 +709,10 @@ private fun CompactInput(
                 if (value.isEmpty()) {
                     Text(
                         placeholder,
+                        // Never wrap: narrow cells (the hh/mm pair) would
+                        // otherwise stack a two-digit placeholder vertically.
+                        maxLines = 1,
+                        softWrap = false,
                         style = TextStyle(
                             fontSize = 14.sp,
                             textAlign = TextAlign.Center,

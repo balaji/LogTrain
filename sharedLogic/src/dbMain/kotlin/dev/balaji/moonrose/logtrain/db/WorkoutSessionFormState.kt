@@ -1,8 +1,12 @@
 package dev.balaji.moonrose.logtrain.db
 
 import dev.balaji.moonrose.logtrain.model.Exercise
+import dev.balaji.moonrose.logtrain.model.ExerciseType
 import dev.balaji.moonrose.logtrain.model.PlateMath
 import dev.balaji.moonrose.logtrain.model.SetType
+import dev.balaji.moonrose.logtrain.model.isSetComplete
+import dev.balaji.moonrose.logtrain.model.requiredSetFields
+import dev.balaji.moonrose.logtrain.model.SetField
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -20,11 +24,24 @@ data class DraftSessionSet(
     // Snapshots shown as placeholder to the user (never mutated by the UI).
     val targetWeight: String = "",
     val targetReps: String = "",
+    // Single h:mm box text, e.g. "1:30" or bare minutes "45".
+    val targetDuration: String = "",
+    val targetDistance: String = "",
     val actualWeight: String = "",
     val actualReps: String = "",
+    val actualDuration: String = "",
+    val actualDistance: String = "",
     val setType: SetType = SetType.NORMAL,
     val completed: Boolean = false,
 )
+
+/** Whether the logged values satisfy every field [type] requires. */
+private fun DraftSessionSet.meetsRequirements(type: ExerciseType): Boolean =
+    type.isSetComplete(
+        reps = actualReps.toIntOrNull(),
+        durationSeconds = parseDurationSeconds(actualDuration),
+        distance = actualDistance.toDoubleOrNull(),
+    )
 
 data class DraftSessionExercise(
     val id: Long,
@@ -42,6 +59,17 @@ data class DraftSessionExercise(
      * deliberately excludes "smith machine", whose bars vary too much.
      */
     val usesPlateKeyboard: Boolean get() = exercise.equipment == "barbell"
+
+    /** Which measured fields this exercise's sets take; unrecognized types fall back to strength (reps). */
+    val type: ExerciseType get() = ExerciseType.fromValue(exercise.exerciseType) ?: ExerciseType.STRENGTH
+
+    /**
+     * Whether the set at [setIndex] holds everything [type] requires and may
+     * be marked completed. Shared by the Compose and SwiftUI checkboxes so
+     * the gating rule lives in one place.
+     */
+    fun isSetReadyToComplete(setIndex: Int): Boolean =
+        sets.getOrNull(setIndex)?.meetsRequirements(type) ?: false
 }
 
 data class WorkoutSessionUiState(
@@ -104,8 +132,12 @@ class WorkoutSessionFormState(private val sessionId: Long) {
                     DraftSessionSet(
                         targetWeight = detail.targetWeight?.formatWeight().orEmpty(),
                         targetReps = detail.targetReps?.toString().orEmpty(),
+                        targetDuration = formatDurationText(detail.targetDuration),
+                        targetDistance = detail.targetDistance?.formatWeight().orEmpty(),
                         actualWeight = detail.actualWeight?.formatWeight().orEmpty(),
                         actualReps = detail.actualReps?.toString().orEmpty(),
+                        actualDuration = formatDurationText(detail.actualDuration),
+                        actualDistance = detail.actualDistance?.formatWeight().orEmpty(),
                         setType = detail.setType,
                         completed = detail.completed,
                     ),
@@ -113,7 +145,7 @@ class WorkoutSessionFormState(private val sessionId: Long) {
             }
             flush()
             val withPrevious = grouped.map { draft ->
-                draft.copy(previousSets = loadPreviousSets(draft.exercise.id))
+                draft.copy(previousSets = loadPreviousSets(draft.exercise))
             }
             _uiState.value = _uiState.value.copy(
                 loading = false,
@@ -132,7 +164,7 @@ class WorkoutSessionFormState(private val sessionId: Long) {
         scheduleAutosave()
         // Previous values come from the db; fill them in once loaded.
         scope.launch {
-            val previous = loadPreviousSets(exercise.id)
+            val previous = loadPreviousSets(exercise)
             if (previous.isEmpty()) return@launch
             val state = _uiState.value
             _uiState.value = state.copy(
@@ -172,24 +204,45 @@ class WorkoutSessionFormState(private val sessionId: Long) {
 
     fun updateActualWeight(exerciseIndex: Int, setIndex: Int, value: String) {
         val weight = value.filterDecimal()
-        updateSet(exerciseIndex, setIndex) { it.copy(actualWeight = weight) }
+        updateSet(exerciseIndex, setIndex) { set, _ -> set.copy(actualWeight = weight) }
     }
 
     fun updateActualReps(exerciseIndex: Int, setIndex: Int, value: String) {
-        val reps = value.filterDigits()
-        updateSet(exerciseIndex, setIndex) {
-            // A set only counts as completed while it has at least one rep.
-            it.copy(actualReps = reps, completed = it.completed && reps.hasReps())
+        updateActualField(exerciseIndex, setIndex) { it.copy(actualReps = value.filterDigits()) }
+    }
+
+    fun updateActualDuration(exerciseIndex: Int, setIndex: Int, value: String) {
+        updateActualField(exerciseIndex, setIndex) {
+            it.copy(actualDuration = value.filterDurationText())
+        }
+    }
+
+    fun updateActualDistance(exerciseIndex: Int, setIndex: Int, value: String) {
+        updateActualField(exerciseIndex, setIndex) { it.copy(actualDistance = value.filterDistance()) }
+    }
+
+    /**
+     * Applies [transform] and keeps `completed` only while the set still has
+     * every field the exercise type requires.
+     */
+    private fun updateActualField(
+        exerciseIndex: Int,
+        setIndex: Int,
+        transform: (DraftSessionSet) -> DraftSessionSet,
+    ) {
+        updateSet(exerciseIndex, setIndex) { set, type ->
+            val updated = transform(set)
+            updated.copy(completed = updated.completed && updated.meetsRequirements(type))
         }
     }
 
     fun setSetType(exerciseIndex: Int, setIndex: Int, setType: SetType) {
-        updateSet(exerciseIndex, setIndex) { it.copy(setType = setType) }
+        updateSet(exerciseIndex, setIndex) { set, _ -> set.copy(setType = setType) }
     }
 
     fun toggleCompleted(exerciseIndex: Int, setIndex: Int) {
-        updateSet(exerciseIndex, setIndex) {
-            it.copy(completed = !it.completed && it.actualReps.hasReps())
+        updateSet(exerciseIndex, setIndex) { set, type ->
+            set.copy(completed = !set.completed && set.meetsRequirements(type))
         }
     }
 
@@ -268,10 +321,12 @@ class WorkoutSessionFormState(private val sessionId: Long) {
                         position = position++,
                         targetWeight = set.targetWeight.toDoubleOrNull(),
                         targetReps = set.targetReps.toIntOrNull(),
-                        targetDuration = null,
+                        targetDuration = parseDurationSeconds(set.targetDuration),
+                        targetDistance = set.targetDistance.toDoubleOrNull(),
                         actualWeight = set.actualWeight.toDoubleOrNull(),
                         actualReps = set.actualReps.toIntOrNull(),
-                        actualDuration = null,
+                        actualDuration = parseDurationSeconds(set.actualDuration),
+                        actualDistance = set.actualDistance.toDoubleOrNull(),
                         setType = set.setType,
                         completed = set.completed,
                         createdAt = now,
@@ -282,20 +337,20 @@ class WorkoutSessionFormState(private val sessionId: Long) {
         }
     }
 
-    private suspend fun loadPreviousSets(exerciseId: Long): List<String> =
+    private suspend fun loadPreviousSets(exercise: Exercise): List<String> =
         AppDb.db.workoutSessionDetailDao()
-            .getLatestCompletedSets(PROFILE_ID, exerciseId)
+            .getLatestCompletedSets(PROFILE_ID, exercise.id)
             .map { row ->
-                val weight = row.actualWeight?.formatWeight()
-                val reps = row.actualReps
-                when {
-                    weight != null && reps != null -> "${weight}kg x $reps"
-                    weight != null -> "${weight}kg"
-                    reps != null -> "x $reps"
-                    // Blank keeps the list positionally aligned; the UI shows
-                    // its placeholder for blank entries.
-                    else -> ""
-                }
+                val type = ExerciseType.fromValue(exercise.exerciseType) ?: ExerciseType.STRENGTH
+                val fields = type.requiredSetFields()
+                // Blank entries keep the list positionally aligned; the UI
+                // shows its placeholder for them.
+                listOfNotNull(
+                    row.actualWeight?.formatWeight()?.let { "${it}kg" },
+                    row.actualReps?.takeIf { SetField.REPS in fields }?.let { "x $it" },
+                    row.actualDuration?.takeIf { SetField.DURATION in fields }?.let { formatDurationHhMm(it) },
+                    row.actualDistance?.takeIf { SetField.DISTANCE in fields }?.formatWeight(),
+                ).joinToString(" ")
             }
 
     private fun updateExercise(index: Int, transform: (DraftSessionExercise) -> DraftSessionExercise) {
@@ -309,16 +364,14 @@ class WorkoutSessionFormState(private val sessionId: Long) {
     private fun updateSet(
         exerciseIndex: Int,
         setIndex: Int,
-        transform: (DraftSessionSet) -> DraftSessionSet,
+        transform: (DraftSessionSet, ExerciseType) -> DraftSessionSet,
     ) {
         updateExercise(exerciseIndex) { ex ->
-            ex.copy(sets = ex.sets.mapIndexed { i, s -> if (i == setIndex) transform(s) else s })
+            ex.copy(sets = ex.sets.mapIndexed { i, s -> if (i == setIndex) transform(s, ex.type) else s })
         }
     }
 }
 
 private const val AUTOSAVE_DEBOUNCE_MS = 500L
-
-private fun String.hasReps(): Boolean = (toIntOrNull() ?: 0) > 0
 
 private fun Double.formatWeight(): String = PlateMath.formatWeight(this)

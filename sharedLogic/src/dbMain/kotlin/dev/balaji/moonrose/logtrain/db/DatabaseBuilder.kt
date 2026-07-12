@@ -157,6 +157,23 @@ internal val MIGRATION_13_14 = object : Migration(13, 14) {
     }
 }
 
+// Additive only, so no table rebuild: nullable distance columns for the
+// distance-measured exercise types. SQL mirrors createSql in
+// schemas/.../15.json exactly.
+internal val MIGRATION_14_15 = object : Migration(14, 15) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(
+            "ALTER TABLE `work_set_details` ADD COLUMN `target_distance` REAL",
+        )
+        connection.execSQL(
+            "ALTER TABLE `workout_session_details` ADD COLUMN `target_distance` REAL",
+        )
+        connection.execSQL(
+            "ALTER TABLE `workout_session_details` ADD COLUMN `actual_distance` REAL",
+        )
+    }
+}
+
 fun createDatabase(): AppDatabase =
     databaseBuilder()
         .setDriver(BundledSQLiteDriver())
@@ -168,6 +185,7 @@ fun createDatabase(): AppDatabase =
             MIGRATION_11_12,
             MIGRATION_12_13,
             MIGRATION_13_14,
+            MIGRATION_14_15,
         )
         // Pre-release safety net for schema history older than v9.
         .fallbackToDestructiveMigration(dropAllTables = true)

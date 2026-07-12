@@ -133,6 +133,9 @@ data class WorkSetDetailEntity(
     @ColumnInfo(name = "target_reps") val targetReps: Int?,
     // Seconds, matching moonrose.
     @ColumnInfo(name = "target_duration") val targetDuration: Int?,
+    // Kilometers or miles as entered, matching the weight column's
+    // label-only unit handling.
+    @ColumnInfo(name = "target_distance") val targetDistance: Double?,
     // Warm-up sets are part of the routine but don't count as working sets.
     // Drop sets do count as work, but like warm-ups don't take a set number.
     @ColumnInfo(name = "set_type", defaultValue = "'normal'") val setType: SetType = SetType.NORMAL,
@@ -225,9 +228,11 @@ data class WorkoutSessionDetailEntity(
     @ColumnInfo(name = "target_weight") val targetWeight: Double?,
     @ColumnInfo(name = "target_reps") val targetReps: Int?,
     @ColumnInfo(name = "target_duration") val targetDuration: Int?,
+    @ColumnInfo(name = "target_distance") val targetDistance: Double?,
     @ColumnInfo(name = "actual_weight") val actualWeight: Double?,
     @ColumnInfo(name = "actual_reps") val actualReps: Int?,
     @ColumnInfo(name = "actual_duration") val actualDuration: Int?,
+    @ColumnInfo(name = "actual_distance") val actualDistance: Double?,
     // Snapshotted from the source WorkSetDetail like the targets above, and
     // changeable on the fly for sets added during the session.
     @ColumnInfo(name = "set_type", defaultValue = "'normal'") val setType: SetType = SetType.NORMAL,
