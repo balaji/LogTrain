@@ -16,6 +16,8 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -82,7 +84,9 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -274,9 +278,18 @@ private fun WorkoutSessionBody(
     val rowHeight = 56.dp
     val rowHeightPx = with(LocalDensity.current) { rowHeight.toPx() }
     val haptics = LocalHapticFeedback.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val plateKeyboard = remember(formState) { BarbellKeyboardState(formState) }
     val plateState by plateKeyboard.uiState.collectAsState()
     val settings by UserSettingsRepository.settings.collectAsState(initial = UserSettings())
+
+    LaunchedEffect(plateState.visible) {
+        if (plateState.visible) {
+            focusManager.clearFocus()
+            keyboardController?.hide()
+        }
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         when {
@@ -297,6 +310,11 @@ private fun WorkoutSessionBody(
                                 plateState.visible && plateState.exerciseIndex == exIndex
                             },
                             onOpenPlateKeypad = { setIdx, currentValue ->
+                                // Dismiss the system IME and drop text-field focus
+                                // so the two keyboards never overlap and refocusing
+                                // the same text field later still fires onFocusChanged.
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
                                 plateKeyboard.open(exIndex, setIdx, exercise.exercise.id, currentValue)
                             },
                             // A focused text field brings up the system IME;
@@ -314,6 +332,9 @@ private fun WorkoutSessionBody(
                             onToggleCompleted = { setIdx -> formState.toggleCompleted(exIndex, setIdx) },
                             onDelete = { formState.removeExercise(exIndex) },
                             onReorderStart = { startRootY ->
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                                plateKeyboard.close()
                                 reorder.activeIndex = exIndex
                                 reorder.lastActiveIndex = exIndex
                                 reorder.fingerRootY = startRootY
@@ -335,7 +356,12 @@ private fun WorkoutSessionBody(
 
                     item {
                         TextButton(
-                            onClick = { showPicker = true },
+                            onClick = {
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                                plateKeyboard.close()
+                                showPicker = true
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -879,6 +905,16 @@ private fun CompactActualInput(
     emptyPlaceholder: String = "0",
     onFocused: (() -> Unit)? = null,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    if (onFocused != null) {
+        LaunchedEffect(interactionSource, onFocused) {
+            interactionSource.interactions.collect { interaction ->
+                if (interaction is PressInteraction.Release) {
+                    onFocused()
+                }
+            }
+        }
+    }
     // Target shows as the placeholder so the user sees what they were aiming
     // for without it being submitted as their actual value.
     BasicTextField(
@@ -891,6 +927,7 @@ private fun CompactActualInput(
         },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        interactionSource = interactionSource,
         textStyle = TextStyle(
             fontSize = 14.sp,
             textAlign = TextAlign.Center,
