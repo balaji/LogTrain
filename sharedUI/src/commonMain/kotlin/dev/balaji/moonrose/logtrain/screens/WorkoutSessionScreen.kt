@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
@@ -57,6 +58,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
@@ -70,9 +72,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -98,6 +102,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import dev.balaji.moonrose.logtrain.db.BarbellKeyboardState
 import dev.balaji.moonrose.logtrain.db.DraftSessionExercise
 import dev.balaji.moonrose.logtrain.db.DraftSessionSet
+import dev.balaji.moonrose.logtrain.db.REST_TIMER_DURATION_SECONDS
 import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
 import dev.balaji.moonrose.logtrain.db.WorkoutSessionFormState
 import dev.balaji.moonrose.logtrain.db.WorkoutSessionRepository
@@ -109,6 +114,7 @@ import dev.balaji.moonrose.logtrain.model.WeightUnit
 import dev.balaji.moonrose.logtrain.model.displaySetFields
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import dev.balaji.moonrose.logtrain.navigation.WorkoutSessionRoute
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import org.jetbrains.compose.resources.stringResource
@@ -117,11 +123,20 @@ import dev.balaji.moonrose.logtrain.sharedui.resources.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutSessionScreen(route: WorkoutSessionRoute, onGoBack: () -> Unit) {
-    // "Resume or start" happens once per navigation entry; the resulting id
-    // stays stable across recompositions so the FormState is only created once.
-    var sessionId by remember { mutableStateOf<Long?>(null) }
+    // "Resume or start" happens once per navigation entry; if the active
+    // session already matches this route, use its id immediately so returning
+    // to an in-progress workout doesn't flash a loading spinner.
+    var sessionId by remember(route.routineId) {
+        mutableStateOf(
+            WorkoutSessionRepository.activeSession.value
+                ?.takeIf { it.routineId == route.routineId }
+                ?.sessionId,
+        )
+    }
     LaunchedEffect(route.routineId) {
-        sessionId = WorkoutSessionRepository.resumeOrStart(routineId = route.routineId)
+        if (sessionId == null) {
+            sessionId = WorkoutSessionRepository.resumeOrStart(routineId = route.routineId)
+        }
     }
 
     val currentId = sessionId
@@ -132,7 +147,7 @@ fun WorkoutSessionScreen(route: WorkoutSessionRoute, onGoBack: () -> Unit) {
         return
     }
 
-    val formState = remember(currentId) { WorkoutSessionFormState(currentId) }
+    val formState = remember(currentId) { WorkoutSessionRepository.formState(currentId) }
     val uiState by formState.uiState.collectAsState()
 
     if (uiState.finished || uiState.discarded) {
@@ -283,6 +298,22 @@ private fun WorkoutSessionBody(
     val plateKeyboard = remember(formState) { BarbellKeyboardState(formState) }
     val plateState by plateKeyboard.uiState.collectAsState()
     val settings by UserSettingsRepository.settings.collectAsState(initial = UserSettings())
+    val restTimer = uiState.restTimer
+    var restRemainingSeconds by remember(restTimer) {
+        mutableLongStateOf(restTimer?.let { remainingSecondsUntil(it.endsAtMillis) } ?: 0L)
+    }
+    LaunchedEffect(restTimer) {
+        if (restTimer == null) {
+            restRemainingSeconds = 0L
+            return@LaunchedEffect
+        }
+        while (true) {
+            val remaining = remainingSecondsUntil(restTimer.endsAtMillis)
+            restRemainingSeconds = remaining
+            if (remaining <= 0L) break
+            delay(250L)
+        }
+    }
 
     LaunchedEffect(plateState.visible) {
         if (plateState.visible) {
@@ -309,6 +340,10 @@ private fun WorkoutSessionBody(
                             plateKeypadSetIndex = plateState.setIndex.takeIf {
                                 plateState.visible && plateState.exerciseIndex == exIndex
                             },
+                            restTimerSetIndex = restTimer?.setIndex?.takeIf {
+                                restTimer.exerciseId == exercise.id && restRemainingSeconds > 0L
+                            },
+                            restRemainingSeconds = restRemainingSeconds,
                             onOpenPlateKeypad = { setIdx, currentValue ->
                                 // Dismiss the system IME and drop text-field focus
                                 // so the two keyboards never overlap and refocusing
@@ -530,6 +565,8 @@ private fun SessionExerciseCard(
     exIndex: Int,
     weightUnit: WeightUnit,
     plateKeypadSetIndex: Int?,
+    restTimerSetIndex: Int?,
+    restRemainingSeconds: Long,
     onOpenPlateKeypad: (Int, String) -> Unit,
     onFieldFocused: () -> Unit,
     onAddSet: () -> Unit,
@@ -670,6 +707,9 @@ private fun SessionExerciseCard(
                 onUpdateDistance = { onUpdateDistance(setIdx, it) },
                 onToggleCompleted = { onToggleCompleted(setIdx) },
             )
+            AnimatedVisibility(visible = restTimerSetIndex == setIdx) {
+                RestTimerCountdownRow(remainingSeconds = restRemainingSeconds)
+            }
         }
 
         TextButton(
@@ -850,6 +890,46 @@ private fun SessionSetRow(
 
 /** Green shared by the completed-row tint and the checked checkbox. */
 private val CompletedGreen = Color(0xFF43A047)
+
+/**
+ * Compact countdown bar shown immediately under the set that triggered the
+ * 2-minute rest timer. Automatically hides when the timer finishes or moves.
+ */
+@Composable
+private fun RestTimerCountdownRow(remainingSeconds: Long) {
+    val progress = (remainingSeconds.toFloat() / REST_TIMER_DURATION_SECONDS.toFloat()).coerceIn(0f, 1f)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(CompletedGreen.copy(alpha = 0.12f))
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.Notifications,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = stringResource(Res.string.rest_timer_countdown, formatCountdown(remainingSeconds)),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.fillMaxWidth().height(3.dp),
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+        )
+    }
+}
 
 /**
  * Weight cell for barbell exercises. Styled like [CompactActualInput] but a

@@ -39,11 +39,12 @@ def configure_environment() -> None:
         sdk_dir = Path.home() / "Library" / "Android" / "sdk"
     elif os.name == "nt":
         local_app_data = os.environ.get("LOCALAPPDATA")
-        sdk_dir = (
+        candidate = (
             Path(local_app_data) / "Android" / "Sdk"
             if local_app_data
             else Path.home() / "AppData" / "Local" / "Android" / "Sdk"
         )
+        sdk_dir = candidate if candidate.is_dir() else Path("C:/Android/Sdk")
     else:
         sdk_dir = Path.home() / "Android" / "Sdk"
 
@@ -99,18 +100,46 @@ def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
 def has_connected_device(adb: str) -> bool:
     result = run([adb, "devices"], capture_output=True, text=True)
     for line in result.stdout.splitlines()[1:]:
-        if re.search(r"\bdevice$", line.strip()):
+        if re.search(r"\b(device|offline)$", line.strip()):
             return True
     return False
 
 
-def ensure_device_ready(adb: str) -> None:
-    if has_connected_device(adb):
-        return
+def is_boot_completed(adb: str) -> bool:
+    boot = subprocess.run(
+        [adb, "shell", "getprop", "sys.boot_completed"],
+        capture_output=True,
+        text=True,
+    )
+    return boot.returncode == 0 and boot.stdout.strip() == "1"
 
+
+def is_system_responsive(adb: str) -> bool:
+    """Return True if both sys.boot_completed=1 and the package manager binder service responds."""
+    if not is_boot_completed(adb):
+        return False
+    pm = subprocess.run(
+        [adb, "shell", "pm", "list", "packages", "android"],
+        capture_output=True,
+        text=True,
+    )
+    return pm.returncode == 0 and "package:android" in pm.stdout
+
+
+def wait_for_boot(adb: str, timeout_sec: int = 180) -> bool:
+    run([adb, "wait-for-device"])
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        if is_system_responsive(adb):
+            return True
+        time.sleep(2)
+    return False
+
+
+def boot_emulator(adb: str) -> None:
     emulator = require_tool("emulator")
     log_path = Path(tempfile.gettempdir()) / "logtrain-emulator.log"
-    print(f'No emulator running — booting "{AVD_NAME}" (log: {log_path})...')
+    print(f'Starting emulator "{AVD_NAME}" (log: {log_path})...')
 
     popen_kwargs: dict = {}
     if os.name == "nt":
@@ -120,27 +149,44 @@ def ensure_device_ready(adb: str) -> None:
     else:
         popen_kwargs["start_new_session"] = True
 
+    # Always cold-boot (-no-snapshot): on API 36+ with Guest ANGLE,
+    # restoring quick-boot snapshots fails to recreate GPU process resources
+    # ("Failed to create process resource for puid ...") and crashes
+    # system_server, leaving the emulator window frozen on a stale frame.
+    cmd = [emulator, "-avd", AVD_NAME, "-no-snapshot"]
+
     with log_path.open("wb") as log_file:
         subprocess.Popen(
-            [emulator, "-avd", AVD_NAME],
+            cmd,
             stdin=subprocess.DEVNULL,
             stdout=log_file,
             stderr=subprocess.STDOUT,
             **popen_kwargs,
         )
 
-    run([adb, "wait-for-device"])
 
-    # Wait for full boot, not just the ADB link.
-    while True:
-        res = subprocess.run(
-            [adb, "shell", "getprop", "sys.boot_completed"],
-            capture_output=True,
-            text=True,
-        )
-        if res.stdout.strip() == "1":
-            break
-        time.sleep(2)
+def kill_emulator(adb: str) -> None:
+    subprocess.run([adb, "emu", "kill"], capture_output=True, text=True)
+    for _ in range(30):
+        if not has_connected_device(adb):
+            return
+        time.sleep(1)
+
+
+def ensure_device_ready(adb: str) -> None:
+    if has_connected_device(adb):
+        if not is_boot_completed(adb):
+            print("Emulator is still booting -- waiting...")
+            if wait_for_boot(adb):
+                return
+        elif is_system_responsive(adb):
+            return
+        print("Connected emulator has an unresponsive system_server -- restarting...")
+        kill_emulator(adb)
+
+    boot_emulator(adb)
+    if not wait_for_boot(adb):
+        sys.exit("Error: Emulator failed to finish booting.")
 
 
 def is_app_installed(adb: str, app_id: str) -> bool:
@@ -164,7 +210,7 @@ def main() -> None:
             print(f"Uninstalling {APP_ID}...")
             run([adb, "uninstall", APP_ID])
         else:
-            print(f"{APP_ID} not installed — nothing to uninstall.")
+            print(f"{APP_ID} not installed -- nothing to uninstall.")
 
     gradlew = str(repo_root / ("gradlew.bat" if os.name == "nt" else "gradlew"))
     run([gradlew, ":androidApp:installDebug"])
@@ -205,53 +251,8 @@ if __name__ == "__main__":
     try:
         main()
     except subprocess.CalledProcessError as exc:
+        if exc.stdout:
+            sys.stderr.write(exc.stdout)
+        if exc.stderr:
+            sys.stderr.write(exc.stderr)
         sys.exit(exc.returncode)
-
-    if clean:
-        if is_app_installed(adb, APP_ID):
-            print(f"Uninstalling {APP_ID}...")
-            run([adb, "uninstall", APP_ID])
-        else:
-            print(f"{APP_ID} not installed — nothing to uninstall.")
-
-    gradlew = str(repo_root / ("gradlew.bat" if os.name == "nt" else "gradlew"))
-    run([gradlew, ":androidApp:installDebug"])
-
-    run([adb, "shell", "am", "force-stop", APP_ID])
-
-    if lang_code:
-        locale_map = {
-            "en": "en-US",
-            "sv": "sv-SE",
-        }
-        locale = locale_map.get(lang_code, lang_code)
-        print(f"Launching with language override: {lang_code} ({locale})")
-        run(
-            [
-                adb,
-                "shell",
-                "cmd",
-                "locale",
-                "set-app-locales",
-                APP_ID,
-                "--user",
-                "current",
-                "--locales",
-                locale,
-            ]
-        )
-
-    start_cmd = [adb, "shell", "am", "start", "-n", f"{APP_ID}/.MainActivity"]
-    if seed_days > 0:
-        print(f"Launching with test-data seed: {seed_days} days")
-        start_cmd.extend(["--ei", "seedTestData", str(seed_days)])
-
-    run(start_cmd)
-
-
-if __name__ == "__main__":
-    try:
-        main()
-    except subprocess.CalledProcessError as exc:
-        sys.exit(exc.returncode)
-

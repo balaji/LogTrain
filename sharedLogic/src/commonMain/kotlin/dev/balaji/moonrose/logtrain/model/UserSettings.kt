@@ -73,8 +73,8 @@ data class UserSettings(
     val bmiClassification: BmiClassification = BmiClassification.WHO,
     /**
      * Whether the user opted in to notifications. Off by default; enabling
-     * it triggers the OS permission prompt. Stored preference only for now;
-     * nothing sends notifications yet.
+     * it triggers the OS permission prompt. Controls whether a background
+     * push notification is sent when the between-set rest timer finishes.
      */
     val notificationsEnabled: Boolean = false,
     /**

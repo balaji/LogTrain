@@ -4505,6 +4505,57 @@
           }
         }
       }
+    },
+    "rest_timer_countdown": {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vila · %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest · %@"
+          }
+        }
+      }
+    },
+    "rest_over_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vilan är slut"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest is over"
+          }
+        }
+      }
+    },
+    "rest_over_message": {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dags för nästa set."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time for your next set."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

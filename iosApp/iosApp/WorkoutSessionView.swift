@@ -16,7 +16,8 @@ struct WorkoutSessionView: View {
         saving: false,
         finished: false,
         discarded: false,
-        startedAt: 0
+        startedAt: 0,
+        restTimer: nil
     )
     @State private var showExercisePicker = false
     @State private var showDiscardConfirm = false
@@ -26,6 +27,7 @@ struct WorkoutSessionView: View {
     @State private var plateKeyboard: BarbellKeyboardState?
     @State private var plateNumericMode = false
     @State private var weightUnit: WeightUnit = .metric
+    @State private var restRemainingSeconds = 0
 
     private var sessionStartDate: Date? {
         guard uiState.startedAt > 0 else { return nil }
@@ -52,6 +54,9 @@ struct WorkoutSessionView: View {
             for await settings in UserSettingsRepository.shared.settings {
                 weightUnit = settings.weightUnit
             }
+        }
+        .task(id: uiState.restTimer?.startedAtMillis) {
+            await followRestTimer()
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
@@ -159,8 +164,10 @@ struct WorkoutSessionView: View {
             do {
                 let id = try await WorkoutSessionRepository.shared.resumeOrStart(routineId: routineId)
                 sessionId = id.int64Value
-                let state = WorkoutSessionFormState(sessionId: id.int64Value)
+                let state = WorkoutSessionRepository.shared.formState(sessionId: id.int64Value)
                 formState = state
+                uiState = state.uiState.value
+                updateRemainingSeconds(for: uiState.restTimer)
                 plateKeyboard = BarbellKeyboardState(formState: state)
             } catch {
                 // Bootstrap failure is fatal for this screen; falling back to
@@ -172,7 +179,18 @@ struct WorkoutSessionView: View {
         guard let formState else { return }
         for await value in formState.uiState {
             uiState = value
+            updateRemainingSeconds(for: value.restTimer)
         }
+    }
+
+    private func updateRemainingSeconds(for timer: RestTimerTarget?) {
+        guard let timer else {
+            restRemainingSeconds = 0
+            return
+        }
+        let nowMillis = Int64(Date().timeIntervalSince1970 * 1000)
+        let remainingMs = timer.endsAtMillis - nowMillis
+        restRemainingSeconds = max(0, Int((remainingMs + 999) / 1000))
     }
 
     /// Mirrors the plate keyboard's mode so each `PlateWeightField` swaps
@@ -202,6 +220,27 @@ struct WorkoutSessionView: View {
         }
     }
 
+    /// Ticks the 2-minute rest countdown display under the completed set while
+    /// this screen is visible; completion alerts and background notifications
+    /// are owned at the app root (`ContentView`) so navigating away doesn't
+    /// interrupt the timer.
+    private func followRestTimer() async {
+        guard let timer = uiState.restTimer else {
+            restRemainingSeconds = 0
+            return
+        }
+        while !Task.isCancelled {
+            let nowMillis = Int64(Date().timeIntervalSince1970 * 1000)
+            let remainingMs = timer.endsAtMillis - nowMillis
+            if remainingMs <= 0 {
+                restRemainingSeconds = 0
+                break
+            }
+            restRemainingSeconds = Int((remainingMs + 999) / 1000)
+            try? await Task.sleep(nanoseconds: 250_000_000)
+        }
+    }
+
     @ViewBuilder
     private func sessionBody(formState: WorkoutSessionFormState) -> some View {
         List {
@@ -213,7 +252,11 @@ struct WorkoutSessionView: View {
                         formState: formState,
                         plateKeyboard: plateKeyboard,
                         plateNumericMode: plateNumericMode,
-                        weightUnit: weightUnit
+                        weightUnit: weightUnit,
+                        restTimerSetIndex: (uiState.restTimer?.exerciseId == exercise.id && restRemainingSeconds > 0)
+                            ? Int(uiState.restTimer!.setIndex)
+                            : nil,
+                        restRemainingSeconds: restRemainingSeconds
                     )
                 } header: {
                     HStack {
@@ -279,6 +322,8 @@ private struct SessionExerciseSection: View {
     let plateKeyboard: BarbellKeyboardState?
     let plateNumericMode: Bool
     let weightUnit: WeightUnit
+    let restTimerSetIndex: Int?
+    let restRemainingSeconds: Int
 
     private var setsCount: Int { Int(exercise.sets.count) }
 
@@ -370,6 +415,11 @@ private struct SessionExerciseSection: View {
                             Label(L10n.delete, systemImage: "trash")
                         }
                     }
+                }
+
+                if restTimerSetIndex == setIdx {
+                    RestTimerCountdownRow(remainingSeconds: restRemainingSeconds)
+                        .listRowSeparator(.hidden)
                 }
             }
 
@@ -526,5 +576,44 @@ private struct SessionSetRow: View {
             .padding(.vertical, 6)
             .background(Color(.secondarySystemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+}
+
+/// Compact countdown row shown directly under the completed set while the
+/// 2-minute between-set rest timer is running.
+private struct RestTimerCountdownRow: View {
+    let remainingSeconds: Int
+
+    private var formattedCountdown: String {
+        let clamped = max(0, remainingSeconds)
+        let minutes = clamped / 60
+        let seconds = clamped % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+
+    private var progress: Double {
+        let total = Double(WorkoutSessionFormStateKt.REST_TIMER_DURATION_SECONDS)
+        guard total > 0 else { return 0 }
+        return min(max(Double(remainingSeconds) / total, 0), 1)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: "bell.fill")
+                    .font(.caption)
+                    .foregroundStyle(Color.accentColor)
+                Text(L10n.restTimerCountdown(formattedCountdown))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(Color.accentColor)
+                    .monospacedDigit()
+                Spacer()
+            }
+            ProgressView(value: progress)
+                .progressViewStyle(.linear)
+                .tint(Color.accentColor)
+        }
+        .padding(.vertical, 4)
+        .listRowBackground(Color.green.opacity(0.08))
     }
 }
