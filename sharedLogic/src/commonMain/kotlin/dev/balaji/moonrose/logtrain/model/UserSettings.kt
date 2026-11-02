@@ -47,6 +47,39 @@ enum class WeightUnit(val value: String) {
 }
 
 /**
+ * Sound played when the between-set rest timer finishes. Persisted as the
+ * lowercase [value] string in user_settings. The named tones are Apache-2.0
+ * AOSP notification sounds bundled on both platforms.
+ */
+enum class RestTimerSound(val value: String) {
+    /** Platform's default notification/alert chime. */
+    DEFAULT("default"),
+    PROXIMA("proxima"),
+    MIRA("mira"),
+    ANTARES("antares"),
+    ALTAIR("altair"),
+    DENEB("deneb"),
+    ;
+
+    companion object {
+        fun fromValue(value: String?): RestTimerSound = entries.firstOrNull { it.value == value } ?: DEFAULT
+    }
+}
+
+const val MIN_REST_TIMER_SECONDS = 60
+const val MAX_REST_TIMER_SECONDS = 300
+const val REST_TIMER_STEP_SECONDS = 30
+const val DEFAULT_REST_TIMER_SECONDS = 120
+
+/** Snaps [seconds] to the nearest valid 30-second step within 60..300. */
+fun clampRestTimerSeconds(seconds: Int): Int {
+    val clamped = seconds.coerceIn(MIN_REST_TIMER_SECONDS, MAX_REST_TIMER_SECONDS)
+    val offset = clamped - MIN_REST_TIMER_SECONDS
+    val snappedOffset = ((offset + REST_TIMER_STEP_SECONDS / 2) / REST_TIMER_STEP_SECONDS) * REST_TIMER_STEP_SECONDS
+    return (MIN_REST_TIMER_SECONDS + snappedOffset).coerceIn(MIN_REST_TIMER_SECONDS, MAX_REST_TIMER_SECONDS)
+}
+
+/**
  * One user-configured progression card on the Progress tab: which exercises
  * its chart overlays and how its y-axis scales. Persisted in user_settings.
  */
@@ -77,6 +110,10 @@ data class UserSettings(
      * push notification is sent when the between-set rest timer finishes.
      */
     val notificationsEnabled: Boolean = false,
+    /** Duration in seconds of the between-set rest timer (60..300 in 30s steps). */
+    val restTimerDurationSeconds: Int = DEFAULT_REST_TIMER_SECONDS,
+    /** Audio tone played when the between-set rest timer reaches zero. */
+    val restTimerSound: RestTimerSound = RestTimerSound.DEFAULT,
     /**
      * Progression cards the user configured on the Progress tab, display
      * order. Empty means "never configured" — the Progress tab then defaults

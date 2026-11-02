@@ -256,7 +256,8 @@ struct WorkoutSessionView: View {
                         restTimerSetIndex: (uiState.restTimer?.exerciseId == exercise.id && restRemainingSeconds > 0)
                             ? Int(uiState.restTimer!.setIndex)
                             : nil,
-                        restRemainingSeconds: restRemainingSeconds
+                        restRemainingSeconds: restRemainingSeconds,
+                        restTotalSeconds: Int(uiState.restTimer?.durationSeconds ?? WorkoutSessionFormStateKt.REST_TIMER_DURATION_SECONDS)
                     )
                 } header: {
                     HStack {
@@ -324,6 +325,7 @@ private struct SessionExerciseSection: View {
     let weightUnit: WeightUnit
     let restTimerSetIndex: Int?
     let restRemainingSeconds: Int
+    let restTotalSeconds: Int
 
     private var setsCount: Int { Int(exercise.sets.count) }
 
@@ -418,7 +420,10 @@ private struct SessionExerciseSection: View {
                 }
 
                 if restTimerSetIndex == setIdx {
-                    RestTimerCountdownRow(remainingSeconds: restRemainingSeconds)
+                    RestTimerCountdownRow(
+                        remainingSeconds: restRemainingSeconds,
+                        totalSeconds: restTotalSeconds
+                    )
                         .listRowSeparator(.hidden)
                 }
             }
@@ -580,9 +585,10 @@ private struct SessionSetRow: View {
 }
 
 /// Compact countdown row shown directly under the completed set while the
-/// 2-minute between-set rest timer is running.
+/// between-set rest timer is running.
 private struct RestTimerCountdownRow: View {
     let remainingSeconds: Int
+    let totalSeconds: Int
 
     private var formattedCountdown: String {
         let clamped = max(0, remainingSeconds)
@@ -592,8 +598,7 @@ private struct RestTimerCountdownRow: View {
     }
 
     private var progress: Double {
-        let total = Double(WorkoutSessionFormStateKt.REST_TIMER_DURATION_SECONDS)
-        guard total > 0 else { return 0 }
+        let total = Double(max(1, totalSeconds))
         return min(max(Double(remainingSeconds) / total, 0), 1)
     }
 

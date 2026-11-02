@@ -175,6 +175,14 @@
     <string name="appearance_system">System</string>
     <string name="units_metric">Metriskt</string>
     <string name="units_imperial">Imperiskt</string>
+    <string name="rest_timer_duration">Vilotimer</string>
+    <string name="rest_timer_sound">Vilotimerljud</string>
+    <string name="rest_sound_default">Standard</string>
+    <string name="rest_sound_proxima">Proxima</string>
+    <string name="rest_sound_mira">Mira</string>
+    <string name="rest_sound_antares">Antares</string>
+    <string name="rest_sound_altair">Altair</string>
+    <string name="rest_sound_deneb">Deneb</string>
 
     <!-- Developer tools -->
     <string name="developer">Utvecklare</string>

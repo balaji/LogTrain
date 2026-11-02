@@ -4,8 +4,15 @@ import dev.balaji.moonrose.logtrain.db.DraftSessionExercise
 import dev.balaji.moonrose.logtrain.db.DraftSessionSet
 import dev.balaji.moonrose.logtrain.db.REST_TIMER_DURATION_MS
 import dev.balaji.moonrose.logtrain.db.RestTimerTarget
+import dev.balaji.moonrose.logtrain.db.SETTING_REST_TIMER_DURATION
+import dev.balaji.moonrose.logtrain.db.SETTING_REST_TIMER_SOUND
+import dev.balaji.moonrose.logtrain.db.UserSettingEntity
 import dev.balaji.moonrose.logtrain.db.WorkoutSessionUiState
+import dev.balaji.moonrose.logtrain.db.toUserSettings
+import dev.balaji.moonrose.logtrain.model.DEFAULT_REST_TIMER_SECONDS
 import dev.balaji.moonrose.logtrain.model.Exercise
+import dev.balaji.moonrose.logtrain.model.RestTimerSound
+import dev.balaji.moonrose.logtrain.model.clampRestTimerSeconds
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -142,5 +149,51 @@ class SharedLogicAndroidHostTest {
 
         assertFalse(invalidated.exercises[0].sets[0].completed)
         assertNull(invalidated.restTimer)
+    }
+
+    @Test
+    fun completingSetUsesCustomRestTimerDuration() {
+        val state = initialState().toggleCompletedAt(
+            exerciseIndex = 0,
+            setIndex = 1,
+            now = 5_000L,
+            durationSeconds = 90L,
+        )
+
+        assertEquals(
+            RestTimerTarget(
+                exerciseId = 10L,
+                setIndex = 1,
+                startedAtMillis = 5_000L,
+                endsAtMillis = 95_000L,
+            ),
+            state.restTimer,
+        )
+        assertEquals(90L, state.restTimer?.durationSeconds)
+    }
+
+    @Test
+    fun clampRestTimerSecondsSnapsToThirtySecondStepsInRange() {
+        assertEquals(60, clampRestTimerSeconds(10))
+        assertEquals(60, clampRestTimerSeconds(60))
+        assertEquals(60, clampRestTimerSeconds(74))
+        assertEquals(90, clampRestTimerSeconds(75))
+        assertEquals(180, clampRestTimerSeconds(180))
+        assertEquals(300, clampRestTimerSeconds(300))
+        assertEquals(300, clampRestTimerSeconds(500))
+    }
+
+    @Test
+    fun userSettingsDecodesRestTimerDurationAndSoundWithFallbacks() {
+        val defaults = emptyList<UserSettingEntity>().toUserSettings()
+        assertEquals(DEFAULT_REST_TIMER_SECONDS, defaults.restTimerDurationSeconds)
+        assertEquals(RestTimerSound.DEFAULT, defaults.restTimerSound)
+
+        val configured = listOf(
+            UserSettingEntity(SETTING_REST_TIMER_DURATION, "210", 0L, 0L),
+            UserSettingEntity(SETTING_REST_TIMER_SOUND, "antares", 0L, 0L),
+        ).toUserSettings()
+        assertEquals(210, configured.restTimerDurationSeconds)
+        assertEquals(RestTimerSound.ANTARES, configured.restTimerSound)
     }
 }
