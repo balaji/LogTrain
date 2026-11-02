@@ -5,6 +5,7 @@ import dev.balaji.moonrose.logtrain.model.PlateOption
 import dev.balaji.moonrose.logtrain.model.WeightUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -71,8 +72,9 @@ private object SettingsBarWeightStore : BarWeightStore {
 /**
  * Drives the barbell plate keyboard on both the Compose and SwiftUI session
  * screens. Every mutation writes the recomputed total through [sink] as a
- * formatted string, riding the form state's existing sanitize/autosave path —
- * opening alone never writes, so open-then-dismiss can't fill an empty field.
+ * formatted string, riding the form state's existing sanitize/autosave path.
+ * Opening on an empty cell immediately writes the bar weight so the cell
+ * matches the keyboard's initial total display.
  *
  * The display unit is read once per [open]; changing units while the keyboard
  * is up keeps the old plate set until it is reopened.
@@ -94,6 +96,7 @@ class BarbellKeyboardState internal constructor(
     val uiState: StateFlow<BarbellKeyboardUiState> = _uiState.asStateFlow()
 
     private var exerciseId = -1L
+    private var openJob: Job? = null
 
     /**
      * Mirror of the weight cell's text, kept so numeric-mode edits and
@@ -105,13 +108,14 @@ class BarbellKeyboardState internal constructor(
 
     /** Called when a barbell weight cell is tapped/focused. */
     fun open(exerciseIndex: Int, setIndex: Int, exerciseId: Long, currentValue: String) {
-        scope.launch {
+        openJob?.cancel()
+        openJob = scope.launch {
             val unit = unitProvider()
             val bar = store.get(exerciseId, unit) ?: PlateMath.defaultBar(unit)
             this@BarbellKeyboardState.exerciseId = exerciseId
             fieldText = currentValue
             val decomposed = decomposeField(currentValue, bar, unit)
-            _uiState.value = BarbellKeyboardUiState(
+            val nextState = BarbellKeyboardUiState(
                 visible = true,
                 // A value we can't build from plates opens on the fallback
                 // keypad instead of silently replacing it.
@@ -124,10 +128,17 @@ class BarbellKeyboardState internal constructor(
                 exerciseIndex = exerciseIndex,
                 setIndex = setIndex,
             )
+            if (currentValue.isBlank()) {
+                commit(nextState)
+            } else {
+                _uiState.value = nextState
+            }
         }
     }
 
     fun close() {
+        openJob?.cancel()
+        openJob = null
         _uiState.value = _uiState.value.copy(visible = false, exerciseIndex = -1, setIndex = -1)
     }
 

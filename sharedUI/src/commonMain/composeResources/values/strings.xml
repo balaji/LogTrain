@@ -35,6 +35,10 @@
     <string name="nothing_to_save_message">There are no completed sets to save. Discard?</string>
     <string name="discard_workout">Discard workout</string>
     <string name="finish_workout">Finish workout</string>
+    <string name="rest_timer_countdown">Rest · %1$s</string>
+    <string name="rest_over_title">Rest is over</string>
+    <string name="rest_over_message">Time for your next set.</string>
+    <string name="rest_timer_channel_name">Rest timer</string>
 
     <!-- Workout session / routine editor -->
     <string name="add_exercise_caps">ADD EXERCISE</string>

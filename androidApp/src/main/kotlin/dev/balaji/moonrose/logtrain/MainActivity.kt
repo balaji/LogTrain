@@ -24,7 +24,7 @@ class MainActivity : ComponentActivity() {
 
     // Test harness hook: `am start ... --ei seedTestData <days>` on a fresh
     // debuggable install lands the app on a populated profile (see
-    // scripts/run-android.sh --seed).
+    // scripts/run-android.py --seed).
     private fun maybeSeedTestData() {
         val debuggable = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
         if (!debuggable) return

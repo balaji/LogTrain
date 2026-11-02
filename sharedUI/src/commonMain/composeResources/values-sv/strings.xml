@@ -35,6 +35,10 @@
     <string name="nothing_to_save_message">Det finns inga slutförda set att spara. Kasta?</string>
     <string name="discard_workout">Kasta träningspass</string>
     <string name="finish_workout">Avsluta träningspass</string>
+    <string name="rest_timer_countdown">Vila · %1$s</string>
+    <string name="rest_over_title">Vilan är slut</string>
+    <string name="rest_over_message">Dags för nästa set.</string>
+    <string name="rest_timer_channel_name">Vilotimer</string>
 
     <!-- Workout session / routine editor -->
     <string name="add_exercise_caps">LÄGG TILL ÖVNING</string>

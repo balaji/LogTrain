@@ -1,6 +1,6 @@
 ---
 name: run-android
-description: Build, install, and launch LogTrain in the Android Emulator via scripts/run-android.sh. Use when asked to run, launch, or test the Android app, or to verify a change works in the emulator.
+description: Build, install, and launch LogTrain in the Android Emulator via scripts/run-android.py. Use when asked to run, launch, or test the Android app, or to verify a change works in the emulator.
 ---
 
 # Running LogTrain on Android
@@ -8,7 +8,7 @@ description: Build, install, and launch LogTrain in the Android Emulator via scr
 Run from the repo root:
 
 ```bash
-scripts/run-android.sh
+scripts/run-android.py
 ```
 
 This installs the debug build (`:androidApp:installDebug`) and launches on
@@ -21,8 +21,8 @@ Pass a language code to override the app's per-app locale for this run only
 system-wide language setting — useful for eyeballing localization:
 
 ```bash
-scripts/run-android.sh sv   # Swedish
-scripts/run-android.sh en   # English
+scripts/run-android.py sv   # Swedish
+scripts/run-android.py en   # English
 ```
 
 Pass `--clean` to uninstall the app (if installed) before installing,
@@ -30,8 +30,8 @@ wiping its data — useful for testing first-run behavior or fresh-install
 database migrations. Combines with a language code in any order:
 
 ```bash
-scripts/run-android.sh --clean
-scripts/run-android.sh --clean sv
+scripts/run-android.py --clean
+scripts/run-android.py --clean sv
 ```
 
 Pass `--seed [days]` to land a fresh install on a populated app instead of
@@ -44,8 +44,8 @@ the same generator as the in-app Developer link. This is the usual way to
 start a test session:
 
 ```bash
-scripts/run-android.sh --seed        # fresh install + 60 days of data
-scripts/run-android.sh --seed 120 sv # 120 days, Swedish
+scripts/run-android.py --seed        # fresh install + 60 days of data
+scripts/run-android.py --seed 120 sv # 120 days, Swedish
 ```
 
 Seeding is asynchronous — give the app a second or two after launch before
