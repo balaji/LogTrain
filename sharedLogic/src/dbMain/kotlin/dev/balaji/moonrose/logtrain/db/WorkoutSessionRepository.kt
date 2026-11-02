@@ -5,8 +5,10 @@ import dev.balaji.moonrose.logtrain.model.isSetComplete
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
@@ -20,6 +22,46 @@ data class ActiveWorkoutSession(
 
 object WorkoutSessionRepository {
     private val repositoryScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    private val _activeRestTimer = MutableStateFlow<RestTimerTarget?>(null)
+    /**
+     * Tracks the active 2-minute rest timer across the entire app so navigating
+     * away from the workout screen (to view other tabs/pages) neither drops the
+     * countdown nor misses its completion alert.
+     */
+    val activeRestTimer: StateFlow<RestTimerTarget?> = _activeRestTimer.asStateFlow()
+
+    private var cachedFormState: WorkoutSessionFormState? = null
+
+    /**
+     * Returns the shared [WorkoutSessionFormState] for [sessionId], reusing it
+     * across back/forward navigation so in-memory state (including the active
+     * rest timer) survives leaving and re-entering the workout screen.
+     */
+    fun formState(sessionId: Long): WorkoutSessionFormState {
+        val existing = cachedFormState
+        if (existing != null && existing.sessionId == sessionId && !existing.isClosed) {
+            return existing
+        }
+        existing?.closeQuietly()
+        return WorkoutSessionFormState(sessionId).also { cachedFormState = it }
+    }
+
+    internal fun updateActiveRestTimer(timer: RestTimerTarget?) {
+        _activeRestTimer.value = timer
+    }
+
+    /** Clears the rest timer once its countdown finishes. */
+    fun clearActiveRestTimer() {
+        _activeRestTimer.value = null
+        cachedFormState?.clearRestTimer()
+    }
+
+    internal fun evictFormState(sessionId: Long) {
+        if (cachedFormState?.sessionId == sessionId) {
+            cachedFormState = null
+        }
+    }
 
     /**
      * Tracks whichever session is currently in progress, so a persistent mini
@@ -54,6 +96,10 @@ object WorkoutSessionRepository {
      * exercise are always adjacent in position order.
      */
     suspend fun startFromRoutine(routineId: Long): Long {
+        cachedFormState?.closeQuietly()
+        cachedFormState = null
+        _activeRestTimer.value = null
+
         val now = nowMillis()
         val sessionId = AppDb.db.workoutSessionDao().insert(
             WorkoutSessionEntity(
@@ -121,6 +167,10 @@ object WorkoutSessionRepository {
     }
 
     suspend fun startEmpty(): Long {
+        cachedFormState?.closeQuietly()
+        cachedFormState = null
+        _activeRestTimer.value = null
+
         val now = nowMillis()
         return AppDb.db.workoutSessionDao().insert(
             WorkoutSessionEntity(
@@ -151,8 +201,11 @@ object WorkoutSessionRepository {
      * the session screen (the mini bar) uses this to decide between finishing
      * and offering to discard; the screen itself checks its own form state.
      */
-    suspend fun hasCompletedSets(sessionId: Long): Boolean =
-        AppDb.db.workoutSessionDetailDao().hasCompletedSets(sessionId)
+    suspend fun hasCompletedSets(sessionId: Long): Boolean {
+        val cached = cachedFormState?.takeIf { it.sessionId == sessionId && !it.uiState.value.loading }
+        if (cached != null) return cached.uiState.value.hasCompletedSets
+        return AppDb.db.workoutSessionDetailDao().hasCompletedSets(sessionId)
+    }
 
     /**
      * Sets missing a value their exercise type requires (reps, duration or
@@ -161,6 +214,16 @@ object WorkoutSessionRepository {
      * the session-screen finish and the mini-bar finish consistent.
      */
     suspend fun finish(sessionId: Long) {
+        _activeRestTimer.value = null
+        val cached = cachedFormState?.takeIf { it.sessionId == sessionId }
+        if (cached != null) {
+            cached.flushBeforeExternalFinish()
+            cachedFormState = null
+        }
+        finishPersisted(sessionId)
+    }
+
+    internal suspend fun finishPersisted(sessionId: Long) {
         val now = nowMillis()
         val details = AppDb.db.workoutSessionDetailDao().getForSession(sessionId)
         val typeByExercise = details.map { it.exerciseId }.distinct().associateWith { id ->
@@ -176,6 +239,12 @@ object WorkoutSessionRepository {
 
     /** Cascades to `workout_session_details` via the FK. */
     suspend fun discard(sessionId: Long) {
+        _activeRestTimer.value = null
+        val cached = cachedFormState?.takeIf { it.sessionId == sessionId }
+        if (cached != null) {
+            cached.closeQuietly()
+            cachedFormState = null
+        }
         AppDb.db.workoutSessionDao().delete(sessionId)
     }
 }

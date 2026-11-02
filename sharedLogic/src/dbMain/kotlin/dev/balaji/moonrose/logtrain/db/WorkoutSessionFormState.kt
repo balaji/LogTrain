@@ -72,6 +72,21 @@ data class DraftSessionExercise(
         sets.getOrNull(setIndex)?.meetsRequirements(type) ?: false
 }
 
+/**
+ * Tracks the 2-minute rest timer running under the most recently completed set.
+ * Only one rest timer runs at a time; checking another set restarts it under
+ * the new set, and unchecking or deleting the owning set cancels it.
+ */
+data class RestTimerTarget(
+    val exerciseId: Long,
+    val setIndex: Int,
+    val startedAtMillis: Long,
+    val endsAtMillis: Long,
+)
+
+const val REST_TIMER_DURATION_SECONDS = 120L
+const val REST_TIMER_DURATION_MS = REST_TIMER_DURATION_SECONDS * 1000L
+
 data class WorkoutSessionUiState(
     val loading: Boolean = true,
     val exercises: List<DraftSessionExercise> = emptyList(),
@@ -80,13 +95,110 @@ data class WorkoutSessionUiState(
     val discarded: Boolean = false,
     // Epoch millis the session was started; 0 while still loading.
     val startedAt: Long = 0L,
+    val restTimer: RestTimerTarget? = null,
 ) {
     /** Finishing is only allowed once at least one set is checked off. */
     val hasCompletedSets: Boolean
         get() = exercises.any { ex -> ex.sets.any { it.completed } }
+
+    /** Whether the rest timer is currently attached to [exerciseId]'s [setIndex]. */
+    fun isRestTimerOn(exerciseId: Long, setIndex: Int): Boolean =
+        restTimer?.let { it.exerciseId == exerciseId && it.setIndex == setIndex } == true
+
+    internal fun removeSetAt(exerciseIndex: Int, setIndex: Int): WorkoutSessionUiState {
+        val targetExId = exercises.getOrNull(exerciseIndex)?.id
+        val nextTimer = restTimer?.let { timer ->
+            if (timer.exerciseId != targetExId) {
+                timer
+            } else when {
+                timer.setIndex == setIndex -> null
+                timer.setIndex > setIndex -> timer.copy(setIndex = timer.setIndex - 1)
+                else -> timer
+            }
+        }
+        return copy(
+            exercises = exercises.mapIndexed { i, ex ->
+                if (i == exerciseIndex) {
+                    ex.copy(sets = ex.sets.filterIndexed { idx, _ -> idx != setIndex })
+                } else {
+                    ex
+                }
+            },
+            restTimer = nextTimer,
+        )
+    }
+
+    internal fun removeExerciseAt(exerciseIndex: Int): WorkoutSessionUiState {
+        val removedId = exercises.getOrNull(exerciseIndex)?.id
+        return copy(
+            exercises = exercises.filterIndexed { i, _ -> i != exerciseIndex },
+            restTimer = restTimer?.takeIf { it.exerciseId != removedId },
+        )
+    }
+
+    internal fun updateActualFieldAt(
+        exerciseIndex: Int,
+        setIndex: Int,
+        transform: (DraftSessionSet) -> DraftSessionSet,
+    ): WorkoutSessionUiState {
+        val exercise = exercises.getOrNull(exerciseIndex) ?: return this
+        val set = exercise.sets.getOrNull(setIndex) ?: return this
+        val updated = transform(set)
+        val nowCompleted = updated.completed && updated.meetsRequirements(exercise.type)
+        val nextSet = updated.copy(completed = nowCompleted)
+        val nextTimer = if (!nowCompleted && isRestTimerOn(exercise.id, setIndex)) {
+            null
+        } else {
+            restTimer
+        }
+        return copy(
+            exercises = exercises.mapIndexed { i, ex ->
+                if (i == exerciseIndex) {
+                    ex.copy(sets = ex.sets.mapIndexed { sIdx, s -> if (sIdx == setIndex) nextSet else s })
+                } else {
+                    ex
+                }
+            },
+            restTimer = nextTimer,
+        )
+    }
+
+    internal fun toggleCompletedAt(
+        exerciseIndex: Int,
+        setIndex: Int,
+        now: Long = nowMillis(),
+    ): WorkoutSessionUiState {
+        val exercise = exercises.getOrNull(exerciseIndex) ?: return this
+        val set = exercise.sets.getOrNull(setIndex) ?: return this
+        val nowCompleted = !set.completed && set.meetsRequirements(exercise.type)
+        val nextTimer = when {
+            nowCompleted -> RestTimerTarget(
+                exerciseId = exercise.id,
+                setIndex = setIndex,
+                startedAtMillis = now,
+                endsAtMillis = now + REST_TIMER_DURATION_MS,
+            )
+            isRestTimerOn(exercise.id, setIndex) -> null
+            else -> restTimer
+        }
+        return copy(
+            exercises = exercises.mapIndexed { i, ex ->
+                if (i == exerciseIndex) {
+                    ex.copy(
+                        sets = ex.sets.mapIndexed { sIdx, s ->
+                            if (sIdx == setIndex) s.copy(completed = nowCompleted) else s
+                        },
+                    )
+                } else {
+                    ex
+                }
+            },
+            restTimer = nextTimer,
+        )
+    }
 }
 
-class WorkoutSessionFormState(private val sessionId: Long) {
+class WorkoutSessionFormState(internal val sessionId: Long) {
     private val _uiState = MutableStateFlow(WorkoutSessionUiState())
     val uiState: StateFlow<WorkoutSessionUiState> = _uiState.asStateFlow()
     private var nextId = 0L
@@ -100,6 +212,7 @@ class WorkoutSessionFormState(private val sessionId: Long) {
     // Set once the session is finished or discarded; stops any still-pending
     // autosave from resurrecting rows for a session that no longer exists.
     private var closed = false
+    internal val isClosed: Boolean get() = closed
 
     init {
         scope.launch {
@@ -147,30 +260,59 @@ class WorkoutSessionFormState(private val sessionId: Long) {
             val withPrevious = grouped.map { draft ->
                 draft.copy(previousSets = loadPreviousSets(draft.exercise))
             }
-            _uiState.value = _uiState.value.copy(
-                loading = false,
-                exercises = withPrevious,
-                startedAt = session?.performedAt ?: 0L,
-            )
+            if (!closed) {
+                updateState(
+                    _uiState.value.copy(
+                        loading = false,
+                        exercises = withPrevious,
+                        startedAt = session?.performedAt ?: 0L,
+                    ),
+                )
+            }
+        }
+    }
+
+    private fun updateState(newState: WorkoutSessionUiState) {
+        _uiState.value = newState
+        WorkoutSessionRepository.updateActiveRestTimer(newState.restTimer)
+    }
+
+    internal fun closeQuietly() {
+        closed = true
+        autosaveJob?.cancel()
+    }
+
+    internal suspend fun flushBeforeExternalFinish() {
+        val state = _uiState.value
+        val wasLoading = state.loading
+        closed = true
+        autosaveJob?.cancel()
+        updateState(state.copy(saving = false, finished = true, restTimer = null))
+        if (!wasLoading) {
+            persistMutex.withLock { persist(state) }
         }
     }
 
     fun addExercise(exercise: Exercise) {
         val draftId = nextId++
         val current = _uiState.value
-        _uiState.value = current.copy(
-            exercises = current.exercises + DraftSessionExercise(id = draftId, exercise = exercise),
+        updateState(
+            current.copy(
+                exercises = current.exercises + DraftSessionExercise(id = draftId, exercise = exercise),
+            ),
         )
         scheduleAutosave()
         // Previous values come from the db; fill them in once loaded.
         scope.launch {
             val previous = loadPreviousSets(exercise)
-            if (previous.isEmpty()) return@launch
+            if (previous.isEmpty() || closed) return@launch
             val state = _uiState.value
-            _uiState.value = state.copy(
-                exercises = state.exercises.map {
-                    if (it.id == draftId) it.copy(previousSets = previous) else it
-                },
+            updateState(
+                state.copy(
+                    exercises = state.exercises.map {
+                        if (it.id == draftId) it.copy(previousSets = previous) else it
+                    },
+                ),
             )
         }
     }
@@ -180,16 +322,12 @@ class WorkoutSessionFormState(private val sessionId: Long) {
     }
 
     fun removeSet(exerciseIndex: Int, setIndex: Int) {
-        updateExercise(exerciseIndex) { ex ->
-            ex.copy(sets = ex.sets.filterIndexed { i, _ -> i != setIndex })
-        }
+        updateState(_uiState.value.removeSetAt(exerciseIndex, setIndex))
+        scheduleAutosave()
     }
 
     fun removeExercise(exerciseIndex: Int) {
-        val current = _uiState.value
-        _uiState.value = current.copy(
-            exercises = current.exercises.filterIndexed { i, _ -> i != exerciseIndex },
-        )
+        updateState(_uiState.value.removeExerciseAt(exerciseIndex))
         scheduleAutosave()
     }
 
@@ -198,7 +336,7 @@ class WorkoutSessionFormState(private val sessionId: Long) {
         val list = current.exercises.toMutableList()
         val item = list.removeAt(from)
         list.add(to.coerceIn(0, list.size), item)
-        _uiState.value = current.copy(exercises = list)
+        updateState(current.copy(exercises = list))
         scheduleAutosave()
     }
 
@@ -223,17 +361,16 @@ class WorkoutSessionFormState(private val sessionId: Long) {
 
     /**
      * Applies [transform] and keeps `completed` only while the set still has
-     * every field the exercise type requires.
+     * every field the exercise type requires. If the edit invalidates the set
+     * that owns the running rest timer, the timer is cancelled too.
      */
     private fun updateActualField(
         exerciseIndex: Int,
         setIndex: Int,
         transform: (DraftSessionSet) -> DraftSessionSet,
     ) {
-        updateSet(exerciseIndex, setIndex) { set, type ->
-            val updated = transform(set)
-            updated.copy(completed = updated.completed && updated.meetsRequirements(type))
-        }
+        updateState(_uiState.value.updateActualFieldAt(exerciseIndex, setIndex, transform))
+        scheduleAutosave()
     }
 
     fun setSetType(exerciseIndex: Int, setIndex: Int, setType: SetType) {
@@ -241,45 +378,53 @@ class WorkoutSessionFormState(private val sessionId: Long) {
     }
 
     fun toggleCompleted(exerciseIndex: Int, setIndex: Int) {
-        updateSet(exerciseIndex, setIndex) { set, type ->
-            set.copy(completed = !set.completed && set.meetsRequirements(type))
-        }
+        updateState(_uiState.value.toggleCompletedAt(exerciseIndex, setIndex))
+        scheduleAutosave()
+    }
+
+    /** Clears the rest timer once its countdown reaches zero. */
+    fun clearRestTimer() {
+        val current = _uiState.value
+        if (current.restTimer == null) return
+        updateState(current.copy(restTimer = null))
     }
 
     /** Rewrite-on-save mirroring RoutineFormState — simpler than diffing. */
     fun save(onSaved: () -> Unit = {}) {
         val state = _uiState.value
-        _uiState.value = state.copy(saving = true)
+        updateState(state.copy(saving = true))
         autosaveJob?.cancel()
         scope.launch {
             persistMutex.withLock { persist(state) }
-            _uiState.value = _uiState.value.copy(saving = false)
+            updateState(_uiState.value.copy(saving = false))
             onSaved()
         }
     }
 
     fun finish(onDone: () -> Unit = {}) {
         val state = _uiState.value
-        _uiState.value = state.copy(saving = true)
+        updateState(state.copy(saving = true, restTimer = null))
         closed = true
         autosaveJob?.cancel()
         scope.launch {
             persistMutex.withLock {
                 persist(state)
-                WorkoutSessionRepository.finish(sessionId)
+                WorkoutSessionRepository.finishPersisted(sessionId)
             }
-            _uiState.value = _uiState.value.copy(saving = false, finished = true)
+            updateState(_uiState.value.copy(saving = false, finished = true))
+            WorkoutSessionRepository.evictFormState(sessionId)
             onDone()
         }
     }
 
     fun discard(onDone: () -> Unit = {}) {
-        _uiState.value = _uiState.value.copy(saving = true)
+        updateState(_uiState.value.copy(saving = true, restTimer = null))
         closed = true
         autosaveJob?.cancel()
         scope.launch {
             persistMutex.withLock { WorkoutSessionRepository.discard(sessionId) }
-            _uiState.value = _uiState.value.copy(saving = false, discarded = true)
+            updateState(_uiState.value.copy(saving = false, discarded = true))
+            WorkoutSessionRepository.evictFormState(sessionId)
             onDone()
         }
     }
@@ -355,8 +500,10 @@ class WorkoutSessionFormState(private val sessionId: Long) {
 
     private fun updateExercise(index: Int, transform: (DraftSessionExercise) -> DraftSessionExercise) {
         val current = _uiState.value
-        _uiState.value = current.copy(
-            exercises = current.exercises.mapIndexed { i, ex -> if (i == index) transform(ex) else ex },
+        updateState(
+            current.copy(
+                exercises = current.exercises.mapIndexed { i, ex -> if (i == index) transform(ex) else ex },
+            ),
         )
         scheduleAutosave()
     }

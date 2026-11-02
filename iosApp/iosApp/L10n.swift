@@ -49,6 +49,11 @@ enum L10n {
     static let discard = String(localized: "discard", defaultValue: "Discard")
     static let nothingToSaveTitle = String(localized: "nothing_to_save_title", defaultValue: "Nothing to save")
     static let nothingToSaveMessage = String(localized: "nothing_to_save_message", defaultValue: "There are no completed sets to save. Discard?")
+    static func restTimerCountdown(_ remaining: String) -> String {
+        String(localized: "rest_timer_countdown", defaultValue: "Rest · \(remaining)")
+    }
+    static let restOverTitle = String(localized: "rest_over_title", defaultValue: "Rest is over")
+    static let restOverMessage = String(localized: "rest_over_message", defaultValue: "Time for your next set.")
 
     // MARK: - Workout session / routine editor
     static let addExercise = String(localized: "add_exercise_cd", defaultValue: "Add Exercise")

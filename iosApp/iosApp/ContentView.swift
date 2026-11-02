@@ -1,5 +1,9 @@
 import SwiftUI
 import SharedUI
+import AudioToolbox
+import UserNotifications
+
+private let restTimerNotificationId = "logtrain_rest_timer"
 
 // MARK: - Coordinators
 
@@ -108,6 +112,11 @@ struct ContentView: View {
     @State private var profileState = ProfileState()
     @State private var appCoordinator = AppNavigationCoordinator()
     @State private var activeSession: ActiveWorkoutSession?
+    @State private var activeRestTimer: RestTimerTarget?
+    @State private var restRemainingSeconds = 0
+    @State private var notificationsEnabled = false
+    @State private var lastStartedTimerMillis: Int64 = 0
+    @State private var lastFinishedTimerMillis: Int64 = 0
     @State private var showDiscardConfirm = false
     @State private var showNothingToSave = false
 
@@ -155,6 +164,28 @@ struct ContentView: View {
                     activeSession = session
                 }
             }
+            .task {
+                for await timer in WorkoutSessionRepository.shared.activeRestTimer {
+                    activeRestTimer = timer
+                }
+            }
+            .task {
+                for await settings in UserSettingsRepository.shared.settings {
+                    notificationsEnabled = settings.notificationsEnabled
+                }
+            }
+            .task(id: activeRestTimer?.startedAtMillis) {
+                await followRestTimer()
+            }
+            .onChange(of: notificationsEnabled) { _, enabled in
+                if let timer = activeRestTimer {
+                    if enabled {
+                        scheduleRestNotification(endsAtMillis: timer.endsAtMillis)
+                    } else {
+                        cancelRestNotification()
+                    }
+                }
+            }
             .alert(L10n.discardWorkoutTitle, isPresented: $showDiscardConfirm) {
                 Button(L10n.discard, role: .destructive) {
                     if let session = activeSession {
@@ -185,6 +216,7 @@ struct ContentView: View {
     private var sessionBarInset: ActiveSessionBarInset {
         ActiveSessionBarInset(
             session: activeSession,
+            restRemainingSeconds: restRemainingSeconds,
             onOpen: { session in
                 appCoordinator.selectedTab = .programs
                 WorkoutSessionPresentation.shared.requestOpen(
@@ -207,6 +239,68 @@ struct ContentView: View {
             onDiscard: { showDiscardConfirm = true }
         )
     }
+
+    private func followRestTimer() async {
+        guard let timer = activeRestTimer else {
+            restRemainingSeconds = 0
+            if lastStartedTimerMillis != 0 && lastStartedTimerMillis != lastFinishedTimerMillis {
+                cancelRestNotification()
+            }
+            lastStartedTimerMillis = 0
+            return
+        }
+        lastStartedTimerMillis = timer.startedAtMillis
+        if notificationsEnabled {
+            scheduleRestNotification(endsAtMillis: timer.endsAtMillis)
+        } else {
+            cancelRestNotification()
+        }
+        while !Task.isCancelled {
+            let nowMillis = Int64(Date().timeIntervalSince1970 * 1000)
+            let remainingMs = timer.endsAtMillis - nowMillis
+            if remainingMs <= 0 {
+                restRemainingSeconds = 0
+                lastFinishedTimerMillis = timer.startedAtMillis
+                WorkoutSessionRepository.shared.clearActiveRestTimer()
+                if remainingMs > -3000 {
+                    cancelRestNotification()
+                    playRestFinishedAlert()
+                }
+                break
+            }
+            restRemainingSeconds = Int((remainingMs + 999) / 1000)
+            try? await Task.sleep(nanoseconds: 250_000_000)
+        }
+    }
+
+    private func scheduleRestNotification(endsAtMillis: Int64) {
+        let seconds = Double(endsAtMillis) / 1000.0 - Date().timeIntervalSince1970
+        guard seconds > 0.5 else { return }
+        let content = UNMutableNotificationContent()
+        content.title = L10n.restOverTitle
+        content.body = L10n.restOverMessage
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: restTimerNotificationId,
+            content: content,
+            trigger: trigger
+        )
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    private func cancelRestNotification() {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [restTimerNotificationId])
+        center.removeDeliveredNotifications(withIdentifiers: [restTimerNotificationId])
+    }
+
+    private func playRestFinishedAlert() {
+        // System sound 1005 (alarm/bell chime) + vibration.
+        AudioServicesPlaySystemSound(1005)
+        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
 }
 
 // MARK: - Active session mini bar
@@ -218,6 +312,7 @@ struct ContentView: View {
 /// an empty capsule behind when there is no bar to show.
 private struct ActiveSessionBarInset: ViewModifier {
     let session: ActiveWorkoutSession?
+    let restRemainingSeconds: Int
     let onOpen: (ActiveWorkoutSession) -> Void
     let onComplete: (ActiveWorkoutSession) -> Void
     let onDiscard: () -> Void
@@ -227,6 +322,7 @@ private struct ActiveSessionBarInset: ViewModifier {
             if let session, !WorkoutSessionPresentation.shared.isSessionScreenVisible {
                 ActiveSessionBar(
                     session: session,
+                    restRemainingSeconds: restRemainingSeconds,
                     onOpen: { onOpen(session) },
                     onComplete: { onComplete(session) },
                     onDiscard: onDiscard
@@ -242,43 +338,59 @@ private struct ActiveSessionBarInset: ViewModifier {
 /// the ones in `WorkoutSessionView`'s toolbar.
 private struct ActiveSessionBar: View {
     let session: ActiveWorkoutSession
+    let restRemainingSeconds: Int
     let onOpen: () -> Void
     let onComplete: () -> Void
     let onDiscard: () -> Void
 
+    private var restProgress: Double {
+        let total = Double(WorkoutSessionFormStateKt.REST_TIMER_DURATION_SECONDS)
+        guard total > 0 else { return 0 }
+        return min(max(Double(restRemainingSeconds) / total, 0), 1)
+    }
+
     var body: some View {
-        HStack(spacing: 12) {
+        VStack(spacing: 0) {
             HStack(spacing: 12) {
-                Image(systemName: "figure.strengthtraining.traditional")
-                    .foregroundStyle(Color.accentColor)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(session.title)
-                        .font(.subheadline.weight(.semibold))
-                    Text(Date(timeIntervalSince1970: Double(session.startedAt) / 1000), style: .timer)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
+                HStack(spacing: 12) {
+                    Image(systemName: "figure.strengthtraining.traditional")
+                        .foregroundStyle(Color.accentColor)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(session.title)
+                            .font(.subheadline.weight(.semibold))
+                        Text(Date(timeIntervalSince1970: Double(session.startedAt) / 1000), style: .timer)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
-            }
-            .contentShape(Rectangle())
-            .onTapGesture(perform: onOpen)
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onOpen)
 
-            Button(action: onDiscard) {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.red)
-            }
-            .buttonStyle(.plain)
+                Button(action: onDiscard) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
 
-            Button(action: onComplete) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.accentColor)
+                Button(action: onComplete) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(Color.accentColor)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+            .font(.title3)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+
+            if restRemainingSeconds > 0 {
+                ProgressView(value: restProgress)
+                    .progressViewStyle(.linear)
+                    .tint(Color.accentColor)
+                    .padding(.horizontal, 16)
+            }
         }
-        .font(.title3)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
         .glassEffect()
         .padding(.horizontal, 12)
         .padding(.bottom, 6)
