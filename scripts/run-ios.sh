@@ -45,9 +45,16 @@ if ! xcrun simctl list devices | grep -q "Booted"; then
     xcrun simctl boot "$SIM_NAME"
 fi
 
-# Open Simulator.app if it isn't running.
-if ! pgrep -x "Simulator" > /dev/null; then
-    open -a Simulator
+# DeviceHub replaces Simulator.app as the simulator UI on macOS 27+.
+MACOS_MAJOR="$(sw_vers -productVersion | cut -d. -f1)"
+if [[ "$MACOS_MAJOR" -ge 27 ]]; then
+    if ! pgrep -x "DeviceHub" > /dev/null; then
+        open -a DeviceHub
+    fi
+else
+    if ! pgrep -x "Simulator" > /dev/null; then
+        open -a Simulator
+    fi
 fi
 
 if [[ "$CLEAN" = "1" ]]; then
