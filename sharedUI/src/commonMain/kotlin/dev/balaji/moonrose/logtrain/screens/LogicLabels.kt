@@ -40,6 +40,7 @@ internal fun weightUnitLabel(unit: WeightUnit): String = stringResource(
 @Composable
 internal fun restTimerSoundLabel(sound: RestTimerSound): String = stringResource(
     when (sound) {
+        RestTimerSound.NONE -> Res.string.rest_sound_none
         RestTimerSound.DEFAULT -> Res.string.rest_sound_default
         RestTimerSound.PROXIMA -> Res.string.rest_sound_proxima
         RestTimerSound.MIRA -> Res.string.rest_sound_mira

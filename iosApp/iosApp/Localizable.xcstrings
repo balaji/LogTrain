@@ -4591,6 +4591,23 @@
         }
       }
     },
+    "rest_sound_none": {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inget"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "None"
+          }
+        }
+      }
+    },
     "rest_sound_default": {
       "extractionState": "manual",
       "localizations": {
