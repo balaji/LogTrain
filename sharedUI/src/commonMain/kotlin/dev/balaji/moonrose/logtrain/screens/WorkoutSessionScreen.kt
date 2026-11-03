@@ -344,6 +344,7 @@ private fun WorkoutSessionBody(
                                 restTimer.exerciseId == exercise.id && restRemainingSeconds > 0L
                             },
                             restRemainingSeconds = restRemainingSeconds,
+                            restTotalSeconds = restTimer?.durationSeconds ?: REST_TIMER_DURATION_SECONDS,
                             onOpenPlateKeypad = { setIdx, currentValue ->
                                 // Dismiss the system IME and drop text-field focus
                                 // so the two keyboards never overlap and refocusing
@@ -567,6 +568,7 @@ private fun SessionExerciseCard(
     plateKeypadSetIndex: Int?,
     restTimerSetIndex: Int?,
     restRemainingSeconds: Long,
+    restTotalSeconds: Long,
     onOpenPlateKeypad: (Int, String) -> Unit,
     onFieldFocused: () -> Unit,
     onAddSet: () -> Unit,
@@ -708,7 +710,10 @@ private fun SessionExerciseCard(
                 onToggleCompleted = { onToggleCompleted(setIdx) },
             )
             AnimatedVisibility(visible = restTimerSetIndex == setIdx) {
-                RestTimerCountdownRow(remainingSeconds = restRemainingSeconds)
+                RestTimerCountdownRow(
+                    remainingSeconds = restRemainingSeconds,
+                    totalSeconds = restTotalSeconds,
+                )
             }
         }
 
@@ -893,11 +898,11 @@ private val CompletedGreen = Color(0xFF43A047)
 
 /**
  * Compact countdown bar shown immediately under the set that triggered the
- * 2-minute rest timer. Automatically hides when the timer finishes or moves.
+ * rest timer. Automatically hides when the timer finishes or moves.
  */
 @Composable
-private fun RestTimerCountdownRow(remainingSeconds: Long) {
-    val progress = (remainingSeconds.toFloat() / REST_TIMER_DURATION_SECONDS.toFloat()).coerceIn(0f, 1f)
+private fun RestTimerCountdownRow(remainingSeconds: Long, totalSeconds: Long) {
+    val progress = (remainingSeconds.toFloat() / totalSeconds.coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f)
     Column(
         modifier = Modifier
             .fillMaxWidth()

@@ -1,9 +1,79 @@
 import SwiftUI
 import SharedUI
 import AudioToolbox
+import AVFoundation
 import UserNotifications
 
 private let restTimerNotificationId = "logtrain_rest_timer"
+
+/// Plays and prepares the rest-timer completion tones for both foreground
+/// alerts/previews (`AVAudioPlayer`) and background notifications
+/// (`UNNotificationSound`, which searches `~/Library/Sounds` and bundle root).
+enum RestTimerSoundPlayer {
+    private static var audioPlayer: AVAudioPlayer?
+
+    static func fileName(for sound: RestTimerSound) -> String? {
+        guard let base = resourceBaseName(for: sound) else { return nil }
+        return "\(base).wav"
+    }
+
+    private static func resourceBaseName(for sound: RestTimerSound) -> String? {
+        switch sound {
+        case .proxima: return "rest_proxima"
+        case .mira: return "rest_mira"
+        case .antares: return "rest_antares"
+        case .altair: return "rest_altair"
+        case .deneb: return "rest_deneb"
+        default: return nil
+        }
+    }
+
+    private static func bundleURL(for sound: RestTimerSound) -> URL? {
+        guard let base = resourceBaseName(for: sound) else { return nil }
+        return Bundle.main.url(forResource: base, withExtension: "wav")
+            ?? Bundle.main.url(forResource: base, withExtension: "wav", subdirectory: "Sounds")
+    }
+
+    /// Ensures the `.wav` file is present in `~/Library/Sounds` so
+    /// `UNNotificationSound(named:)` can resolve it even if Xcode nests `Sounds/`.
+    static func ensureLibrarySound(for sound: RestTimerSound) {
+        guard let name = fileName(for: sound),
+              let src = bundleURL(for: sound),
+              let libraryDir = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first else {
+            return
+        }
+        let soundsDir = libraryDir.appendingPathComponent("Sounds", isDirectory: true)
+        let dst = soundsDir.appendingPathComponent(name)
+        if FileManager.default.fileExists(atPath: dst.path) { return }
+        try? FileManager.default.createDirectory(at: soundsDir, withIntermediateDirectories: true)
+        try? FileManager.default.copyItem(at: src, to: dst)
+    }
+
+    static func notificationSound(for sound: RestTimerSound) -> UNNotificationSound {
+        if let name = fileName(for: sound) {
+            ensureLibrarySound(for: sound)
+            return UNNotificationSound(named: UNNotificationSoundName(name))
+        }
+        return .default
+    }
+
+    static func play(sound: RestTimerSound, vibrate: Bool) {
+        audioPlayer?.stop()
+        if let url = bundleURL(for: sound) {
+            try? AVAudioSession.sharedInstance().setCategory(.ambient, options: [.mixWithOthers])
+            try? AVAudioSession.sharedInstance().setActive(true)
+            audioPlayer = try? AVAudioPlayer(contentsOf: url)
+            audioPlayer?.play()
+        } else {
+            // System sound 1005 (alarm/bell chime).
+            AudioServicesPlaySystemSound(1005)
+        }
+        if vibrate {
+            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        }
+    }
+}
 
 // MARK: - Coordinators
 
@@ -115,6 +185,7 @@ struct ContentView: View {
     @State private var activeRestTimer: RestTimerTarget?
     @State private var restRemainingSeconds = 0
     @State private var notificationsEnabled = false
+    @State private var restTimerSound: RestTimerSound = .default_
     @State private var lastStartedTimerMillis: Int64 = 0
     @State private var lastFinishedTimerMillis: Int64 = 0
     @State private var showDiscardConfirm = false
@@ -172,6 +243,7 @@ struct ContentView: View {
             .task {
                 for await settings in UserSettingsRepository.shared.settings {
                     notificationsEnabled = settings.notificationsEnabled
+                    restTimerSound = settings.restTimerSound
                 }
             }
             .task(id: activeRestTimer?.startedAtMillis) {
@@ -184,6 +256,11 @@ struct ContentView: View {
                     } else {
                         cancelRestNotification()
                     }
+                }
+            }
+            .onChange(of: restTimerSound) { _, _ in
+                if let timer = activeRestTimer, notificationsEnabled {
+                    scheduleRestNotification(endsAtMillis: timer.endsAtMillis)
                 }
             }
             .alert(L10n.discardWorkoutTitle, isPresented: $showDiscardConfirm) {
@@ -217,6 +294,7 @@ struct ContentView: View {
         ActiveSessionBarInset(
             session: activeSession,
             restRemainingSeconds: restRemainingSeconds,
+            restTotalSeconds: Int(activeRestTimer?.durationSeconds ?? WorkoutSessionFormStateKt.REST_TIMER_DURATION_SECONDS),
             onOpen: { session in
                 appCoordinator.selectedTab = .programs
                 WorkoutSessionPresentation.shared.requestOpen(
@@ -279,7 +357,7 @@ struct ContentView: View {
         let content = UNMutableNotificationContent()
         content.title = L10n.restOverTitle
         content.body = L10n.restOverMessage
-        content.sound = .default
+        content.sound = RestTimerSoundPlayer.notificationSound(for: restTimerSound)
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)
         let request = UNNotificationRequest(
             identifier: restTimerNotificationId,
@@ -296,10 +374,7 @@ struct ContentView: View {
     }
 
     private func playRestFinishedAlert() {
-        // System sound 1005 (alarm/bell chime) + vibration.
-        AudioServicesPlaySystemSound(1005)
-        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        RestTimerSoundPlayer.play(sound: restTimerSound, vibrate: true)
     }
 }
 
@@ -313,6 +388,7 @@ struct ContentView: View {
 private struct ActiveSessionBarInset: ViewModifier {
     let session: ActiveWorkoutSession?
     let restRemainingSeconds: Int
+    let restTotalSeconds: Int
     let onOpen: (ActiveWorkoutSession) -> Void
     let onComplete: (ActiveWorkoutSession) -> Void
     let onDiscard: () -> Void
@@ -323,6 +399,7 @@ private struct ActiveSessionBarInset: ViewModifier {
                 ActiveSessionBar(
                     session: session,
                     restRemainingSeconds: restRemainingSeconds,
+                    restTotalSeconds: restTotalSeconds,
                     onOpen: { onOpen(session) },
                     onComplete: { onComplete(session) },
                     onDiscard: onDiscard
@@ -339,13 +416,13 @@ private struct ActiveSessionBarInset: ViewModifier {
 private struct ActiveSessionBar: View {
     let session: ActiveWorkoutSession
     let restRemainingSeconds: Int
+    let restTotalSeconds: Int
     let onOpen: () -> Void
     let onComplete: () -> Void
     let onDiscard: () -> Void
 
     private var restProgress: Double {
-        let total = Double(WorkoutSessionFormStateKt.REST_TIMER_DURATION_SECONDS)
-        guard total > 0 else { return 0 }
+        let total = Double(max(1, restTotalSeconds))
         return min(max(Double(restRemainingSeconds) / total, 0), 1)
     }
 

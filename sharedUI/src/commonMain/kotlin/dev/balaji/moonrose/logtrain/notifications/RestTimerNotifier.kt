@@ -1,6 +1,7 @@
 package dev.balaji.moonrose.logtrain.notifications
 
 import androidx.compose.runtime.Composable
+import dev.balaji.moonrose.logtrain.model.RestTimerSound
 
 /**
  * Platform notifier for the between-set rest timer. Plays a notification bell
@@ -11,6 +12,7 @@ interface RestTimerNotifier {
     fun onRestTimerStarted(
         endsAtMillis: Long,
         notificationsEnabled: Boolean,
+        sound: RestTimerSound,
         title: String,
         message: String,
         channelName: String,
@@ -20,10 +22,14 @@ interface RestTimerNotifier {
 
     fun onRestTimerFinished(
         notificationsEnabled: Boolean,
+        sound: RestTimerSound,
         title: String,
         message: String,
         channelName: String,
     )
+
+    /** Plays [sound] immediately so the user can preview it in Settings. */
+    fun previewSound(sound: RestTimerSound)
 }
 
 @Composable

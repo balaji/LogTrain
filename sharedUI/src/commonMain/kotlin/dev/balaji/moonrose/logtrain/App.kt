@@ -113,7 +113,9 @@ private fun MainTabs() {
     // than a route pushed onto a tab's stack, so it can't stack per-tab.
     var showProfile by remember { mutableStateOf(false) }
 
+    val activeRestTimer by WorkoutSessionRepository.activeRestTimer.collectAsState()
     val restRemainingSeconds = rememberRestTimerRemainingSeconds()
+    val restTotalSeconds = activeRestTimer?.durationSeconds ?: REST_TIMER_DURATION_SECONDS
 
     // Once a session ends from the overlay, any WorkoutSessionRoute still
     // sitting on a tab stack is stale — revisiting it would immediately
@@ -129,6 +131,7 @@ private fun MainTabs() {
                     ActiveSessionOverlay(
                         session = activeSession!!,
                         restRemainingSeconds = restRemainingSeconds,
+                        restTotalSeconds = restTotalSeconds,
                         onOpen = {
                             val workoutsStack = stacks.getValue(WorkoutsRoute)
                             if (workoutsStack.current !is WorkoutSessionRoute) {
@@ -268,6 +271,7 @@ private fun rememberRestTimerRemainingSeconds(): Long {
     val restOverMessage by rememberUpdatedState(stringResource(Res.string.rest_over_message))
     val restChannelName by rememberUpdatedState(stringResource(Res.string.rest_timer_channel_name))
     val notificationsEnabled by rememberUpdatedState(settings.notificationsEnabled)
+    val restTimerSound by rememberUpdatedState(settings.restTimerSound)
 
     var remainingSeconds by remember(activeRestTimer) {
         mutableLongStateOf(activeRestTimer?.let { remainingSecondsUntil(it.endsAtMillis) } ?: 0L)
@@ -289,6 +293,7 @@ private fun rememberRestTimerRemainingSeconds(): Long {
         restNotifier.onRestTimerStarted(
             endsAtMillis = timer.endsAtMillis,
             notificationsEnabled = notificationsEnabled,
+            sound = restTimerSound,
             title = restOverTitle,
             message = restOverMessage,
             channelName = restChannelName,
@@ -301,6 +306,7 @@ private fun rememberRestTimerRemainingSeconds(): Long {
                 WorkoutSessionRepository.clearActiveRestTimer()
                 restNotifier.onRestTimerFinished(
                     notificationsEnabled = notificationsEnabled,
+                    sound = restTimerSound,
                     title = restOverTitle,
                     message = restOverMessage,
                     channelName = restChannelName,
@@ -323,6 +329,7 @@ private fun rememberRestTimerRemainingSeconds(): Long {
 private fun ActiveSessionOverlay(
     session: ActiveWorkoutSession,
     restRemainingSeconds: Long,
+    restTotalSeconds: Long,
     onOpen: () -> Unit,
     onComplete: () -> Unit,
     onDiscard: () -> Unit,
@@ -374,7 +381,7 @@ private fun ActiveSessionOverlay(
             }
         }
         if (restRemainingSeconds > 0L) {
-            val progress = (restRemainingSeconds.toFloat() / REST_TIMER_DURATION_SECONDS.toFloat()).coerceIn(0f, 1f)
+            val progress = (restRemainingSeconds.toFloat() / restTotalSeconds.coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f)
             LinearProgressIndicator(
                 progress = { progress },
                 modifier = Modifier.fillMaxWidth().height(3.dp),

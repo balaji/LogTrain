@@ -2,6 +2,7 @@ package dev.balaji.moonrose.logtrain.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -20,16 +21,20 @@ import androidx.compose.material.icons.filled.Brightness6
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -37,6 +42,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -50,12 +56,18 @@ import dev.balaji.moonrose.logtrain.db.ProfileRepository
 import dev.balaji.moonrose.logtrain.db.TestDataRepository
 import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
 import dev.balaji.moonrose.logtrain.model.Appearance
+import dev.balaji.moonrose.logtrain.model.MAX_REST_TIMER_SECONDS
+import dev.balaji.moonrose.logtrain.model.MIN_REST_TIMER_SECONDS
 import dev.balaji.moonrose.logtrain.model.Profile
+import dev.balaji.moonrose.logtrain.model.REST_TIMER_STEP_SECONDS
+import dev.balaji.moonrose.logtrain.model.RestTimerSound
 import dev.balaji.moonrose.logtrain.model.WeightUnit
+import dev.balaji.moonrose.logtrain.model.clampRestTimerSeconds
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import dev.balaji.moonrose.logtrain.notifications.NotificationPermissionResult
 import dev.balaji.moonrose.logtrain.notifications.rememberNotificationPermissionRequester
 import dev.balaji.moonrose.logtrain.notifications.rememberNotificationSettingsOpener
+import dev.balaji.moonrose.logtrain.notifications.rememberRestTimerNotifier
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import dev.balaji.moonrose.logtrain.sharedui.resources.*
@@ -151,6 +163,7 @@ private fun ProfileDetails(profile: Profile, onEdit: () -> Unit) {
 private fun SettingsSection() {
     val settings by UserSettingsRepository.settings.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
+    val restNotifier = rememberRestTimerNotifier()
     var showNotificationsDeniedHint by remember { mutableStateOf(false) }
     val requestNotificationPermission = rememberNotificationPermissionRequester { result ->
         if (result == NotificationPermissionResult.DeniedPermanently) showNotificationsDeniedHint = true
@@ -176,6 +189,15 @@ private fun SettingsSection() {
     HorizontalDivider()
     SettingRow(stringResource(Res.string.weight_units), WeightUnit.entries, current.weightUnit, { weightUnitSettingLabel(it) }) {
         scope.launch { UserSettingsRepository.setWeightUnit(it) }
+    }
+    HorizontalDivider()
+    RestTimerDurationRow(current.restTimerDurationSeconds) { seconds ->
+        scope.launch { UserSettingsRepository.setRestTimerDurationSeconds(seconds) }
+    }
+    HorizontalDivider()
+    RestTimerSoundRow(current.restTimerSound) { sound ->
+        restNotifier.previewSound(sound)
+        scope.launch { UserSettingsRepository.setRestTimerSound(sound) }
     }
     HorizontalDivider()
     SettingSwitchRow(stringResource(Res.string.send_notifications), current.notificationsEnabled) { enabled ->
@@ -468,6 +490,73 @@ private fun weightUnitSettingLabel(weightUnit: WeightUnit) = stringResource(
         WeightUnit.IMPERIAL -> Res.string.units_imperial
     },
 )
+
+@Composable
+private fun RestTimerDurationRow(
+    durationSeconds: Int,
+    onChange: (Int) -> Unit,
+) {
+    var sliderSeconds by remember(durationSeconds) { mutableIntStateOf(durationSeconds) }
+    val stepCount = (MAX_REST_TIMER_SECONDS - MIN_REST_TIMER_SECONDS) / REST_TIMER_STEP_SECONDS - 1
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(stringResource(Res.string.rest_timer_duration), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                formatCountdown(sliderSeconds.toLong()),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Slider(
+            value = sliderSeconds.toFloat(),
+            onValueChange = { raw ->
+                val snapped = clampRestTimerSeconds(raw.toInt())
+                if (snapped != sliderSeconds) {
+                    sliderSeconds = snapped
+                    onChange(snapped)
+                }
+            },
+            valueRange = MIN_REST_TIMER_SECONDS.toFloat()..MAX_REST_TIMER_SECONDS.toFloat(),
+            steps = stepCount,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+private fun RestTimerSoundRow(
+    selected: RestTimerSound,
+    onSelect: (RestTimerSound) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(stringResource(Res.string.rest_timer_sound), style = MaterialTheme.typography.bodyLarge)
+        Box {
+            OutlinedButton(onClick = { expanded = true }) {
+                Text(restTimerSoundLabel(selected))
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                RestTimerSound.entries.forEach { sound ->
+                    DropdownMenuItem(
+                        text = { Text(restTimerSoundLabel(sound)) },
+                        onClick = {
+                            expanded = false
+                            onSelect(sound)
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun ProfileField(label: String, value: String?) {

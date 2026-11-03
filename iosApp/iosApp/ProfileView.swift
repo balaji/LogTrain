@@ -86,6 +86,40 @@ struct ProfileView: View {
                                     Text(L10n.unitsMetric).tag(WeightUnit.metric)
                                     Text(L10n.unitsImperial).tag(WeightUnit.imperial)
                                 }
+                                VStack(alignment: .leading, spacing: 6) {
+                                    LabeledContent(
+                                        L10n.restTimerDuration,
+                                        value: formatRestTimerDuration(Int(settings.restTimerDurationSeconds))
+                                    )
+                                    Slider(
+                                        value: Binding(
+                                            get: { Double(settings.restTimerDurationSeconds) },
+                                            set: { raw in
+                                                let snapped = Int32(UserSettingsKt.clampRestTimerSeconds(seconds: Int32(raw.rounded())))
+                                                if snapped != settings.restTimerDurationSeconds {
+                                                    Task {
+                                                        try? await UserSettingsRepository.shared.setRestTimerDurationSeconds(seconds: snapped)
+                                                    }
+                                                }
+                                            }
+                                        ),
+                                        in: Double(UserSettingsKt.MIN_REST_TIMER_SECONDS)...Double(UserSettingsKt.MAX_REST_TIMER_SECONDS),
+                                        step: Double(UserSettingsKt.REST_TIMER_STEP_SECONDS)
+                                    )
+                                }
+                                Picker(L10n.restTimerSound, selection: Binding(
+                                    get: { settings.restTimerSound },
+                                    set: { newSound in
+                                        RestTimerSoundPlayer.play(sound: newSound, vibrate: false)
+                                        Task {
+                                            try? await UserSettingsRepository.shared.setRestTimerSound(sound: newSound)
+                                        }
+                                    }
+                                )) {
+                                    ForEach(RestTimerSound.entries, id: \.self) { sound in
+                                        Text(L10n.restTimerSoundLabel(sound)).tag(sound)
+                                    }
+                                }
                                 // Opting in first asks the OS for notification
                                 // permission and only persists as on when the
                                 // grant succeeds; the repository echo snaps the
@@ -221,6 +255,12 @@ struct ProfileView: View {
     }
 
     private var unit: WeightUnit { settings?.weightUnit ?? .metric }
+
+    private func formatRestTimerDuration(_ seconds: Int) -> String {
+        let minutes = seconds / 60
+        let rem = seconds % 60
+        return String(format: "%d:%02d", minutes, rem)
+    }
 
     /// Stored kilograms rendered in the display unit: "82 kg" / "180.8 lb".
     private func weightValueText(_ kg: Double) -> String {

@@ -73,7 +73,7 @@ data class DraftSessionExercise(
 }
 
 /**
- * Tracks the 2-minute rest timer running under the most recently completed set.
+ * Tracks the rest timer running under the most recently completed set.
  * Only one rest timer runs at a time; checking another set restarts it under
  * the new set, and unchecking or deleting the owning set cancels it.
  */
@@ -82,7 +82,11 @@ data class RestTimerTarget(
     val setIndex: Int,
     val startedAtMillis: Long,
     val endsAtMillis: Long,
-)
+) {
+    /** Total duration of this timer run in seconds, derived from its endpoints. */
+    val durationSeconds: Long
+        get() = ((endsAtMillis - startedAtMillis) / 1000L).coerceAtLeast(1L)
+}
 
 const val REST_TIMER_DURATION_SECONDS = 120L
 const val REST_TIMER_DURATION_MS = REST_TIMER_DURATION_SECONDS * 1000L
@@ -167,6 +171,7 @@ data class WorkoutSessionUiState(
         exerciseIndex: Int,
         setIndex: Int,
         now: Long = nowMillis(),
+        durationSeconds: Long = REST_TIMER_DURATION_SECONDS,
     ): WorkoutSessionUiState {
         val exercise = exercises.getOrNull(exerciseIndex) ?: return this
         val set = exercise.sets.getOrNull(setIndex) ?: return this
@@ -176,7 +181,7 @@ data class WorkoutSessionUiState(
                 exerciseId = exercise.id,
                 setIndex = setIndex,
                 startedAtMillis = now,
-                endsAtMillis = now + REST_TIMER_DURATION_MS,
+                endsAtMillis = now + durationSeconds * 1000L,
             )
             isRestTimerOn(exercise.id, setIndex) -> null
             else -> restTimer
@@ -203,11 +208,13 @@ class WorkoutSessionFormState(internal val sessionId: Long) {
     val uiState: StateFlow<WorkoutSessionUiState> = _uiState.asStateFlow()
     private var nextId = 0L
     private val scope = CoroutineScope(Dispatchers.Main)
+    private var restTimerDurationSeconds: Long = REST_TIMER_DURATION_SECONDS
 
     // Serializes persist() runs so a debounced autosave and an explicit
     // save/finish can never interleave their delete+insert rewrites.
     private val persistMutex = Mutex()
     private var autosaveJob: Job? = null
+    private var settingsJob: Job? = null
 
     // Set once the session is finished or discarded; stops any still-pending
     // autosave from resurrecting rows for a session that no longer exists.
@@ -215,6 +222,11 @@ class WorkoutSessionFormState(internal val sessionId: Long) {
     internal val isClosed: Boolean get() = closed
 
     init {
+        settingsJob = scope.launch {
+            UserSettingsRepository.settings.collect { settings ->
+                restTimerDurationSeconds = settings.restTimerDurationSeconds.toLong()
+            }
+        }
         scope.launch {
             val session = AppDb.db.workoutSessionDao().findById(sessionId)
             val details = AppDb.db.workoutSessionDetailDao().getForSession(sessionId)
@@ -280,6 +292,7 @@ class WorkoutSessionFormState(internal val sessionId: Long) {
     internal fun closeQuietly() {
         closed = true
         autosaveJob?.cancel()
+        settingsJob?.cancel()
     }
 
     internal suspend fun flushBeforeExternalFinish() {
@@ -287,6 +300,7 @@ class WorkoutSessionFormState(internal val sessionId: Long) {
         val wasLoading = state.loading
         closed = true
         autosaveJob?.cancel()
+        settingsJob?.cancel()
         updateState(state.copy(saving = false, finished = true, restTimer = null))
         if (!wasLoading) {
             persistMutex.withLock { persist(state) }
@@ -378,7 +392,13 @@ class WorkoutSessionFormState(internal val sessionId: Long) {
     }
 
     fun toggleCompleted(exerciseIndex: Int, setIndex: Int) {
-        updateState(_uiState.value.toggleCompletedAt(exerciseIndex, setIndex))
+        updateState(
+            _uiState.value.toggleCompletedAt(
+                exerciseIndex = exerciseIndex,
+                setIndex = setIndex,
+                durationSeconds = restTimerDurationSeconds,
+            ),
+        )
         scheduleAutosave()
     }
 
@@ -406,6 +426,7 @@ class WorkoutSessionFormState(internal val sessionId: Long) {
         updateState(state.copy(saving = true, restTimer = null))
         closed = true
         autosaveJob?.cancel()
+        settingsJob?.cancel()
         scope.launch {
             persistMutex.withLock {
                 persist(state)
@@ -421,6 +442,7 @@ class WorkoutSessionFormState(internal val sessionId: Long) {
         updateState(_uiState.value.copy(saving = true, restTimer = null))
         closed = true
         autosaveJob?.cancel()
+        settingsJob?.cancel()
         scope.launch {
             persistMutex.withLock { WorkoutSessionRepository.discard(sessionId) }
             updateState(_uiState.value.copy(saving = false, discarded = true))

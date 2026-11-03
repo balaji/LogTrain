@@ -13,6 +13,7 @@ import dev.balaji.moonrose.logtrain.insights.InsightCard
 import dev.balaji.moonrose.logtrain.insights.InsightMath
 import dev.balaji.moonrose.logtrain.insights.OneRmFormula
 import dev.balaji.moonrose.logtrain.model.HeightConversion
+import dev.balaji.moonrose.logtrain.model.RestTimerSound
 import dev.balaji.moonrose.logtrain.model.SampleProgram
 import dev.balaji.moonrose.logtrain.model.SampleRoutine
 import dev.balaji.moonrose.logtrain.model.SetType
@@ -33,6 +34,18 @@ internal fun weightUnitLabel(unit: WeightUnit): String = stringResource(
     when (unit) {
         WeightUnit.METRIC -> Res.string.unit_kg
         WeightUnit.IMPERIAL -> Res.string.unit_lb
+    },
+)
+
+@Composable
+internal fun restTimerSoundLabel(sound: RestTimerSound): String = stringResource(
+    when (sound) {
+        RestTimerSound.DEFAULT -> Res.string.rest_sound_default
+        RestTimerSound.PROXIMA -> Res.string.rest_sound_proxima
+        RestTimerSound.MIRA -> Res.string.rest_sound_mira
+        RestTimerSound.ANTARES -> Res.string.rest_sound_antares
+        RestTimerSound.ALTAIR -> Res.string.rest_sound_altair
+        RestTimerSound.DENEB -> Res.string.rest_sound_deneb
     },
 )
 

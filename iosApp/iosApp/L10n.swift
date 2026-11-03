@@ -242,6 +242,25 @@ enum L10n {
     static let appearanceSystem = String(localized: "appearance_system", defaultValue: "System")
     static let unitsMetric = String(localized: "units_metric", defaultValue: "Metric")
     static let unitsImperial = String(localized: "units_imperial", defaultValue: "Imperial")
+    static let restTimerDuration = String(localized: "rest_timer_duration", defaultValue: "Rest timer")
+    static let restTimerSound = String(localized: "rest_timer_sound", defaultValue: "Rest timer sound")
+    static let restSoundDefault = String(localized: "rest_sound_default", defaultValue: "Default")
+    static let restSoundProxima = String(localized: "rest_sound_proxima", defaultValue: "Proxima")
+    static let restSoundMira = String(localized: "rest_sound_mira", defaultValue: "Mira")
+    static let restSoundAntares = String(localized: "rest_sound_antares", defaultValue: "Antares")
+    static let restSoundAltair = String(localized: "rest_sound_altair", defaultValue: "Altair")
+    static let restSoundDeneb = String(localized: "rest_sound_deneb", defaultValue: "Deneb")
+    static func restTimerSoundLabel(_ sound: RestTimerSound) -> String {
+        switch sound {
+        case .default_: return restSoundDefault
+        case .proxima: return restSoundProxima
+        case .mira: return restSoundMira
+        case .antares: return restSoundAntares
+        case .altair: return restSoundAltair
+        case .deneb: return restSoundDeneb
+        default: return restSoundDefault
+        }
+    }
     // iOS-only: the week-start picker shows full weekday names
     static let weekdaySunday = String(localized: "weekday_sunday", defaultValue: "Sunday")
     static let weekdayMonday = String(localized: "weekday_monday", defaultValue: "Monday")
