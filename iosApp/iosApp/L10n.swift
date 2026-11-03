@@ -244,6 +244,7 @@ enum L10n {
     static let unitsImperial = String(localized: "units_imperial", defaultValue: "Imperial")
     static let restTimerDuration = String(localized: "rest_timer_duration", defaultValue: "Rest timer")
     static let restTimerSound = String(localized: "rest_timer_sound", defaultValue: "Rest timer sound")
+    static let restSoundNone = String(localized: "rest_sound_none", defaultValue: "None")
     static let restSoundDefault = String(localized: "rest_sound_default", defaultValue: "Default")
     static let restSoundProxima = String(localized: "rest_sound_proxima", defaultValue: "Proxima")
     static let restSoundMira = String(localized: "rest_sound_mira", defaultValue: "Mira")
@@ -252,6 +253,7 @@ enum L10n {
     static let restSoundDeneb = String(localized: "rest_sound_deneb", defaultValue: "Deneb")
     static func restTimerSoundLabel(_ sound: RestTimerSound) -> String {
         switch sound {
+        case .none: return restSoundNone
         case .default_: return restSoundDefault
         case .proxima: return restSoundProxima
         case .mira: return restSoundMira

@@ -9,7 +9,8 @@ import android.content.ContentResolver
 import android.content.Context
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
-import android.media.Ringtone
+import android.media.AudioManager
+import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
@@ -32,7 +33,7 @@ actual fun rememberRestTimerNotifier(): RestTimerNotifier {
 }
 
 private class AndroidRestTimerNotifier(private val context: Context) : RestTimerNotifier {
-    private var activeRingtone: Ringtone? = null
+    private var activePlayer: MediaPlayer? = null
 
     override fun onRestTimerStarted(
         endsAtMillis: Long,
@@ -72,23 +73,80 @@ private class AndroidRestTimerNotifier(private val context: Context) : RestTimer
         playBellSound(sound)
     }
 
-    private fun playBellSound(sound: RestTimerSound) {
+    private fun stopActivePlayer() {
+        val existing = activePlayer ?: return
+        activePlayer = null
         runCatching {
-            activeRingtone?.stop()
-            val uri = soundUriFor(sound) ?: return
-            val ringtone = RingtoneManager.getRingtone(context, uri) ?: return
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                ringtone.audioAttributes = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build()
+            if (existing.isPlaying) existing.stop()
+        }
+        runCatching { existing.release() }
+    }
+
+    private fun playBellSound(sound: RestTimerSound) {
+        stopActivePlayer()
+        if (sound == RestTimerSound.NONE) return
+        runCatching {
+            val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            // Ringtone with USAGE_NOTIFICATION_EVENT is silently dropped by
+            // Android whenever STREAM_NOTIFICATION volume is 0 (e.g. vibrate
+            // mode or muted notification slider). Route in-app previews and
+            // foreground timer chimes through media volume (falling back to
+            // alarm volume if media is muted) since the user has an explicit
+            // "None" option when they want vibration only.
+            val usage = if ((am?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 1) > 0) {
+                AudioAttributes.USAGE_MEDIA
+            } else {
+                AudioAttributes.USAGE_ALARM
             }
-            activeRingtone = ringtone
-            ringtone.play()
+            val player = MediaPlayer()
+            player.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(usage)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build(),
+            )
+            val rawRes = rawResIdFor(sound)
+            if (rawRes != null) {
+                val afd = context.resources.openRawResourceFd(rawRes) ?: run {
+                    player.release()
+                    return
+                }
+                afd.use {
+                    player.setDataSource(it.fileDescriptor, it.startOffset, it.length)
+                }
+            } else {
+                val uri = soundUriFor(sound) ?: run {
+                    player.release()
+                    return
+                }
+                player.setDataSource(context, uri)
+            }
+            player.setOnCompletionListener { mp ->
+                if (activePlayer === mp) activePlayer = null
+                runCatching { mp.release() }
+            }
+            player.setOnErrorListener { mp, _, _ ->
+                if (activePlayer === mp) activePlayer = null
+                runCatching { mp.release() }
+                true
+            }
+            player.prepare()
+            activePlayer = player
+            player.start()
         }
     }
 
+    private fun rawResIdFor(sound: RestTimerSound): Int? = when (sound) {
+        RestTimerSound.NONE, RestTimerSound.DEFAULT -> null
+        RestTimerSound.PROXIMA -> R.raw.rest_proxima
+        RestTimerSound.MIRA -> R.raw.rest_mira
+        RestTimerSound.ANTARES -> R.raw.rest_antares
+        RestTimerSound.ALTAIR -> R.raw.rest_altair
+        RestTimerSound.DENEB -> R.raw.rest_deneb
+    }
+
     private fun soundUriFor(sound: RestTimerSound): Uri? = when (sound) {
+        RestTimerSound.NONE -> null
         RestTimerSound.DEFAULT -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
         RestTimerSound.PROXIMA -> rawResourceUri(R.raw.rest_proxima)
@@ -164,7 +222,9 @@ private class AndroidRestTimerNotifier(private val context: Context) : RestTimer
                 ).apply {
                     enableVibration(true)
                     vibrationPattern = longArrayOf(0L, 250L, 120L, 250L)
-                    if (soundUri != null) {
+                    if (sound == RestTimerSound.NONE) {
+                        setSound(null, null)
+                    } else if (soundUri != null) {
                         setSound(soundUri, audioAttributes)
                     }
                 }

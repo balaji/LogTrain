@@ -49,7 +49,8 @@ enum RestTimerSoundPlayer {
         try? FileManager.default.copyItem(at: src, to: dst)
     }
 
-    static func notificationSound(for sound: RestTimerSound) -> UNNotificationSound {
+    static func notificationSound(for sound: RestTimerSound) -> UNNotificationSound? {
+        if sound == .none { return nil }
         if let name = fileName(for: sound) {
             ensureLibrarySound(for: sound)
             return UNNotificationSound(named: UNNotificationSoundName(name))
@@ -59,8 +60,10 @@ enum RestTimerSoundPlayer {
 
     static func play(sound: RestTimerSound, vibrate: Bool) {
         audioPlayer?.stop()
-        if let url = bundleURL(for: sound) {
-            try? AVAudioSession.sharedInstance().setCategory(.ambient, options: [.mixWithOthers])
+        if sound == .none {
+            audioPlayer = nil
+        } else if let url = bundleURL(for: sound) {
+            try? AVAudioSession.sharedInstance().setCategory(.playback, options: [.mixWithOthers])
             try? AVAudioSession.sharedInstance().setActive(true)
             audioPlayer = try? AVAudioPlayer(contentsOf: url)
             audioPlayer?.play()

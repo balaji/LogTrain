@@ -177,6 +177,7 @@
     <string name="units_imperial">Imperiskt</string>
     <string name="rest_timer_duration">Vilotimer</string>
     <string name="rest_timer_sound">Vilotimerljud</string>
+    <string name="rest_sound_none">Inget</string>
     <string name="rest_sound_default">Standard</string>
     <string name="rest_sound_proxima">Proxima</string>
     <string name="rest_sound_mira">Mira</string>

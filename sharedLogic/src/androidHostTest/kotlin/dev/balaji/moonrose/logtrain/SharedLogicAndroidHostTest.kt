@@ -195,5 +195,10 @@ class SharedLogicAndroidHostTest {
         ).toUserSettings()
         assertEquals(210, configured.restTimerDurationSeconds)
         assertEquals(RestTimerSound.ANTARES, configured.restTimerSound)
+
+        val silent = listOf(
+            UserSettingEntity(SETTING_REST_TIMER_SOUND, "none", 0L, 0L),
+        ).toUserSettings()
+        assertEquals(RestTimerSound.NONE, silent.restTimerSound)
     }
 }

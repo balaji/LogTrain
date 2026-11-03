@@ -52,6 +52,8 @@ enum class WeightUnit(val value: String) {
  * AOSP notification sounds bundled on both platforms.
  */
 enum class RestTimerSound(val value: String) {
+    /** Silent — vibrate only, no audio chime. */
+    NONE("none"),
     /** Platform's default notification/alert chime. */
     DEFAULT("default"),
     PROXIMA("proxima"),
