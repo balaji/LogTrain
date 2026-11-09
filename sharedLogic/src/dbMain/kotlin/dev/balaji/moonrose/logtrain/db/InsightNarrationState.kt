@@ -19,9 +19,9 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 /**
  * Per-card LLM narration for the Progress tab, keyed by InsightCard.id. The
  * platform UI injects its on-device InsightGenerationProvider (Foundation
- * Models on iOS) and joins narrations to cards by id; platforms without a
- * provider simply never construct this state. Provider callbacks are
- * contractually on the main thread, so state mutation needs no
+ * Models on iOS, Gemini Nano on Android) and joins narrations to cards by id;
+ * when the provider is null or unavailable, this state stays inert. Provider
+ * callbacks are contractually on the main thread, so state mutation needs no
  * synchronization.
  *
  * Generated text is cached in ai_insight_cache keyed by a hash of the

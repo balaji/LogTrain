@@ -2,10 +2,10 @@ package dev.balaji.moonrose.logtrain.insights.llm
 
 /**
  * One-shot on-device text generation for insight-card narration. Implemented
- * per platform (Apple Foundation Models on iOS; a Gemini Nano implementation
- * can slot in on Android later) and injected into InsightNarrationState by
- * the platform UI. Deliberately callback-based rather than suspend so a
- * Swift class can conform to the bridged protocol directly.
+ * per platform (Apple Foundation Models on iOS; Gemini Nano on Android) and
+ * injected into InsightNarrationState by the platform UI. Deliberately
+ * callback-based rather than suspend so a Swift class can conform to the
+ * bridged protocol directly.
  *
  * Providers never compute statistics themselves: InsightCardNarrator hands
  * them a fully-assembled prompt with every number pre-formatted.

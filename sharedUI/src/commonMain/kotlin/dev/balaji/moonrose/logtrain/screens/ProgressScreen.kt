@@ -1,5 +1,10 @@
 package dev.balaji.moonrose.logtrain.screens
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -24,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingFlat
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -50,6 +56,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -58,12 +65,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import dev.balaji.moonrose.logtrain.db.InsightNarrationState
 import dev.balaji.moonrose.logtrain.db.ProgressScreenState
 import dev.balaji.moonrose.logtrain.insights.BodyPartSlice
 import dev.balaji.moonrose.logtrain.insights.InsightCard
 import dev.balaji.moonrose.logtrain.insights.InsightMath
 import dev.balaji.moonrose.logtrain.insights.SparkPoint
 import dev.balaji.moonrose.logtrain.insights.SparkSeries
+import dev.balaji.moonrose.logtrain.insights.llm.CardNarration
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import kotlin.math.PI
 import kotlin.math.cos
@@ -72,14 +81,19 @@ import kotlin.math.sin
 import org.jetbrains.compose.resources.stringResource
 import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
-/** Progress tab: deterministic insight cards plus body-weight logging. */
+/**
+ * Progress tab: deterministic insight cards narrated by the on-device language
+ * model when available, plus body-weight logging.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProgressScreen(onOpenProfile: () -> Unit) {
     val state = remember { ProgressScreenState() }
+    val provider = rememberInsightGenerationProvider()
+    val narrationState = remember(provider) { InsightNarrationState(provider) }
 
     if (LocalUseNativeNavigation.current) {
-        ProgressContent(state, Modifier.padding(WindowInsets.safeDrawing.asPaddingValues()))
+        ProgressContent(state, narrationState, Modifier.padding(WindowInsets.safeDrawing.asPaddingValues()))
     } else {
         Scaffold(
             topBar = {
@@ -89,14 +103,19 @@ fun ProgressScreen(onOpenProfile: () -> Unit) {
                 )
             },
         ) { padding ->
-            ProgressContent(state, Modifier.padding(padding))
+            ProgressContent(state, narrationState, Modifier.padding(padding))
         }
     }
 }
 
 @Composable
-private fun ProgressContent(state: ProgressScreenState, modifier: Modifier = Modifier) {
+private fun ProgressContent(
+    state: ProgressScreenState,
+    narrationState: InsightNarrationState,
+    modifier: Modifier = Modifier,
+) {
     val uiState by state.uiState.collectAsState()
+    val narrations by narrationState.narrations.collectAsState()
     var showLogWeight by remember { mutableStateOf(false) }
 
     if (uiState.loading) return
@@ -125,6 +144,7 @@ private fun ProgressContent(state: ProgressScreenState, modifier: Modifier = Mod
             val lastProgressionIndex = uiState.cards.indexOfLast { it.kind in PROGRESSION_KINDS }
             uiState.cards.forEachIndexed { index, card ->
                 item(key = card.id) {
+                    val narration = narrations[card.id]
                     if (card.kind in PROGRESSION_KINDS) {
                         val slot = card.id.substringAfter(PROGRESSION_ID_PREFIX).toIntOrNull() ?: 0
                         ProgressionCard(
@@ -134,12 +154,13 @@ private fun ProgressContent(state: ProgressScreenState, modifier: Modifier = Mod
                             options = uiState.progressionOptions,
                             unitLabel = unitLabel,
                             canRemove = uiState.progressionConfigs.size > 1,
+                            narration = narration,
                             onSetExercises = { state.setProgressionCardExercises(slot, it) },
                             onToggleAxis = { state.toggleProgressionAxis(slot) },
                             onRemove = { state.removeProgressionCard(slot) },
                         )
                     } else {
-                        InsightCardRow(card, unitLabel)
+                        InsightCardRow(card, unitLabel, narration)
                     }
                 }
                 if (index == lastProgressionIndex && uiState.progressionConfigs.size < 3) {
@@ -214,7 +235,11 @@ private fun LogWeightRow(latest: String, unitLabel: String, onLogWeight: () -> U
 }
 
 @Composable
-private fun InsightCardRow(card: InsightCard, unitLabel: String) {
+private fun InsightCardRow(
+    card: InsightCard,
+    unitLabel: String,
+    narration: CardNarration?,
+) {
     OutlinedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -243,6 +268,12 @@ private fun InsightCardRow(card: InsightCard, unitLabel: String) {
                     Modifier.fillMaxWidth().height(40.dp).padding(top = 12.dp),
                 )
             }
+            if (narration != null && narration.status != "failed") {
+                InsightNarrationRow(
+                    narration = narration,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
         }
     }
 }
@@ -254,8 +285,9 @@ private const val MAX_COMPARED_EXERCISES = 3
 /**
  * A user-configurable progression card: an exercise multi-select (up to
  * three exercises overlaid on one est-1RM chart), a %-change axis toggle,
- * and a remove action. Single-exercise cards keep the classic headline and
- * detail; comparisons render one legend row per series instead.
+ * and a remove action. Single-exercise cards keep the classic headline,
+ * detail, and narration; comparisons render one legend row per series and
+ * are never narrated.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -265,6 +297,7 @@ private fun ProgressionCard(
     options: List<String>,
     unitLabel: String,
     canRemove: Boolean,
+    narration: CardNarration?,
     onSetExercises: (List<String>) -> Unit,
     onToggleAxis: () -> Unit,
     onRemove: () -> Unit,
@@ -351,6 +384,54 @@ private fun ProgressionCard(
                     }
                 }
             }
+            if (narration != null && narration.status != "failed") {
+                InsightNarrationRow(
+                    narration = narration,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InsightNarrationRow(
+    narration: CardNarration,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Default.AutoAwesome,
+            contentDescription = null,
+            modifier = Modifier.padding(top = 2.dp).size(14.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        if (narration.status == "loading") {
+            val transition = rememberInfiniteTransition()
+            val alpha by transition.animateFloat(
+                initialValue = 0.9f,
+                targetValue = 0.4f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(durationMillis = 900),
+                    repeatMode = RepeatMode.Reverse,
+                ),
+            )
+            Text(
+                text = stringResource(Res.string.insight_narration_loading),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.alpha(alpha),
+            )
+        } else {
+            Text(
+                text = narration.text,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
