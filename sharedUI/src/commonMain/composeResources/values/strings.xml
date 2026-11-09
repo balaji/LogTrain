@@ -273,6 +273,7 @@
     <string name="insight_remove_card">Remove card</string>
     <string name="insight_axis_pct_change">% change</string>
     <string name="insight_series_slope">%1$s %2$s/week</string>
+    <string name="insight_narration_loading">Reading your training data and writing a note about this trend.</string>
 
     <!-- Profile validation -->
     <string name="profile_name_too_long">Name must be at most %1$s characters</string>

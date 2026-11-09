@@ -41,7 +41,12 @@ kotlin {
                 implementation(libs.androidx.sqlite.bundled)
             }
         }
-        androidMain.get().dependsOn(dbMain)
+        androidMain.get().apply {
+            dependsOn(dbMain)
+            dependencies {
+                implementation(libs.mlkit.genai.prompt)
+            }
+        }
         iosMain.get().dependsOn(dbMain)
 
         commonMain.dependencies {
