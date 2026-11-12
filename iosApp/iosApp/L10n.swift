@@ -28,6 +28,8 @@ enum L10n {
     static let ok = String(localized: "ok", defaultValue: "OK")
     static let yes = String(localized: "yes", defaultValue: "Yes")
     static let no = String(localized: "no", defaultValue: "No")
+    static let collapse = String(localized: "collapse", defaultValue: "Collapse")
+    static let expand = String(localized: "expand", defaultValue: "Expand")
     static let create = String(localized: "create", defaultValue: "Create")
     static let name = String(localized: "name", defaultValue: "Name")
     static let somethingWentWrong = String(localized: "something_went_wrong", defaultValue: "Something went wrong")

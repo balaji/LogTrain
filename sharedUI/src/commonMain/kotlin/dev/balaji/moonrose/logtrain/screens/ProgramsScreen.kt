@@ -80,6 +80,8 @@ fun ProgramsScreen(onNavigate: (Route) -> Unit, onOpenProfile: () -> Unit = {}) 
     var dialog by remember { mutableStateOf<ProgramDialog?>(null) }
     var expandedProgramId by remember { mutableStateOf<Long?>(null) }
     var expandedSampleId by remember { mutableStateOf<String?>(null) }
+    var myProgramsExpanded by remember { mutableStateOf(true) }
+    var sampleProgramsExpanded by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
     val couldNotSaveMessage = stringResource(Res.string.could_not_save)
     val emptyWorkoutTitle = stringResource(Res.string.empty_workout_title)
@@ -126,6 +128,10 @@ fun ProgramsScreen(onNavigate: (Route) -> Unit, onOpenProfile: () -> Unit = {}) 
             onToggleSample = ::toggleSampleExpanded,
             onCopySample = { dialog = ProgramDialog.CopySample(it) },
             onViewSampleRoutine = { dialog = ProgramDialog.ViewSampleRoutine(it) },
+            myProgramsExpanded = myProgramsExpanded,
+            onToggleMyPrograms = { myProgramsExpanded = !myProgramsExpanded },
+            sampleProgramsExpanded = sampleProgramsExpanded,
+            onToggleSamplePrograms = { sampleProgramsExpanded = !sampleProgramsExpanded },
         )
     }
 
@@ -240,6 +246,10 @@ private fun ProgramsBody(
     onToggleSample: (SampleProgram) -> Unit,
     onCopySample: (SampleProgram) -> Unit,
     onViewSampleRoutine: (SampleRoutine) -> Unit,
+    myProgramsExpanded: Boolean,
+    onToggleMyPrograms: () -> Unit,
+    sampleProgramsExpanded: Boolean,
+    onToggleSamplePrograms: () -> Unit,
 ) {
     if (programs == null) {
         CenteredMessage(contentPadding) { CircularProgressIndicator() }
@@ -252,9 +262,13 @@ private fun ProgramsBody(
             Spacer(Modifier.height(24.dp))
         }
         item(key = "my-programs-header") {
-            SectionHeader(stringResource(Res.string.my_programs))
+            CollapsibleSectionHeader(
+                title = stringResource(Res.string.my_programs),
+                expanded = myProgramsExpanded,
+                onToggle = onToggleMyPrograms,
+            )
         }
-        if (programs.isEmpty()) {
+        if (myProgramsExpanded && programs.isEmpty()) {
             item(key = "empty-programs") {
                 Text(
                     stringResource(Res.string.no_programs_yet),
@@ -262,7 +276,7 @@ private fun ProgramsBody(
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
-        } else {
+        } else if (myProgramsExpanded) {
             programs.forEach { program ->
                 item(key = "program-${program.id}") {
                     Column(modifier = Modifier.animateItem()) {
@@ -318,9 +332,13 @@ private fun ProgramsBody(
 
         item(key = "sample-header") {
             Spacer(Modifier.height(24.dp))
-            SectionHeader(stringResource(Res.string.sample_programs))
+            CollapsibleSectionHeader(
+                title = stringResource(Res.string.sample_programs),
+                expanded = sampleProgramsExpanded,
+                onToggle = onToggleSamplePrograms,
+            )
         }
-        SamplePrograms.all.forEach { sample ->
+        if (sampleProgramsExpanded) SamplePrograms.all.forEach { sample ->
             item(key = "sample-${sample.id}") {
                 Column(modifier = Modifier.animateItem()) {
                     SampleProgramRow(
@@ -477,6 +495,37 @@ internal fun SectionHeader(title: String) {
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+    HorizontalDivider()
+}
+
+/** [SectionHeader] that folds/unfolds its section when tapped. */
+@Composable
+private fun CollapsibleSectionHeader(
+    title: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+) {
+    val chevronRotation by animateFloatAsState(if (expanded) 90f else 0f)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggle)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            title,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = if (expanded) stringResource(Res.string.collapse) else stringResource(Res.string.expand),
+            modifier = Modifier.rotate(chevronRotation),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
     HorizontalDivider()
 }
 
