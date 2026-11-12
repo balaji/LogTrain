@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
 """Build sharedLogic/sharedUI + androidApp and run it on a connected Android device or Emulator.
 
-Usage: run-android.py [--device <target> | -s <target>] [--clean] [--seed [days]] [language-code]
-  --device, -s <target>: optional target device serial, model/product substring,
-    or AVD name to run on. When multiple devices are connected, installs only to
+Usage: run-android.py [--adb <target>] [--clean] [--seed [days]] [language-code]
+  --adb <target>: optional target device serial, model/product substring, or
+    AVD name to run on. When multiple devices are connected, installs only to
     the matching device (via ANDROID_SERIAL). If not connected, treats <target>
     as an AVD name to boot.
   --clean: uninstall the app (if present) before installing, wiping its data.
   --seed [days]: uninstall first (implies --clean), then on launch create a
     default profile and generate that many days of test workout history
     (default 60). Debug-only hook.
-  language-code: optional, e.g. "en" or "sv". Overrides the app's per-app
-    language via `cmd locale set-app-locales`, without changing the
-    device's system-wide language setting.
+  language-code: optional, e.g. "en" or "sv" (default: "en"). Overrides the
+    app's per-app language via `cmd locale set-app-locales`, without changing
+    the device's system-wide language setting.
 """
 
 from __future__ import annotations
 
+import argparse
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -61,41 +61,41 @@ def configure_environment() -> None:
         os.environ["PATH"] = os.pathsep.join(extra_paths + ([current_path] if current_path else []))
 
 
-def parse_args(argv: list[str]) -> tuple[bool, int, str, str]:
-    clean = False
-    seed_days = 0
-    lang_code = ""
-    target_device = ""
-
-    i = 0
-    while i < len(argv):
-        arg = argv[i]
-        if arg in ("-h", "--help"):
-            print(__doc__.strip())
-            sys.exit(0)
-        elif arg == "--clean":
-            clean = True
-        elif arg in ("-s", "--device", "--target"):
-            if i + 1 >= len(argv):
-                sys.exit(f"Error: {arg} requires a target argument.")
-            target_device = argv[i + 1]
-            i += 1
-        elif arg.startswith("--device=") or arg.startswith("--target="):
-            target_device = arg.split("=", 1)[1]
-        elif arg == "--seed":
-            seed_days = 60
-            if i + 1 < len(argv) and re.fullmatch(r"[0-9]+", argv[i + 1]):
-                seed_days = int(argv[i + 1])
-                i += 1
-        else:
-            lang_code = arg
-        i += 1
-
-    # Seeding only fires on an install with no profile, so start from one.
-    if seed_days > 0:
-        clean = True
-
-    return clean, seed_days, lang_code, target_device
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Build sharedLogic/sharedUI + androidApp and run it on a connected Android device or Emulator."
+    )
+    parser.add_argument(
+        "--adb",
+        default="",
+        metavar="TARGET",
+        help="Target device serial, model/product substring, or AVD name to run on.",
+    )
+    parser.add_argument(
+        "--clean",
+        action="store_true",
+        help="Uninstall the app (if present) before installing, wiping its data.",
+    )
+    parser.add_argument(
+        "--seed",
+        nargs="?",
+        const=60,
+        default=0,
+        type=int,
+        metavar="DAYS",
+        help="Uninstall first (implies --clean), then seed test workout history (default: 60 days).",
+    )
+    parser.add_argument(
+        "lang_code",
+        nargs="?",
+        default="en",
+        metavar="language-code",
+        help='Optional per-app language override, e.g. "en" or "sv" (default: "en").',
+    )
+    args = parser.parse_args(argv)
+    if args.seed > 0:
+        args.clean = True
+    return args
 
 
 def require_tool(name: str) -> str:
@@ -150,7 +150,7 @@ def resolve_target_serial(adb: str, target: str) -> tuple[str, str]:
             serials = ", ".join(s for s, _, _ in devices)
             sys.exit(
                 f"Error: multiple devices connected ({serials}). "
-                f"Specify one with --device / -s <target>."
+                f"Specify one with --adb <target>."
             )
         return "", AVD_NAME
 
@@ -302,12 +302,12 @@ def main() -> None:
     os.chdir(repo_root)
 
     configure_environment()
-    clean, seed_days, lang_code, target_device = parse_args(sys.argv[1:])
+    args = parse_args()
 
     adb = require_tool("adb")
-    ensure_device_ready(adb, target_device)
+    ensure_device_ready(adb, args.adb)
 
-    if clean:
+    if args.clean:
         if is_app_installed(adb, APP_ID):
             print(f"Uninstalling {APP_ID}...")
             run([adb, "uninstall", APP_ID])
@@ -319,32 +319,31 @@ def main() -> None:
 
     run([adb, "shell", "am", "force-stop", APP_ID])
 
-    if lang_code:
-        locale_map = {
-            "en": "en-US",
-            "sv": "sv-SE",
-        }
-        locale = locale_map.get(lang_code, lang_code)
-        print(f"Launching with language override: {lang_code} ({locale})")
-        run(
-            [
-                adb,
-                "shell",
-                "cmd",
-                "locale",
-                "set-app-locales",
-                APP_ID,
-                "--user",
-                "current",
-                "--locales",
-                locale,
-            ]
-        )
+    locale_map = {
+        "en": "en-US",
+        "sv": "sv-SE",
+    }
+    locale = locale_map.get(args.lang_code, args.lang_code)
+    print(f"Launching with language override: {args.lang_code} ({locale})")
+    run(
+        [
+            adb,
+            "shell",
+            "cmd",
+            "locale",
+            "set-app-locales",
+            APP_ID,
+            "--user",
+            "current",
+            "--locales",
+            locale,
+        ]
+    )
 
     start_cmd = [adb, "shell", "am", "start", "-n", f"{APP_ID}/.MainActivity"]
-    if seed_days > 0:
-        print(f"Launching with test-data seed: {seed_days} days")
-        start_cmd.extend(["--ei", "seedTestData", str(seed_days)])
+    if args.seed > 0:
+        print(f"Launching with test-data seed: {args.seed} days")
+        start_cmd.extend(["--ei", "seedTestData", str(args.seed)])
 
     run(start_cmd)
 

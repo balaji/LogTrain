@@ -129,6 +129,7 @@ private struct ProfileToolbar: ViewModifier {
                         showingProfile = true
                     } label: {
                         Image(systemName: "person.crop.circle")
+                            .imageScale(.large)
                     }
                     .accessibilityLabel(L10n.profile)
                 }
@@ -361,6 +362,7 @@ struct ContentView: View {
         content.title = L10n.restOverTitle
         content.body = L10n.restOverMessage
         content.sound = RestTimerSoundPlayer.notificationSound(for: restTimerSound)
+        content.interruptionLevel = .timeSensitive
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)
         let request = UNNotificationRequest(
             identifier: restTimerNotificationId,

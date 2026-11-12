@@ -115,6 +115,8 @@ struct ProgramsView: View {
     @State private var routines: [Routine]?
     @State private var expandedProgramId: Int64?
     @State private var expandedSampleId: String?
+    @State private var myProgramsExpanded = true
+    @State private var sampleProgramsExpanded = true
     @State private var prompt: TextPrompt?
     @State private var promptText = ""
     @State private var deleteTarget: DeleteTarget?
@@ -240,25 +242,49 @@ struct ProgramsView: View {
 
     @ViewBuilder
     private func userProgramsSection(_ programs: [Program]) -> some View {
-        Section(L10n.myPrograms) {
-            if programs.isEmpty {
+        Section {
+            if myProgramsExpanded && programs.isEmpty {
                 Text(L10n.noProgramsYet)
                     .foregroundStyle(.secondary)
-            } else {
+            } else if myProgramsExpanded {
                 ForEach(programs, id: \.id) { program in
                     programRows(program)
                 }
             }
+        } header: {
+            collapsibleHeader(L10n.myPrograms, isExpanded: $myProgramsExpanded)
         }
     }
 
     @ViewBuilder
     private var sampleProgramsSection: some View {
-        Section(L10n.samplePrograms) {
-            ForEach(samplePrograms, id: \.id) { sample in
-                sampleRows(sample)
+        Section {
+            if sampleProgramsExpanded {
+                ForEach(samplePrograms, id: \.id) { sample in
+                    sampleRows(sample)
+                }
             }
+        } header: {
+            collapsibleHeader(L10n.samplePrograms, isExpanded: $sampleProgramsExpanded)
         }
+    }
+
+    /// Section header that folds/unfolds its section when tapped.
+    private func collapsibleHeader(_ title: String, isExpanded: Binding<Bool>) -> some View {
+        Button {
+            withAnimation { isExpanded.wrappedValue.toggle() }
+        } label: {
+            HStack {
+                Text(title)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .rotationEffect(.degrees(isExpanded.wrappedValue ? 90 : 0))
+            }
+            .foregroundStyle(.secondary)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint(isExpanded.wrappedValue ? L10n.collapse : L10n.expand)
     }
 
     @ViewBuilder
