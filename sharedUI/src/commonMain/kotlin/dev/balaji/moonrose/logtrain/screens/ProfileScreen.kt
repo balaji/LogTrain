@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -102,7 +103,12 @@ fun ProfileScreen(onGoBack: () -> Unit) {
 @Composable
 fun ProfileTopBarButton(onClick: () -> Unit) {
     IconButton(onClick = onClick) {
-        Icon(Icons.Filled.AccountCircle, contentDescription = stringResource(Res.string.profile))
+        // 32dp (vs. the default 24dp) still fits the 48dp touch target.
+        Icon(
+            Icons.Filled.AccountCircle,
+            contentDescription = stringResource(Res.string.profile),
+            modifier = Modifier.size(32.dp),
+        )
     }
 }
 

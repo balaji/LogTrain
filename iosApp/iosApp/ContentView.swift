@@ -129,6 +129,7 @@ private struct ProfileToolbar: ViewModifier {
                         showingProfile = true
                     } label: {
                         Image(systemName: "person.crop.circle")
+                            .imageScale(.large)
                     }
                     .accessibilityLabel(L10n.profile)
                 }
