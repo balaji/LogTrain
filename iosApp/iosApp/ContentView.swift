@@ -361,6 +361,7 @@ struct ContentView: View {
         content.title = L10n.restOverTitle
         content.body = L10n.restOverMessage
         content.sound = RestTimerSoundPlayer.notificationSound(for: restTimerSound)
+        content.interruptionLevel = .timeSensitive
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)
         let request = UNNotificationRequest(
             identifier: restTimerNotificationId,

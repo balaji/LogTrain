@@ -277,27 +277,47 @@ private fun rememberRestTimerRemainingSeconds(): Long {
         mutableLongStateOf(activeRestTimer?.let { remainingSecondsUntil(it.endsAtMillis) } ?: 0L)
     }
     var lastStartedAtMillis by remember { mutableLongStateOf(0L) }
+    var lastEndsAtMillis by remember { mutableLongStateOf(0L) }
     var lastFinishedAtMillis by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(
+        activeRestTimer,
+        settings.notificationsEnabled,
+        settings.restTimerSound,
+        restOverTitle,
+        restOverMessage,
+        restChannelName,
+    ) {
+        val timer = activeRestTimer ?: return@LaunchedEffect
+        if (remainingSecondsUntil(timer.endsAtMillis) > 0L) {
+            restNotifier.onRestTimerStarted(
+                endsAtMillis = timer.endsAtMillis,
+                notificationsEnabled = settings.notificationsEnabled,
+                sound = settings.restTimerSound,
+                title = restOverTitle,
+                message = restOverMessage,
+                channelName = restChannelName,
+            )
+        }
+    }
 
     LaunchedEffect(activeRestTimer) {
         val timer = activeRestTimer
         if (timer == null) {
             remainingSeconds = 0L
-            if (lastStartedAtMillis != 0L && lastStartedAtMillis != lastFinishedAtMillis) {
+            if (
+                lastStartedAtMillis != 0L &&
+                lastStartedAtMillis != lastFinishedAtMillis &&
+                remainingSecondsUntil(lastEndsAtMillis) > 0L
+            ) {
                 restNotifier.onRestTimerCancelled()
             }
             lastStartedAtMillis = 0L
+            lastEndsAtMillis = 0L
             return@LaunchedEffect
         }
         lastStartedAtMillis = timer.startedAtMillis
-        restNotifier.onRestTimerStarted(
-            endsAtMillis = timer.endsAtMillis,
-            notificationsEnabled = notificationsEnabled,
-            sound = restTimerSound,
-            title = restOverTitle,
-            message = restOverMessage,
-            channelName = restChannelName,
-        )
+        lastEndsAtMillis = timer.endsAtMillis
         while (true) {
             val remaining = remainingSecondsUntil(timer.endsAtMillis)
             remainingSeconds = remaining
