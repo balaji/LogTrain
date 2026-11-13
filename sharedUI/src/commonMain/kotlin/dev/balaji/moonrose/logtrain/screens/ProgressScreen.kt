@@ -87,7 +87,9 @@ import dev.balaji.moonrose.logtrain.sharedui.resources.*
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProgressScreen() {
+fun ProgressScreen(
+    onOpenChat: (() -> Unit)? = null,
+) {
     val state = remember { ProgressScreenState() }
     val provider = rememberInsightGenerationProvider()
     val narrationState = remember(provider) { InsightNarrationState(provider) }
@@ -99,6 +101,16 @@ fun ProgressScreen() {
             topBar = {
                 TopAppBar(
                     title = { Text(stringResource(Res.string.tab_progress)) },
+                    actions = {
+                        if (onOpenChat != null) {
+                            IconButton(onClick = onOpenChat) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = stringResource(Res.string.chat_title),
+                                )
+                            }
+                        }
+                    },
                 )
             },
         ) { padding ->

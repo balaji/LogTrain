@@ -2,6 +2,8 @@ package dev.balaji.moonrose.logtrain.screens
 
 import androidx.compose.runtime.Composable
 import dev.balaji.moonrose.logtrain.calendar.WeekMath
+import dev.balaji.moonrose.logtrain.chat.ChatMessage
+import dev.balaji.moonrose.logtrain.chat.ChatSuggestedPrompt
 import dev.balaji.moonrose.logtrain.db.MAX_AGE
 import dev.balaji.moonrose.logtrain.db.MAX_NAME_LENGTH
 import dev.balaji.moonrose.logtrain.db.MIN_AGE
@@ -324,4 +326,35 @@ internal fun exerciseCatalogLabel(key: String): String = when (key) {
     "distance_duration" -> stringResource(Res.string.exercise_type_distance_duration)
     "reps_distance" -> stringResource(Res.string.exercise_type_reps_distance)
     else -> key.replaceFirstChar(Char::uppercase)
+}
+
+@Composable
+internal fun chatSuggestedPromptLabel(prompt: ChatSuggestedPrompt): String = when (prompt.key) {
+    ChatSuggestedPrompt.KEY_SUMMARY -> stringResource(Res.string.chat_prompt_summary)
+    ChatSuggestedPrompt.KEY_PRS -> stringResource(Res.string.chat_prompt_prs)
+    ChatSuggestedPrompt.KEY_LAST_WORKOUT -> stringResource(Res.string.chat_prompt_last_workout)
+    ChatSuggestedPrompt.KEY_NEXT_ROUTINE -> stringResource(Res.string.chat_prompt_next_routine)
+    ChatSuggestedPrompt.KEY_EXERCISE_PROGRESSION ->
+        stringResource(Res.string.chat_prompt_exercise_progression, prompt.arg)
+    ChatSuggestedPrompt.KEY_EXERCISE_FORM ->
+        stringResource(Res.string.chat_prompt_exercise_form, prompt.arg)
+    ChatSuggestedPrompt.KEY_EXERCISE_SUBSTITUTES ->
+        stringResource(Res.string.chat_prompt_exercise_substitutes, prompt.arg)
+    ChatSuggestedPrompt.KEY_DAY_SUMMARY -> stringResource(Res.string.chat_prompt_day_summary)
+    else -> prompt.key
+}
+
+@Composable
+internal fun chatErrorLabel(errorKey: String): String = when (errorKey) {
+    ChatMessage.ERROR_UNAVAILABLE -> stringResource(Res.string.chat_error_unavailable)
+    ChatMessage.ERROR_CONTEXT_TOO_LONG -> stringResource(Res.string.chat_error_context_too_long)
+    else -> stringResource(Res.string.chat_error_generation_failed)
+}
+
+@Composable
+internal fun chatAvailabilityMessage(availability: String): String? = when (availability) {
+    "apple_intelligence_disabled" -> stringResource(Res.string.chat_status_apple_intelligence_disabled)
+    "model_downloading" -> stringResource(Res.string.chat_status_model_downloading)
+    "available" -> null
+    else -> stringResource(Res.string.chat_status_unavailable)
 }

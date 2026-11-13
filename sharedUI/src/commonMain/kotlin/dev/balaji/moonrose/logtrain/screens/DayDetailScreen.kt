@@ -4,22 +4,27 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -31,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import dev.balaji.moonrose.logtrain.chat.ChatSeedContext
 import dev.balaji.moonrose.logtrain.db.DayDetailState
 import dev.balaji.moonrose.logtrain.db.DayDetailUiState
 import dev.balaji.moonrose.logtrain.db.DaySession
@@ -44,11 +50,16 @@ import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DayDetailScreen(route: DayDetailRoute, onGoBack: () -> Unit) {
+fun DayDetailScreen(
+    route: DayDetailRoute,
+    onGoBack: () -> Unit,
+    onOpenChat: ((ChatSeedContext) -> Unit)? = null,
+) {
     val title = formatDayTitle(route.epochDay)
     if (LocalUseNativeNavigation.current) {
         DayDetailContent(
             route = route,
+            onOpenChat = onOpenChat,
             modifier = Modifier.padding(WindowInsets.safeDrawing.asPaddingValues()),
         )
     } else {
@@ -64,13 +75,21 @@ fun DayDetailScreen(route: DayDetailRoute, onGoBack: () -> Unit) {
                 )
             },
         ) { padding ->
-            DayDetailContent(route = route, modifier = Modifier.padding(padding))
+            DayDetailContent(
+                route = route,
+                onOpenChat = onOpenChat,
+                modifier = Modifier.padding(padding),
+            )
         }
     }
 }
 
 @Composable
-private fun DayDetailContent(route: DayDetailRoute, modifier: Modifier = Modifier) {
+private fun DayDetailContent(
+    route: DayDetailRoute,
+    onOpenChat: ((ChatSeedContext) -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
     val state = remember(route.epochDay) { DayDetailState(route.epochDay) }
     val uiState by state.uiState.collectAsState(initial = DayDetailUiState())
 
@@ -89,6 +108,24 @@ private fun DayDetailContent(route: DayDetailRoute, modifier: Modifier = Modifie
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        if (onOpenChat != null) {
+            item(key = "ask_coach") {
+                OutlinedButton(
+                    onClick = {
+                        onOpenChat(ChatSeedContext(kind = "day", epochDay = route.epochDay))
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(Res.string.chat_ask_workout))
+                }
+            }
+        }
         items(uiState.sessions, key = { it.id }) { session ->
             SessionSummaryCard(session, uiState.weightUnit)
         }

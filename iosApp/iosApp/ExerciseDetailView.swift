@@ -19,6 +19,8 @@ private enum HistoryMetric: String, CaseIterable {
 /// bound to the shared `ExerciseFormState` via SKIE's Swift `StateFlow` bridge.
 struct ExerciseDetailView: View {
     @Environment(\.openURL) private var openURL
+    @Environment(ChatCoordinator.self) private var chatCoordinator
+    let exerciseId: Int64
     @State private var formState: ExerciseFormState
     @State private var uiState: ExerciseFormUiState
     @State private var historyState: ExerciseHistoryState
@@ -29,6 +31,7 @@ struct ExerciseDetailView: View {
     @State private var selectedMetric: HistoryMetric = .oneRm
 
     init(exerciseId: Int64) {
+        self.exerciseId = exerciseId
         let fs = ExerciseFormState(exerciseId: exerciseId)
         _formState = State(initialValue: fs)
         _uiState = State(initialValue: fs.uiState.value)
@@ -70,6 +73,16 @@ struct ExerciseDetailView: View {
                 ExerciseEditForm(uiState: uiState, formState: formState, onDone: { editing = false })
             } else {
                 List {
+                    if chatCoordinator.isEntryVisible && !uiState.name.isEmpty {
+                        Section {
+                            Button {
+                                chatCoordinator.openForExercise(id: exerciseId, name: uiState.name)
+                            } label: {
+                                Label(L10n.chatAskExercise, systemImage: "sparkles")
+                            }
+                        }
+                    }
+
                     if let searchUrl {
                         Section {
                             Button(L10n.searchInGoogle) { openURL(searchUrl) }

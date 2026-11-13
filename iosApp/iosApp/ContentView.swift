@@ -367,8 +367,10 @@ private struct FloatingWorkoutOptionButton: View {
 // MARK: - Navigation shell
 
 struct ContentView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var profileState = ProfileState()
     @State private var appCoordinator = AppNavigationCoordinator()
+    @State private var chatCoordinator = ChatCoordinator()
     @State private var activeSession: ActiveWorkoutSession?
     @State private var activeRestTimer: RestTimerTarget?
     @State private var restRemainingSeconds = 0
@@ -379,6 +381,7 @@ struct ContentView: View {
     @State private var showDiscardConfirm = false
     @State private var showNothingToSave = false
     @State private var pendingWorkoutTarget: WorkoutSessionTarget?
+    @State private var pendingShowWorkouts = false
 
     var body: some View {
         if profileState.hasProfile == true {
@@ -424,8 +427,14 @@ struct ContentView: View {
                 }
             }
             .tabBarMinimizeBehavior(.automatic)
+            .environment(chatCoordinator)
             .onChange(of: appCoordinator.selectedTab) {
                 appCoordinator.workoutMenuExpanded = false
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    chatCoordinator.refreshAvailability()
+                }
             }
             .sheet(isPresented: $appCoordinator.showingWorkouts) {
                 WorkoutsSheet(
@@ -436,6 +445,55 @@ struct ContentView: View {
             }
             .sheet(item: $appCoordinator.presentedWorkout) { target in
                 WorkoutSessionSheet(target: target)
+            }
+            .sheet(item: $chatCoordinator.activeSheet, onDismiss: {
+                if pendingShowWorkouts {
+                    pendingShowWorkouts = false
+                    appCoordinator.showingWorkouts = true
+                }
+            }) { sheet in
+                Group {
+                    switch sheet {
+                    case .chat:
+                        ChatSheetView(chatState: chatCoordinator.chatState) { source in
+                            switch source.kind {
+                            case "exercise" where source.exerciseId > 0:
+                                chatCoordinator.activeSheet = .verifiedExercise(source.exerciseId)
+                            case "day" where source.epochDay > 0:
+                                chatCoordinator.activeSheet = .verifiedDay(source.epochDay)
+                            case "program":
+                                pendingShowWorkouts = true
+                                chatCoordinator.activeSheet = nil
+                            case "progress":
+                                chatCoordinator.activeSheet = nil
+                                appCoordinator.selectedTab = .progress
+                            default:
+                                chatCoordinator.activeSheet = nil
+                            }
+                        }
+                    case .verifiedExercise(let id):
+                        NavigationStack {
+                            ExerciseDetailView(exerciseId: id)
+                                .toolbar {
+                                    ToolbarItem(placement: .confirmationAction) {
+                                        Button(L10n.done) { chatCoordinator.activeSheet = nil }
+                                    }
+                                }
+                        }
+                        .environment(chatCoordinator)
+                    case .verifiedDay(let epochDay):
+                        NavigationStack {
+                            DayDetailView(epochDay: epochDay)
+                                .toolbar {
+                                    ToolbarItem(placement: .confirmationAction) {
+                                        Button(L10n.done) { chatCoordinator.activeSheet = nil }
+                                    }
+                                }
+                        }
+                        .environment(chatCoordinator)
+                    }
+                }
+                .modifier(SheetAppearanceModifier())
             }
             .task {
                 for await session in WorkoutSessionRepository.shared.activeSession {

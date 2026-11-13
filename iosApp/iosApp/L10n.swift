@@ -521,4 +521,70 @@ enum L10n {
         default: return nil
         }
     }
+
+    // MARK: - On-device chat assistant
+    static let chatTitle = String(localized: "chat_title", defaultValue: "Ask Coach")
+    static let chatNewChat = String(localized: "chat_new_chat", defaultValue: "New chat")
+    static let chatInputPlaceholder = String(localized: "chat_input_placeholder", defaultValue: "Ask about your workouts...")
+    static let chatSend = String(localized: "chat_send", defaultValue: "Send")
+    static let chatStop = String(localized: "chat_stop", defaultValue: "Stop")
+    static let chatRetry = String(localized: "chat_retry", defaultValue: "Retry")
+    static let chatAskExercise = String(localized: "chat_ask_exercise", defaultValue: "Ask about this exercise")
+    static let chatAskWorkout = String(localized: "chat_ask_workout", defaultValue: "Ask about this workout")
+    static let chatOnDeviceSubtitle = String(localized: "chat_on_device_subtitle", defaultValue: "Runs on-device using your logged workouts, routines, exercises, and body metrics.")
+    static let chatThinking = String(localized: "chat_thinking", defaultValue: "Thinking...")
+    static let chatCancelled = String(localized: "chat_cancelled", defaultValue: "Stopped")
+    static let chatStatusAppleIntelligenceDisabled = String(localized: "chat_status_apple_intelligence_disabled", defaultValue: "Enable Apple Intelligence in Settings to chat with your training data.")
+    static let chatStatusModelDownloading = String(localized: "chat_status_model_downloading", defaultValue: "Downloading the on-device language model. Chat will be ready shortly.")
+    static let chatStatusUnavailable = String(localized: "chat_status_unavailable", defaultValue: "On-device AI chat is unavailable on this device.")
+    static let chatErrorUnavailable = String(localized: "chat_error_unavailable", defaultValue: "The on-device model is currently unavailable.")
+    static let chatErrorContextTooLong = String(localized: "chat_error_context_too_long", defaultValue: "Conversation grew too long for the on-device limit. Tap New chat to continue.")
+    static let chatErrorGenerationFailed = String(localized: "chat_error_generation_failed", defaultValue: "Could not generate a response. Please try again.")
+
+    static func chatSuggestedPrompt(_ prompt: ChatSuggestedPrompt) -> String {
+        switch prompt.key {
+        case ChatSuggestedPrompt.companion.KEY_SUMMARY:
+            return String(localized: "chat_prompt_summary", defaultValue: "How has my training been going?")
+        case ChatSuggestedPrompt.companion.KEY_PRS:
+            return String(localized: "chat_prompt_prs", defaultValue: "What are my best lifts?")
+        case ChatSuggestedPrompt.companion.KEY_LAST_WORKOUT:
+            return String(localized: "chat_prompt_last_workout", defaultValue: "Summarize my last workout")
+        case ChatSuggestedPrompt.companion.KEY_NEXT_ROUTINE:
+            return String(localized: "chat_prompt_next_routine", defaultValue: "What workout should I do next?")
+        case ChatSuggestedPrompt.companion.KEY_EXERCISE_PROGRESSION:
+            return String(localized: "chat_prompt_exercise_progression", defaultValue: "How is my \(prompt.arg) progressing?")
+        case ChatSuggestedPrompt.companion.KEY_EXERCISE_FORM:
+            return String(localized: "chat_prompt_exercise_form", defaultValue: "Form tips for \(prompt.arg)")
+        case ChatSuggestedPrompt.companion.KEY_EXERCISE_SUBSTITUTES:
+            return String(localized: "chat_prompt_exercise_substitutes", defaultValue: "Good substitutes for \(prompt.arg)")
+        case ChatSuggestedPrompt.companion.KEY_DAY_SUMMARY:
+            return String(localized: "chat_prompt_day_summary", defaultValue: "How did this workout compare?")
+        default:
+            return prompt.key
+        }
+    }
+
+    static func chatErrorLabel(_ errorKey: String) -> String {
+        switch errorKey {
+        case ChatMessage.companion.ERROR_UNAVAILABLE:
+            return chatErrorUnavailable
+        case ChatMessage.companion.ERROR_CONTEXT_TOO_LONG:
+            return chatErrorContextTooLong
+        default:
+            return chatErrorGenerationFailed
+        }
+    }
+
+    static func chatAvailabilityMessage(_ availability: String) -> String? {
+        switch availability {
+        case "apple_intelligence_disabled":
+            return chatStatusAppleIntelligenceDisabled
+        case "model_downloading":
+            return chatStatusModelDownloading
+        case "available":
+            return nil
+        default:
+            return chatStatusUnavailable
+        }
+    }
 }

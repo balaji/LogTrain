@@ -16,8 +16,14 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material3.OutlinedButton
+import dev.balaji.moonrose.logtrain.chat.ChatSeedContext
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -70,10 +76,15 @@ private val EQUIPMENT_OPTIONS = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExerciseDetailScreen(route: ExerciseDetailRoute, onGoBack: () -> Unit) {
+fun ExerciseDetailScreen(
+    route: ExerciseDetailRoute,
+    onGoBack: () -> Unit,
+    onOpenChat: ((ChatSeedContext) -> Unit)? = null,
+) {
     if (LocalUseNativeNavigation.current) {
         ExerciseDetailContent(
             route = route,
+            onOpenChat = onOpenChat,
             modifier = Modifier.padding(WindowInsets.safeDrawing.asPaddingValues()),
         )
     } else {
@@ -89,7 +100,11 @@ fun ExerciseDetailScreen(route: ExerciseDetailRoute, onGoBack: () -> Unit) {
                 )
             },
         ) { padding ->
-            ExerciseDetailContent(route = route, modifier = Modifier.padding(padding))
+            ExerciseDetailContent(
+                route = route,
+                onOpenChat = onOpenChat,
+                modifier = Modifier.padding(padding),
+            )
         }
     }
 }
@@ -136,7 +151,11 @@ private fun ExerciseCreateContent(onSaved: () -> Unit, modifier: Modifier = Modi
 }
 
 @Composable
-private fun ExerciseDetailContent(route: ExerciseDetailRoute, modifier: Modifier = Modifier) {
+private fun ExerciseDetailContent(
+    route: ExerciseDetailRoute,
+    onOpenChat: ((ChatSeedContext) -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
     val formState = remember(route.exerciseId) { ExerciseFormState(route.exerciseId) }
     val uiState by formState.uiState.collectAsState()
     val historyState = remember(route.exerciseId) { ExerciseHistoryState(route.exerciseId) }
@@ -159,7 +178,12 @@ private fun ExerciseDetailContent(route: ExerciseDetailRoute, modifier: Modifier
         if (editing) {
             ExerciseEditForm(uiState = uiState, formState = formState, onDone = { editing = false })
         } else {
-            ExerciseReadOnlyDetails(uiState = uiState, onEdit = { editing = true })
+            ExerciseReadOnlyDetails(
+                exerciseId = route.exerciseId,
+                uiState = uiState,
+                onEdit = { editing = true },
+                onOpenChat = onOpenChat,
+            )
             if (!historyUiState.loading) {
                 HorizontalDivider()
                 ExerciseHistorySection(
@@ -172,10 +196,37 @@ private fun ExerciseDetailContent(route: ExerciseDetailRoute, modifier: Modifier
 }
 
 @Composable
-private fun ExerciseReadOnlyDetails(uiState: ExerciseFormUiState, onEdit: () -> Unit) {
+private fun ExerciseReadOnlyDetails(
+    exerciseId: Long,
+    uiState: ExerciseFormUiState,
+    onEdit: () -> Unit,
+    onOpenChat: ((ChatSeedContext) -> Unit)?,
+) {
     val uriHandler = LocalUriHandler.current
     val searchQuery = stringResource(Res.string.describe_exercise_query, uiState.name)
-    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (onOpenChat != null && uiState.name.isNotBlank()) {
+            OutlinedButton(
+                onClick = {
+                    onOpenChat(
+                        ChatSeedContext(
+                            kind = "exercise",
+                            exerciseId = exerciseId,
+                            exerciseName = uiState.name,
+                        ),
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(Res.string.chat_ask_exercise))
+            }
+        }
         Text(
             stringResource(Res.string.search_in_google),
             style = MaterialTheme.typography.bodyLarge,
