@@ -31,7 +31,9 @@ import androidx.room.TypeConverters
     // v14: warmup flag replaced by the set_type enum ('normal'/'warmup'/'drop').
     // v15: distance columns on work_set_details/workout_session_details for
     //      distance-measured exercise types.
-    version = 15,
+    // v16: weight_unit column on work_set_details, workout_session_details,
+    //      and body_metrics so recorded weights/distances retain their unit.
+    version = 16,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

@@ -35,7 +35,7 @@ class ExerciseHistoryState(private val exerciseId: Long) {
             ) { rows, settings ->
                 val zone = TimeZone.currentSystemDefault()
                 val todayDay = WeekMath.todayEpochDay()
-                val sets = rows.map { it.toSetPoint(zone) }
+                val sets = rows.map { it.toSetPoint(zone).convertedTo(settings.weightUnit) }
 
                 val oneRm = singleExerciseWeeklyOneRm(sets, HISTORY_WEEKS, todayDay, settings.weekStart, settings.oneRmFormula)
                 val volume = singleExerciseWeeklyVolume(sets, HISTORY_WEEKS, todayDay, settings.weekStart)

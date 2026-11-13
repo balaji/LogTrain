@@ -52,6 +52,7 @@ class Migration13To14Test {
                 MIGRATION_12_13,
                 MIGRATION_13_14,
                 MIGRATION_14_15,
+                MIGRATION_15_16,
             )
             // Deliberately NO fallbackToDestructiveMigration: Room validates the
             // migrated schema against the current version's json and throws on

@@ -6,6 +6,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import dev.balaji.moonrose.logtrain.model.SetType
+import dev.balaji.moonrose.logtrain.model.WeightUnit
 
 /*
  * Local schema mirroring the moonrose backend (see ~/projects/moonrose/db/schema.rb),
@@ -133,12 +134,13 @@ data class WorkSetDetailEntity(
     @ColumnInfo(name = "target_reps") val targetReps: Int?,
     // Seconds, matching moonrose.
     @ColumnInfo(name = "target_duration") val targetDuration: Int?,
-    // Kilometers or miles as entered, matching the weight column's
-    // label-only unit handling.
+    // Kilometers or miles as entered in [weightUnit].
     @ColumnInfo(name = "target_distance") val targetDistance: Double?,
     // Warm-up sets are part of the routine but don't count as working sets.
     // Drop sets do count as work, but like warm-ups don't take a set number.
     @ColumnInfo(name = "set_type", defaultValue = "'normal'") val setType: SetType = SetType.NORMAL,
+    // Unit in which targetWeight/targetDistance were entered.
+    @ColumnInfo(name = "weight_unit", defaultValue = "'metric'") val weightUnit: WeightUnit = WeightUnit.METRIC,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )
@@ -179,8 +181,9 @@ data class WorkoutSessionEntity(
 data class BodyMetricEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     @ColumnInfo(name = "profile_id") val profileId: Long,
-    // Raw number in the user's display unit, like profile.weight.
+    // Raw number in [weightUnit] as logged by the user.
     val weight: Double,
+    @ColumnInfo(name = "weight_unit", defaultValue = "'metric'") val weightUnit: WeightUnit = WeightUnit.METRIC,
     @ColumnInfo(name = "logged_at") val loggedAt: Long,
     // See WorkoutSessionEntity.testData.
     @ColumnInfo(name = "test_data", defaultValue = "0") val testData: Boolean = false,
@@ -236,6 +239,8 @@ data class WorkoutSessionDetailEntity(
     // Snapshotted from the source WorkSetDetail like the targets above, and
     // changeable on the fly for sets added during the session.
     @ColumnInfo(name = "set_type", defaultValue = "'normal'") val setType: SetType = SetType.NORMAL,
+    // Unit in which the row's weights and distances are stored.
+    @ColumnInfo(name = "weight_unit", defaultValue = "'metric'") val weightUnit: WeightUnit = WeightUnit.METRIC,
     @ColumnInfo(defaultValue = "0") val completed: Boolean = false,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,

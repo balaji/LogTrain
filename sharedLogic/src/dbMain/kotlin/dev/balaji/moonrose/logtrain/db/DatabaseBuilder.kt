@@ -174,6 +174,29 @@ internal val MIGRATION_14_15 = object : Migration(14, 15) {
     }
 }
 
+// Additive only: records the WeightUnit ("metric"/"imperial") each set target,
+// logged set, and body-weight entry was entered in, backfilling existing rows
+// from the user's current setting (or 'metric' when unset).
+internal val MIGRATION_15_16 = object : Migration(15, 16) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(
+            "ALTER TABLE `work_set_details` ADD COLUMN `weight_unit` TEXT NOT NULL DEFAULT 'metric'",
+        )
+        connection.execSQL(
+            "ALTER TABLE `workout_session_details` ADD COLUMN `weight_unit` TEXT NOT NULL DEFAULT 'metric'",
+        )
+        connection.execSQL(
+            "ALTER TABLE `body_metrics` ADD COLUMN `weight_unit` TEXT NOT NULL DEFAULT 'metric'",
+        )
+        val backfill =
+            "CASE (SELECT `value` FROM `user_settings` WHERE `key` = 'weight_unit') " +
+                "WHEN 'imperial' THEN 'imperial' ELSE 'metric' END"
+        connection.execSQL("UPDATE `work_set_details` SET `weight_unit` = $backfill")
+        connection.execSQL("UPDATE `workout_session_details` SET `weight_unit` = $backfill")
+        connection.execSQL("UPDATE `body_metrics` SET `weight_unit` = $backfill")
+    }
+}
+
 fun createDatabase(): AppDatabase =
     databaseBuilder()
         .setDriver(BundledSQLiteDriver())
@@ -186,6 +209,7 @@ fun createDatabase(): AppDatabase =
             MIGRATION_12_13,
             MIGRATION_13_14,
             MIGRATION_14_15,
+            MIGRATION_15_16,
         )
         // Pre-release safety net for schema history older than v9.
         .fallbackToDestructiveMigration(dropAllTables = true)

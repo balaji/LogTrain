@@ -316,6 +316,9 @@ enum L10n {
     static func distanceKmValue(_ distance: String) -> String {
         String(localized: "distance_km_value", defaultValue: "\(distance) km")
     }
+    static func distanceMiValue(_ distance: String) -> String {
+        String(localized: "distance_mi_value", defaultValue: "\(distance) mi")
+    }
 
     // MARK: - Weight units
     static let unitKg = String(localized: "unit_kg", defaultValue: "kg")

@@ -3,11 +3,13 @@ package dev.balaji.moonrose.logtrain.db
 import dev.balaji.moonrose.logtrain.model.Exercise
 import dev.balaji.moonrose.logtrain.model.ExerciseType
 import dev.balaji.moonrose.logtrain.model.SetType
+import dev.balaji.moonrose.logtrain.model.WeightUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 data class DraftSet(
@@ -17,6 +19,14 @@ data class DraftSet(
     val duration: String = "",
     val distance: String = "",
     val setType: SetType = SetType.NORMAL,
+    internal val rawWeight: Double? = null,
+    internal val rawDistance: Double? = null,
+    internal val recordedUnit: WeightUnit = WeightUnit.METRIC,
+)
+
+internal fun DraftSet.formattedFor(unit: WeightUnit): DraftSet = copy(
+    weight = rawWeight?.let { WeightUnit.formatWeight(it, recordedUnit, unit) } ?: weight,
+    distance = rawDistance?.let { WeightUnit.formatDistance(it, recordedUnit, unit) } ?: distance,
 )
 
 data class DraftWorkSet(
@@ -39,9 +49,11 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
     private val _uiState = MutableStateFlow(RoutineDetailUiState(name = initialName))
     val uiState: StateFlow<RoutineDetailUiState> = _uiState.asStateFlow()
     private var nextId = 0L
+    private var currentWeightUnit: WeightUnit = WeightUnit.METRIC
 
     init {
         CoroutineScope(Dispatchers.Main).launch {
+            currentWeightUnit = UserSettingsRepository.settings.first().weightUnit
             val workSets = AppDb.db.workSetDao().getForRoutine(routineId)
             val draftWorkSets = workSets.mapNotNull { ws ->
                 val exercise = ExerciseRepository.findById(ws.exerciseId) ?: return@mapNotNull null
@@ -50,22 +62,36 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
                     id = nextId++,
                     exercise = exercise,
                     sets = if (details.isEmpty()) {
-                        listOf(DraftSet())
+                        listOf(DraftSet(recordedUnit = currentWeightUnit))
                     } else {
                         details.map { d ->
                             DraftSet(
-                                weight = d.targetWeight?.formatWeight() ?: "",
                                 reps = d.targetReps?.toString() ?: "",
                                 duration = formatDurationText(d.targetDuration),
-                                distance = d.targetDistance?.formatWeight() ?: "",
                                 setType = d.setType,
-                            )
+                                rawWeight = d.targetWeight,
+                                rawDistance = d.targetDistance,
+                                recordedUnit = d.weightUnit,
+                            ).formattedFor(currentWeightUnit)
                         }
                     },
                 )
             }
             _uiState.value = _uiState.value.copy(loading = false, workSets = draftWorkSets)
         }
+    }
+
+    /** Updates the display unit for all unedited sets without losing precision. */
+    fun setDisplayUnit(unit: WeightUnit) {
+        if (unit == currentWeightUnit) return
+        currentWeightUnit = unit
+        val current = _uiState.value
+        if (current.loading) return
+        _uiState.value = current.copy(
+            workSets = current.workSets.map { ws ->
+                ws.copy(sets = ws.sets.map { it.formattedFor(unit) })
+            },
+        )
     }
 
     fun updateName(value: String) {
@@ -75,18 +101,43 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
     fun addExercise(exercise: Exercise) {
         val current = _uiState.value
         _uiState.value = current.copy(
-            workSets = current.workSets + DraftWorkSet(id = nextId++, exercise = exercise),
+            workSets = current.workSets + DraftWorkSet(
+                id = nextId++,
+                exercise = exercise,
+                sets = listOf(DraftSet(recordedUnit = currentWeightUnit)),
+            ),
         )
     }
 
     fun addSet(workSetIndex: Int) {
-        updateWorkSet(workSetIndex) { ws -> ws.copy(sets = ws.sets + DraftSet()) }
+        updateWorkSet(workSetIndex) { ws ->
+            ws.copy(sets = ws.sets + DraftSet(recordedUnit = currentWeightUnit))
+        }
     }
 
     fun updateWeight(workSetIndex: Int, setIndex: Int, value: String) {
         val weight = value.filterDecimal()
+        val unit = currentWeightUnit
         updateWorkSet(workSetIndex) { ws ->
-            ws.copy(sets = ws.sets.mapIndexed { i, s -> if (i == setIndex) s.copy(weight = weight) else s })
+            ws.copy(
+                sets = ws.sets.mapIndexed { i, s ->
+                    if (i != setIndex) {
+                        s
+                    } else {
+                        val convertedDistance = if (s.recordedUnit != unit) {
+                            s.rawDistance?.let { s.recordedUnit.convertDistance(it, unit) }
+                        } else {
+                            s.rawDistance
+                        }
+                        s.copy(
+                            weight = weight,
+                            rawWeight = weight.toDoubleOrNull(),
+                            rawDistance = convertedDistance,
+                            recordedUnit = unit,
+                        )
+                    }
+                },
+            )
         }
     }
 
@@ -106,8 +157,27 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
 
     fun updateDistance(workSetIndex: Int, setIndex: Int, value: String) {
         val distance = value.filterDistance()
+        val unit = currentWeightUnit
         updateWorkSet(workSetIndex) { ws ->
-            ws.copy(sets = ws.sets.mapIndexed { i, s -> if (i == setIndex) s.copy(distance = distance) else s })
+            ws.copy(
+                sets = ws.sets.mapIndexed { i, s ->
+                    if (i != setIndex) {
+                        s
+                    } else {
+                        val convertedWeight = if (s.recordedUnit != unit) {
+                            s.rawWeight?.let { s.recordedUnit.convertWeight(it, unit) }
+                        } else {
+                            s.rawWeight
+                        }
+                        s.copy(
+                            distance = distance,
+                            rawDistance = distance.toDoubleOrNull(),
+                            rawWeight = convertedWeight,
+                            recordedUnit = unit,
+                        )
+                    }
+                },
+            )
         }
     }
 
@@ -163,11 +233,12 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
                         WorkSetDetailEntity(
                             workSetId = wsId,
                             position = sIdx + 1,
-                            targetWeight = set.weight.toDoubleOrNull(),
+                            targetWeight = set.rawWeight ?: set.weight.toDoubleOrNull(),
                             targetReps = set.reps.toIntOrNull(),
                             targetDuration = parseDurationSeconds(set.duration),
-                            targetDistance = set.distance.toDoubleOrNull(),
+                            targetDistance = set.rawDistance ?: set.distance.toDoubleOrNull(),
                             setType = set.setType,
+                            weightUnit = set.recordedUnit,
                             createdAt = now,
                             updatedAt = now,
                         ),
@@ -186,6 +257,3 @@ class RoutineFormState(private val routineId: Long, initialName: String) {
         )
     }
 }
-
-private fun Double.formatWeight(): String =
-    if (this == toLong().toDouble()) toLong().toString() else toString()

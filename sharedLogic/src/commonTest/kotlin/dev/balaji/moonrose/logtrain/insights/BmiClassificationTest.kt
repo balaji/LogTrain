@@ -6,7 +6,7 @@ import kotlin.test.assertTrue
 
 class BmiClassificationTest {
     @Test
-    fun `who boundaries are inclusive at 18_5, 25 and 30`() {
+    fun `who boundaries are inclusive at 18_5 and 25 and 30`() {
         assertEquals(BmiCategory.UNDERWEIGHT, BmiClassification.WHO.of(18.49))
         assertEquals(BmiCategory.NORMAL, BmiClassification.WHO.of(18.5))
         assertEquals(BmiCategory.NORMAL, BmiClassification.WHO.of(24.99))
@@ -16,7 +16,7 @@ class BmiClassificationTest {
     }
 
     @Test
-    fun `asian pacific boundaries are inclusive at 18_5, 23 and 27_5`() {
+    fun `asian pacific boundaries are inclusive at 18_5 and 23 and 27_5`() {
         assertEquals(BmiCategory.UNDERWEIGHT, BmiClassification.ASIAN_PACIFIC.of(18.49))
         assertEquals(BmiCategory.NORMAL, BmiClassification.ASIAN_PACIFIC.of(18.5))
         assertEquals(BmiCategory.NORMAL, BmiClassification.ASIAN_PACIFIC.of(22.99))

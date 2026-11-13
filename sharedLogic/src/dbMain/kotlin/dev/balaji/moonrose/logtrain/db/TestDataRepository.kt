@@ -45,6 +45,7 @@ internal data class PlannedWeighIn(
 internal data class TestDataPlan(
     val sessions: List<PlannedSession>,
     val weighIns: List<PlannedWeighIn>,
+    val weightUnit: WeightUnit = WeightUnit.METRIC,
 )
 
 /**
@@ -160,7 +161,7 @@ internal fun planTestData(
         day += gap
     }
 
-    return TestDataPlan(sessions = sessions, weighIns = weighIns)
+    return TestDataPlan(sessions = sessions, weighIns = weighIns, weightUnit = weightUnit)
 }
 
 /** Fraction of the top set the weight drops by for each set below it. */
@@ -210,11 +211,12 @@ object TestDataRepository {
 
     suspend fun generate(days: Int) {
         val unitSetting = AppDb.db.userSettingDao().find(SETTING_WEIGHT_UNIT)
+        val unit = WeightUnit.fromValue(unitSetting?.value)
         val plan = planTestData(
             days = days,
             todayEpochDay = WeekMath.todayEpochDay(),
-            weightUnit = WeightUnit.fromValue(unitSetting?.value),
-            startBodyWeight = AppDb.db.profileDao().observe().first()?.weight,
+            weightUnit = unit,
+            startBodyWeight = AppDb.db.profileDao().observe().first()?.weight?.let { unit.fromKilograms(it) },
             random = Random(nowMillis()),
         )
         AppDb.db.insertTestData(plan)
@@ -277,6 +279,7 @@ internal suspend fun AppDatabase.insertTestData(plan: TestDataPlan) {
                             actualReps = set.actualReps,
                             actualDuration = null,
                             actualDistance = null,
+                            weightUnit = plan.weightUnit,
                             completed = true,
                             createdAt = now,
                             updatedAt = now,
@@ -289,6 +292,7 @@ internal suspend fun AppDatabase.insertTestData(plan: TestDataPlan) {
                     BodyMetricEntity(
                         profileId = PROFILE_ID,
                         weight = weighIn.weight,
+                        weightUnit = plan.weightUnit,
                         loggedAt = startOfDayMillis(weighIn.epochDay, zone) +
                             weighIn.minuteOfDay * 60_000L,
                         testData = true,

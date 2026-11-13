@@ -227,6 +227,7 @@
     <string name="reps_value">%1$s reps</string>
     <string name="duration_value">%1$s h</string>
     <string name="distance_km_value">%1$s km</string>
+    <string name="distance_mi_value">%1$s mi</string>
 
     <!-- Weight units -->
     <string name="unit_kg">kg</string>

@@ -5,6 +5,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Upsert
+import dev.balaji.moonrose.logtrain.model.WeightUnit
 import kotlinx.coroutines.flow.Flow
 
 /** Projection for the workout-history list: one row per completed session. */
@@ -20,6 +21,7 @@ data class PreviousSetRow(
     @ColumnInfo(name = "actual_reps") val actualReps: Int?,
     @ColumnInfo(name = "actual_duration") val actualDuration: Int?,
     @ColumnInfo(name = "actual_distance") val actualDistance: Double?,
+    @ColumnInfo(name = "weight_unit") val weightUnit: WeightUnit,
 )
 
 /** Projection for insights: one row per completed working set in a completed session. */
@@ -33,6 +35,7 @@ data class CompletedSetRow(
     @ColumnInfo(name = "actual_reps") val actualReps: Int?,
     @ColumnInfo(name = "actual_duration") val actualDuration: Int?,
     @ColumnInfo(name = "actual_distance") val actualDistance: Double?,
+    @ColumnInfo(name = "weight_unit") val weightUnit: WeightUnit,
 )
 
 /** Projection for the exercises list badge: completed set count per exercise. */
@@ -310,7 +313,8 @@ interface WorkoutSessionDetailDao {
         "SELECT s.performed_at AS performed_at, d.exercise_id AS exercise_id, " +
             "e.name AS exercise_name, e.body_part AS body_part, " +
             "d.actual_weight AS actual_weight, d.actual_reps AS actual_reps, " +
-            "d.actual_duration AS actual_duration, d.actual_distance AS actual_distance " +
+            "d.actual_duration AS actual_duration, d.actual_distance AS actual_distance, " +
+            "d.weight_unit AS weight_unit " +
             "FROM workout_session_details d " +
             "JOIN workout_sessions s ON s.id = d.workout_session_id " +
             "JOIN exercises e ON e.id = d.exercise_id " +
@@ -324,7 +328,8 @@ interface WorkoutSessionDetailDao {
         "SELECT s.performed_at AS performed_at, d.exercise_id AS exercise_id, " +
             "e.name AS exercise_name, e.body_part AS body_part, " +
             "d.actual_weight AS actual_weight, d.actual_reps AS actual_reps, " +
-            "d.actual_duration AS actual_duration, d.actual_distance AS actual_distance " +
+            "d.actual_duration AS actual_duration, d.actual_distance AS actual_distance, " +
+            "d.weight_unit AS weight_unit " +
             "FROM workout_session_details d " +
             "JOIN workout_sessions s ON s.id = d.workout_session_id " +
             "JOIN exercises e ON e.id = d.exercise_id " +
@@ -338,7 +343,8 @@ interface WorkoutSessionDetailDao {
         "SELECT s.performed_at AS performed_at, d.exercise_id AS exercise_id, " +
             "e.name AS exercise_name, e.body_part AS body_part, " +
             "d.actual_weight AS actual_weight, d.actual_reps AS actual_reps, " +
-            "d.actual_duration AS actual_duration, d.actual_distance AS actual_distance " +
+            "d.actual_duration AS actual_duration, d.actual_distance AS actual_distance, " +
+            "d.weight_unit AS weight_unit " +
             "FROM workout_session_details d " +
             "JOIN workout_sessions s ON s.id = d.workout_session_id " +
             "JOIN exercises e ON e.id = d.exercise_id " +
@@ -369,7 +375,8 @@ interface WorkoutSessionDetailDao {
      */
     @Query(
         "SELECT d.actual_weight AS actual_weight, d.actual_reps AS actual_reps, " +
-            "d.actual_duration AS actual_duration, d.actual_distance AS actual_distance " +
+            "d.actual_duration AS actual_duration, d.actual_distance AS actual_distance, " +
+            "d.weight_unit AS weight_unit " +
             "FROM workout_session_details d " +
             "JOIN workout_sessions s ON s.id = d.workout_session_id " +
             "WHERE d.exercise_id = :exerciseId AND s.id = (" +
