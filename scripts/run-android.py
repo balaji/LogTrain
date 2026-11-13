@@ -26,15 +26,22 @@ import tempfile
 import time
 from pathlib import Path
 
+from run_common import (
+    configure_java_home,
+    create_arg_parser,
+    parse_common_args,
+    require_tool as _require_tool,
+    resolve_locale,
+    run,
+    run_main,
+)
+
 AVD_NAME = "Medium_Phone"
 APP_ID = "dev.balaji.moonrose.logtrain"
 
 
 def configure_environment() -> None:
-    if not os.environ.get("JAVA_HOME") and sys.platform == "darwin":
-        homebrew_jdk = Path("/opt/homebrew/opt/openjdk")
-        if homebrew_jdk.is_dir():
-            os.environ["JAVA_HOME"] = str(homebrew_jdk)
+    configure_java_home()
 
     sdk_env = os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
     if sdk_env:
@@ -62,8 +69,10 @@ def configure_environment() -> None:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Build sharedLogic/sharedUI + androidApp and run it on a connected Android device or Emulator."
+    parser = create_arg_parser(
+        description="Build sharedLogic/sharedUI + androidApp and run it on a connected Android device or Emulator.",
+        default_lang="en",
+        lang_help='Optional per-app language override, e.g. "en" or "sv" (default: "en").',
     )
     parser.add_argument(
         "--adb",
@@ -71,42 +80,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         metavar="TARGET",
         help="Target device serial, model/product substring, or AVD name to run on.",
     )
-    parser.add_argument(
-        "--clean",
-        action="store_true",
-        help="Uninstall the app (if present) before installing, wiping its data.",
-    )
-    parser.add_argument(
-        "--seed",
-        nargs="?",
-        const=60,
-        default=0,
-        type=int,
-        metavar="DAYS",
-        help="Uninstall first (implies --clean), then seed test workout history (default: 60 days).",
-    )
-    parser.add_argument(
-        "lang_code",
-        nargs="?",
-        default="en",
-        metavar="language-code",
-        help='Optional per-app language override, e.g. "en" or "sv" (default: "en").',
-    )
-    args = parser.parse_args(argv)
-    if args.seed > 0:
-        args.clean = True
-    return args
+    return parse_common_args(parser, argv)
 
 
 def require_tool(name: str) -> str:
-    resolved = shutil.which(name)
-    if not resolved:
-        sys.exit(f"Error: '{name}' not found on PATH. Ensure the Android SDK tools are installed.")
-    return resolved
-
-
-def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, check=True, **kwargs)
+    return _require_tool(name, "Ensure the Android SDK tools are installed.")
 
 
 def list_connected_devices(adb: str) -> list[tuple[str, str, str]]:
@@ -319,11 +297,7 @@ def main() -> None:
 
     run([adb, "shell", "am", "force-stop", APP_ID])
 
-    locale_map = {
-        "en": "en-US",
-        "sv": "sv-SE",
-    }
-    locale = locale_map.get(args.lang_code, args.lang_code)
+    locale = resolve_locale(args.lang_code, separator="-")
     print(f"Launching with language override: {args.lang_code} ({locale})")
     run(
         [
@@ -349,11 +323,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except subprocess.CalledProcessError as exc:
-        if exc.stdout:
-            sys.stderr.write(exc.stdout)
-        if exc.stderr:
-            sys.stderr.write(exc.stderr)
-        sys.exit(exc.returncode)
+    run_main(main)

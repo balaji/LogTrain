@@ -7,7 +7,7 @@ description: How to run LogTrain and observe changes at runtime (iOS simulator, 
 
 ## iOS simulator
 
-Use the `run-ios` skill to build, install, and launch (`scripts/run-ios.sh`).
+Use the `run-ios` skill to build, install, and launch (`scripts/run-ios.py`).
 The iPhone 17 simulator (iOS 26.5) usually already has the app installed
 with rich generated test data.
 

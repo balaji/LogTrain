@@ -1,6 +1,6 @@
 ---
 name: run-ios
-description: Build, install, and launch LogTrain in the iOS Simulator via scripts/run-ios.sh. Use when asked to run, launch, or test the iOS app, or to verify a change works in the simulator.
+description: Build, install, and launch LogTrain in the iOS Simulator via scripts/run-ios.py. Use when asked to run, launch, or test the iOS app, or to verify a change works in the simulator.
 ---
 
 # Running LogTrain on iOS
@@ -8,7 +8,7 @@ description: Build, install, and launch LogTrain in the iOS Simulator via script
 Run from the repo root:
 
 ```bash
-scripts/run-ios.sh
+scripts/run-ios.py
 ```
 
 This builds `sharedLogic`/`sharedUI` + `iosApp`, installs, and launches on a
@@ -21,8 +21,8 @@ Pass a language code to launch with that language for this run only (via
 system-wide setting — useful for eyeballing localization:
 
 ```bash
-scripts/run-ios.sh sv   # Swedish
-scripts/run-ios.sh en   # English
+scripts/run-ios.py sv   # Swedish
+scripts/run-ios.py en   # English
 ```
 
 Pass `--clean` to uninstall the app (if installed) before installing,
@@ -30,8 +30,8 @@ wiping its data — useful for testing first-run behavior or fresh-install
 database migrations. Combines with a language code in any order:
 
 ```bash
-scripts/run-ios.sh --clean
-scripts/run-ios.sh --clean sv
+scripts/run-ios.py --clean
+scripts/run-ios.py --clean sv
 ```
 
 Pass `--seed [days]` to land a fresh install on a populated app instead of
@@ -44,8 +44,8 @@ the same generator as the in-app Developer link. This is the usual way to
 start a test session:
 
 ```bash
-scripts/run-ios.sh --seed        # fresh install + 60 days of data
-scripts/run-ios.sh --seed 120 sv # 120 days, Swedish
+scripts/run-ios.py --seed        # fresh install + 60 days of data
+scripts/run-ios.py --seed 120 sv # 120 days, Swedish
 ```
 
 Seeding is asynchronous — give the app a second or two after launch before

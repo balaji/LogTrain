@@ -32,7 +32,7 @@ struct iOSApp: App {
 
     // Test harness hook: launching with `-seedTestData <days>` (surfaced via
     // the UserDefaults argument domain) on a fresh debug install lands the app
-    // on a populated profile (see scripts/run-ios.sh --seed).
+    // on a populated profile (see scripts/run-ios.py --seed).
     private func seedTestDataIfRequested() {
         #if DEBUG
         let days = UserDefaults.standard.integer(forKey: "seedTestData")
