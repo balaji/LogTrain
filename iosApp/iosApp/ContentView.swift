@@ -81,8 +81,9 @@ enum RestTimerSoundPlayer {
 // MARK: - Coordinators
 
 @Observable class AppNavigationCoordinator {
-    enum AppTab { case exercises, programs, calendar, progress }
+    enum AppTab { case exercises, calendar, progress, profile }
     var selectedTab: AppTab = .exercises
+    var showingWorkouts = false
 }
 
 /// nil until the database's first emission, then tracks whether a profile row exists.
@@ -113,52 +114,69 @@ private extension View {
     }
 }
 
-// MARK: - Profile entry point
+// MARK: - Workouts entry point
 
-/// Top-leading avatar button shown on every tab root now that Profile no
-/// longer has a tab of its own; presents the profile page as a sheet.
-/// Detail screens never show it — their nav bars belong to contextual actions.
-private struct ProfileToolbar: ViewModifier {
-    @State private var showingProfile = false
+/// Top-trailing button shown on every tab root now that Workouts no longer
+/// has a tab of its own; presents the workouts/programs sheet. Detail screens
+/// never show it — their nav bars belong to contextual actions.
+private struct WorkoutsToolbar: ViewModifier {
+    let onOpen: () -> Void
 
     func body(content: Content) -> some View {
         content
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showingProfile = true
-                    } label: {
-                        Image(systemName: "person.crop.circle")
-                            .imageScale(.large)
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: onOpen) {
+                        Image(systemName: "list.clipboard")
                     }
-                    .accessibilityLabel(L10n.profile)
+                    .accessibilityLabel(L10n.tabWorkouts)
                 }
-            }
-            .sheet(isPresented: $showingProfile) {
-                ProfileSheet()
             }
     }
 }
 
-private struct ProfileSheet: View {
+private struct WorkoutsSheet: View {
+    let activeSession: ActiveWorkoutSession?
+    let restRemainingSeconds: Int
+    let restTotalSeconds: Int
     @State private var appearance: Appearance = .system
     @State private var systemColorScheme: ColorScheme = .light
+    @State private var showDiscardConfirm = false
+    @State private var showNothingToSave = false
 
     var body: some View {
-        NavigationStack {
-            // ProfileView owns the nav-bar buttons: Done (dismisses this
-            // sheet) in view mode, Back (exits edit mode only) while editing.
-            ProfileView()
-                .navigationTitle(L10n.profile)
-                .toolbarTitleDisplayMode(.inline)
-        }
-        .observeSystemColorScheme($systemColorScheme)
-        .preferredColorScheme(preferredScheme)
-        .task {
-            for await settings in UserSettingsRepository.shared.settings {
-                appearance = settings.appearance
+        ProgramsView()
+            .modifier(
+                ActiveSessionBarInset(
+                    session: activeSession,
+                    restRemainingSeconds: restRemainingSeconds,
+                    restTotalSeconds: restTotalSeconds,
+                    onOpen: { session in
+                        WorkoutSessionPresentation.shared.requestOpen(
+                            routineId: session.routineId,
+                            title: session.title
+                        )
+                    },
+                    onComplete: { session in
+                        completeWorkoutSession(session) { showNothingToSave = true }
+                    },
+                    onDiscard: { showDiscardConfirm = true }
+                )
+            )
+            .modifier(
+                ActiveSessionAlerts(
+                    activeSession: activeSession,
+                    showDiscardConfirm: $showDiscardConfirm,
+                    showNothingToSave: $showNothingToSave
+                )
+            )
+            .observeSystemColorScheme($systemColorScheme)
+            .preferredColorScheme(preferredScheme)
+            .task {
+                for await settings in UserSettingsRepository.shared.settings {
+                    appearance = settings.appearance
+                }
             }
-        }
     }
 
     // Resolving to nil here doesn't reliably clear a previously-set
@@ -174,9 +192,55 @@ private struct ProfileSheet: View {
     }
 }
 
+private func completeWorkoutSession(
+    _ session: ActiveWorkoutSession,
+    onNothingToSave: @escaping @MainActor () -> Void
+) {
+    Task {
+        let hasSets = try? await WorkoutSessionRepository.shared.hasCompletedSets(
+            sessionId: session.sessionId
+        )
+        if hasSets?.boolValue == true {
+            try? await WorkoutSessionRepository.shared.finish(sessionId: session.sessionId)
+        } else {
+            await onNothingToSave()
+        }
+    }
+}
+
+private struct ActiveSessionAlerts: ViewModifier {
+    let activeSession: ActiveWorkoutSession?
+    @Binding var showDiscardConfirm: Bool
+    @Binding var showNothingToSave: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .alert(L10n.discardWorkoutTitle, isPresented: $showDiscardConfirm) {
+                Button(L10n.discard, role: .destructive) {
+                    if let session = activeSession {
+                        Task { try? await WorkoutSessionRepository.shared.discard(sessionId: session.sessionId) }
+                    }
+                }
+                Button(L10n.cancel, role: .cancel) {}
+            } message: {
+                Text(L10n.discardWorkoutMessage)
+            }
+            .alert(L10n.nothingToSaveTitle, isPresented: $showNothingToSave) {
+                Button(L10n.yes, role: .destructive) {
+                    if let session = activeSession {
+                        Task { try? await WorkoutSessionRepository.shared.discard(sessionId: session.sessionId) }
+                    }
+                }
+                Button(L10n.no, role: .cancel) {}
+            } message: {
+                Text(L10n.nothingToSaveMessage)
+            }
+    }
+}
+
 extension View {
-    func profileToolbar() -> some View {
-        modifier(ProfileToolbar())
+    func workoutsToolbar(onOpen: @escaping () -> Void) -> some View {
+        modifier(WorkoutsToolbar(onOpen: onOpen))
     }
 }
 
@@ -203,21 +267,16 @@ struct ContentView: View {
                     NavigationStack {
                         ExercisesView()
                             .navigationTitle(L10n.tabExercises)
-                            .profileToolbar()
+                            .workoutsToolbar { appCoordinator.showingWorkouts = true }
                             .tabRootStyle()
                     }
                     .modifier(sessionBarInset)
-                }
-                Tab(L10n.tabWorkouts, systemImage: "list.clipboard",
-                    value: AppNavigationCoordinator.AppTab.programs) {
-                    ProgramsView()
-                        .modifier(sessionBarInset)
                 }
                 Tab(L10n.tabHistory, systemImage: "calendar",
                     value: AppNavigationCoordinator.AppTab.calendar) {
                     NavigationStack {
                         CalendarView()
-                            .profileToolbar()
+                            .workoutsToolbar { appCoordinator.showingWorkouts = true }
                             .tabRootStyle()
                     }
                     .modifier(sessionBarInset)
@@ -227,13 +286,30 @@ struct ContentView: View {
                     NavigationStack {
                         ProgressTabView()
                             .navigationTitle(L10n.tabProgress)
-                            .profileToolbar()
+                            .workoutsToolbar { appCoordinator.showingWorkouts = true }
+                            .tabRootStyle()
+                    }
+                    .modifier(sessionBarInset)
+                }
+                Tab(L10n.profile, systemImage: "gearshape",
+                    value: AppNavigationCoordinator.AppTab.profile) {
+                    NavigationStack {
+                        ProfileView()
+                            .navigationTitle(L10n.profile)
+                            .workoutsToolbar { appCoordinator.showingWorkouts = true }
                             .tabRootStyle()
                     }
                     .modifier(sessionBarInset)
                 }
             }
             .tabBarMinimizeBehavior(.automatic)
+            .sheet(isPresented: $appCoordinator.showingWorkouts) {
+                WorkoutsSheet(
+                    activeSession: activeSession,
+                    restRemainingSeconds: restRemainingSeconds,
+                    restTotalSeconds: Int(activeRestTimer?.durationSeconds ?? WorkoutSessionFormStateKt.REST_TIMER_DURATION_SECONDS)
+                )
+            }
             .task {
                 for await session in WorkoutSessionRepository.shared.activeSession {
                     activeSession = session
@@ -267,26 +343,13 @@ struct ContentView: View {
                     scheduleRestNotification(endsAtMillis: timer.endsAtMillis)
                 }
             }
-            .alert(L10n.discardWorkoutTitle, isPresented: $showDiscardConfirm) {
-                Button(L10n.discard, role: .destructive) {
-                    if let session = activeSession {
-                        Task { try? await WorkoutSessionRepository.shared.discard(sessionId: session.sessionId) }
-                    }
-                }
-                Button(L10n.cancel, role: .cancel) {}
-            } message: {
-                Text(L10n.discardWorkoutMessage)
-            }
-            .alert(L10n.nothingToSaveTitle, isPresented: $showNothingToSave) {
-                Button(L10n.yes, role: .destructive) {
-                    if let session = activeSession {
-                        Task { try? await WorkoutSessionRepository.shared.discard(sessionId: session.sessionId) }
-                    }
-                }
-                Button(L10n.no, role: .cancel) {}
-            } message: {
-                Text(L10n.nothingToSaveMessage)
-            }
+            .modifier(
+                ActiveSessionAlerts(
+                    activeSession: activeSession,
+                    showDiscardConfirm: $showDiscardConfirm,
+                    showNothingToSave: $showNothingToSave
+                )
+            )
         } else if profileState.hasProfile == false {
             ProfileSetupView()
         } else {
@@ -300,23 +363,14 @@ struct ContentView: View {
             restRemainingSeconds: restRemainingSeconds,
             restTotalSeconds: Int(activeRestTimer?.durationSeconds ?? WorkoutSessionFormStateKt.REST_TIMER_DURATION_SECONDS),
             onOpen: { session in
-                appCoordinator.selectedTab = .programs
+                appCoordinator.showingWorkouts = true
                 WorkoutSessionPresentation.shared.requestOpen(
                     routineId: session.routineId,
                     title: session.title
                 )
             },
             onComplete: { session in
-                Task {
-                    let hasSets = try? await WorkoutSessionRepository.shared.hasCompletedSets(
-                        sessionId: session.sessionId
-                    )
-                    if hasSets?.boolValue == true {
-                        try? await WorkoutSessionRepository.shared.finish(sessionId: session.sessionId)
-                    } else {
-                        showNothingToSave = true
-                    }
-                }
+                completeWorkoutSession(session) { showNothingToSave = true }
             },
             onDiscard: { showDiscardConfirm = true }
         )

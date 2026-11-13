@@ -9,10 +9,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
@@ -27,12 +30,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,14 +51,14 @@ import dev.balaji.moonrose.logtrain.model.UserSettings
 import dev.balaji.moonrose.logtrain.navigation.CalendarRoute
 import dev.balaji.moonrose.logtrain.navigation.ExercisesRoute
 import dev.balaji.moonrose.logtrain.navigation.NavStack
-import dev.balaji.moonrose.logtrain.navigation.WorkoutSessionRoute
-import dev.balaji.moonrose.logtrain.navigation.WorkoutsRoute
 import dev.balaji.moonrose.logtrain.navigation.PlatformBackHandler
+import dev.balaji.moonrose.logtrain.navigation.ProfileRoute
 import dev.balaji.moonrose.logtrain.navigation.ProgressRoute
 import dev.balaji.moonrose.logtrain.navigation.ScreenContent
 import dev.balaji.moonrose.logtrain.navigation.TopLevelRoute
+import dev.balaji.moonrose.logtrain.navigation.WorkoutSessionRoute
+import dev.balaji.moonrose.logtrain.navigation.WorkoutsRoute
 import dev.balaji.moonrose.logtrain.notifications.rememberRestTimerNotifier
-import dev.balaji.moonrose.logtrain.screens.ProfileScreen
 import dev.balaji.moonrose.logtrain.screens.ProfileSetupFlow
 import dev.balaji.moonrose.logtrain.screens.formatElapsed
 import dev.balaji.moonrose.logtrain.screens.remainingSecondsUntil
@@ -93,9 +96,9 @@ private fun MainTabs() {
     val tabs = remember {
         listOf(
             TabSpec(ExercisesRoute, Icons.Filled.FitnessCenter),
-            TabSpec(WorkoutsRoute, Icons.AutoMirrored.Filled.Assignment),
             TabSpec(CalendarRoute, Icons.Filled.CalendarMonth),
             TabSpec(ProgressRoute, Icons.AutoMirrored.Filled.TrendingUp),
+            TabSpec(ProfileRoute, Icons.Filled.Settings),
         )
     }
     var currentTab by remember { mutableStateOf<TopLevelRoute>(ExercisesRoute) }
@@ -105,23 +108,51 @@ private fun MainTabs() {
     PlatformBackHandler(enabled = stack.canGoBack) { stack.pop() }
 
     val activeSession by WorkoutSessionRepository.activeSession.collectAsState()
-    val sessionScreenVisible = stack.current is WorkoutSessionRoute
     val scope = rememberCoroutineScope()
     var showDiscardConfirm by remember { mutableStateOf(false) }
     var showNothingToSave by remember { mutableStateOf(false) }
-    // Profile is a single app-level overlay (mirroring the iOS sheet) rather
+    // Workouts is a single app-level overlay (mirroring the iOS sheet) rather
     // than a route pushed onto a tab's stack, so it can't stack per-tab.
-    var showProfile by remember { mutableStateOf(false) }
+    var showWorkouts by remember { mutableStateOf(false) }
+    val workoutsStack = remember { NavStack(WorkoutsRoute) }
+    val sessionScreenVisible = stack.current is WorkoutSessionRoute ||
+        (showWorkouts && workoutsStack.current is WorkoutSessionRoute)
 
     val activeRestTimer by WorkoutSessionRepository.activeRestTimer.collectAsState()
     val restRemainingSeconds = rememberRestTimerRemainingSeconds()
     val restTotalSeconds = activeRestTimer?.durationSeconds ?: REST_TIMER_DURATION_SECONDS
 
     // Once a session ends from the overlay, any WorkoutSessionRoute still
-    // sitting on a tab stack is stale — revisiting it would immediately
+    // sitting on a stack is stale — revisiting it would immediately
     // resume-or-start a brand new session.
     fun clearSessionRoutes() {
         stacks.values.forEach { s -> s.removeAll { it is WorkoutSessionRoute } }
+        workoutsStack.removeAll { it is WorkoutSessionRoute }
+    }
+
+    fun openActiveSession() {
+        val session = activeSession ?: return
+        if (workoutsStack.current !is WorkoutSessionRoute) {
+            workoutsStack.push(
+                WorkoutSessionRoute(
+                    routineId = session.routineId,
+                    title = session.title,
+                ),
+            )
+        }
+        showWorkouts = true
+    }
+
+    fun completeActiveSession() {
+        val sessionId = activeSession?.sessionId ?: return
+        scope.launch {
+            if (WorkoutSessionRepository.hasCompletedSets(sessionId)) {
+                clearSessionRoutes()
+                WorkoutSessionRepository.finish(sessionId)
+            } else {
+                showNothingToSave = true
+            }
+        }
     }
 
     Scaffold(
@@ -132,29 +163,8 @@ private fun MainTabs() {
                         session = activeSession!!,
                         restRemainingSeconds = restRemainingSeconds,
                         restTotalSeconds = restTotalSeconds,
-                        onOpen = {
-                            val workoutsStack = stacks.getValue(WorkoutsRoute)
-                            if (workoutsStack.current !is WorkoutSessionRoute) {
-                                workoutsStack.push(
-                                    WorkoutSessionRoute(
-                                        routineId = activeSession!!.routineId,
-                                        title = activeSession!!.title,
-                                    ),
-                                )
-                            }
-                            currentTab = WorkoutsRoute
-                        },
-                        onComplete = {
-                            val sessionId = activeSession!!.sessionId
-                            scope.launch {
-                                if (WorkoutSessionRepository.hasCompletedSets(sessionId)) {
-                                    clearSessionRoutes()
-                                    WorkoutSessionRepository.finish(sessionId)
-                                } else {
-                                    showNothingToSave = true
-                                }
-                            }
-                        },
+                        onOpen = ::openActiveSession,
+                        onComplete = ::completeActiveSession,
                         onDiscard = { showDiscardConfirm = true },
                     )
                 }
@@ -187,21 +197,62 @@ private fun MainTabs() {
                 route = stack.current,
                 onNavigate = stack::push,
                 onGoBack = stack::pop,
-                onOpenProfile = { showProfile = true },
+                onOpenWorkouts = { showWorkouts = true },
             )
         }
     }
 
     // Registered after the tab stack's handler so it wins while the overlay
-    // is up: back closes the profile, not the tab underneath it.
-    PlatformBackHandler(enabled = showProfile) { showProfile = false }
+    // is up: back navigates within Workouts or closes it, not the tab underneath.
+    PlatformBackHandler(enabled = showWorkouts) {
+        if (workoutsStack.canGoBack) {
+            workoutsStack.pop()
+        } else {
+            showWorkouts = false
+        }
+    }
     AnimatedVisibility(
-        visible = showProfile,
+        visible = showWorkouts,
         enter = slideInVertically(initialOffsetY = { it }),
         exit = slideOutVertically(targetOffsetY = { it }),
     ) {
         Surface(Modifier.fillMaxSize()) {
-            ProfileScreen(onGoBack = { showProfile = false })
+            Column(Modifier.fillMaxSize()) {
+                val showOverlayBar = activeSession != null && workoutsStack.current !is WorkoutSessionRoute
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .let { if (showOverlayBar) it.consumeWindowInsets(WindowInsets.navigationBars) else it },
+                ) {
+                    ScreenContent(
+                        route = workoutsStack.current,
+                        onNavigate = workoutsStack::push,
+                        onGoBack = {
+                            if (workoutsStack.canGoBack) {
+                                workoutsStack.pop()
+                            } else {
+                                showWorkouts = false
+                            }
+                        },
+                    )
+                }
+                if (showOverlayBar) {
+                    Box(
+                        Modifier
+                            .background(MaterialTheme.colorScheme.secondaryContainer)
+                            .navigationBarsPadding(),
+                    ) {
+                        ActiveSessionOverlay(
+                            session = activeSession!!,
+                            restRemainingSeconds = restRemainingSeconds,
+                            restTotalSeconds = restTotalSeconds,
+                            onOpen = ::openActiveSession,
+                            onComplete = ::completeActiveSession,
+                            onDiscard = { showDiscardConfirm = true },
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -421,8 +472,8 @@ private fun ActiveSessionOverlay(
 private fun topLevelTabTitle(route: TopLevelRoute): String = stringResource(
     when (route) {
         ExercisesRoute -> Res.string.tab_exercises
-        WorkoutsRoute -> Res.string.tab_workouts
         CalendarRoute -> Res.string.tab_history
         ProgressRoute -> Res.string.tab_progress
+        ProfileRoute -> Res.string.profile
     },
 )

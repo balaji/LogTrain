@@ -4,10 +4,8 @@ import UserNotifications
 
 /// Native SwiftUI replacement for the Compose `ProfileScreen`: shows the
 /// saved profile with an Edit link that swaps in `ProfileFormView`. Owns the
-/// nav-bar buttons: Done (dismisses the profile sheet) in view mode, Back
-/// (exits edit mode only) while editing.
+/// Edit / Back nav-bar buttons for switching between view and edit mode.
 struct ProfileView: View {
-    @Environment(\.dismiss) private var dismiss
     @State private var profile: Profile?
     @State private var settings: UserSettings?
     @State private var editing = false
@@ -218,9 +216,6 @@ struct ProfileView: View {
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {
                             Button(L10n.edit) { editing = true }
-                        }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button(L10n.done) { dismiss() }
                         }
                     }
                 }

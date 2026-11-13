@@ -17,6 +17,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -27,6 +29,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -69,9 +72,23 @@ private sealed interface ProgramDialog {
     data class ViewSampleRoutine(val routine: SampleRoutine) : ProgramDialog
 }
 
+/**
+ * Entry point to the workouts/programs screen, shown as the trailing top-bar
+ * action on each tab root now that Workouts no longer has a tab of its own.
+ */
+@Composable
+fun WorkoutsTopBarButton(onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        Icon(
+            Icons.AutoMirrored.Filled.Assignment,
+            contentDescription = stringResource(Res.string.tab_workouts),
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProgramsScreen(onNavigate: (Route) -> Unit, onOpenProfile: () -> Unit = {}) {
+fun ProgramsScreen(onNavigate: (Route) -> Unit, onGoBack: () -> Unit = {}) {
     val programs by ProgramRepository.programs.collectAsState(initial = null)
     val routinesByProgram by remember {
         ProgramRepository.routines.map { routines -> routines.groupBy(Routine::programId) }
@@ -142,7 +159,11 @@ fun ProgramsScreen(onNavigate: (Route) -> Unit, onOpenProfile: () -> Unit = {}) 
             topBar = {
                 TopAppBar(
                     title = { Text(stringResource(Res.string.programs_title)) },
-                    navigationIcon = { ProfileTopBarButton(onClick = onOpenProfile) },
+                    navigationIcon = {
+                        IconButton(onClick = onGoBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.back))
+                        }
+                    },
                 )
             },
             floatingActionButton = {

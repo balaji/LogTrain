@@ -72,7 +72,7 @@ import dev.balaji.moonrose.logtrain.sharedui.resources.*
 fun ExercisesScreen(
     onNavigate: (Route) -> Unit,
     onExerciseSelected: ((Exercise) -> Unit)? = null,
-    onOpenProfile: () -> Unit = {},
+    onOpenWorkouts: () -> Unit = {},
 ) {
     val onOpen: (Exercise) -> Unit = { exercise ->
         if (onExerciseSelected != null) {
@@ -88,7 +88,7 @@ fun ExercisesScreen(
             topBar = {
                 TopAppBar(
                     title = { Text(stringResource(Res.string.tab_exercises)) },
-                    navigationIcon = { ProfileTopBarButton(onClick = onOpenProfile) },
+                    actions = { WorkoutsTopBarButton(onClick = onOpenWorkouts) },
                 )
             },
             floatingActionButton = {

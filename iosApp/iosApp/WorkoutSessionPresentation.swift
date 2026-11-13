@@ -32,9 +32,17 @@ struct WorkoutSessionTarget: Hashable {
 
     private(set) var pendingTarget = WorkoutSessionTarget(routineId: 0, title: "")
     private(set) var openRequestID = 0
+    private(set) var hasPendingOpen = false
 
     func requestOpen(routineId: Int64, title: String) {
         pendingTarget = WorkoutSessionTarget(routineId: routineId, title: title)
+        hasPendingOpen = true
         openRequestID += 1
+    }
+
+    func consumePendingOpen() -> WorkoutSessionTarget? {
+        guard hasPendingOpen else { return nil }
+        hasPendingOpen = false
+        return pendingTarget
     }
 }
