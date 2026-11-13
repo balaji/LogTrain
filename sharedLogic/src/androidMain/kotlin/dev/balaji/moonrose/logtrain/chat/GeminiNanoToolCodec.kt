@@ -36,11 +36,6 @@ internal object GeminiNanoToolCodec {
         description = description,
     )
 
-    private fun boolSchema(description: String) = FunctionSchema(
-        type = FunctionType.BOOLEAN,
-        description = description,
-    )
-
     private fun objectSchema(
         properties: Map<String, FunctionSchema> = emptyMap(),
         required: List<String> = emptyList(),
@@ -108,13 +103,12 @@ internal object GeminiNanoToolCodec {
         ),
         FunctionDeclaration(
             name = TOOL_SEARCH_EXERCISES,
-            description = "Search catalog exercises by name, body part, or equipment for form or substitutes.",
+            description = "Search catalog exercises by name, body part, or equipment for substitutes or exercise metadata.",
             parameters = objectSchema(
                 mapOf(
                     "query" to stringSchema("Exercise name or keyword."),
                     "body_part" to stringSchema("Muscle or group like chest, back, legs, arms."),
                     "equipment" to stringSchema("Equipment like barbell, dumbbell, cable, bodyweight."),
-                    "include_description" to boolSchema("Include form instructions when needed."),
                     "limit" to intSchema("Max results, 1 to 12. Defaults to 8."),
                 ),
             ),
@@ -166,7 +160,7 @@ internal object GeminiNanoToolCodec {
                 query = args.stringArg("query"),
                 bodyPart = args.stringArg("body_part"),
                 equipment = args.stringArg("equipment"),
-                includeDescription = args.boolArg("include_description") ?: false,
+                includeDescription = false,
                 limit = args.intArg("limit") ?: 8,
             )
             TOOL_BODY_METRICS -> toolbox.getBodyMetricsAndProfile(
@@ -287,18 +281,5 @@ private fun Map<String, FunctionArgValue>.longArg(key: String): Long? =
         is FunctionArgValue.IntValue -> value.value.toLong()
         is FunctionArgValue.DoubleValue -> value.value.toLong()
         is FunctionArgValue.StringValue -> value.value.trim().toLongOrNull()
-        else -> null
-    }
-
-private fun Map<String, FunctionArgValue>.boolArg(key: String): Boolean? =
-    when (val value = this[key]) {
-        is FunctionArgValue.BoolValue -> value.value
-        is FunctionArgValue.StringValue -> value.value.trim().lowercase().let {
-            when (it) {
-                "true" -> true
-                "false" -> false
-                else -> null
-            }
-        }
         else -> null
     }

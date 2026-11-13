@@ -179,7 +179,7 @@ struct GetProgramsAndRoutinesTool: Tool {
 
 struct SearchExercisesTool: Tool {
     let name = "search_exercises"
-    let description = "Search the exercise catalog by name, body part, or equipment for form or substitutes."
+    let description = "Search the user's exercise catalog by name, body part, or equipment for substitutes or exercise metadata."
     let collector: ChatSourceCollector
 
     @Generable
@@ -190,8 +190,6 @@ struct SearchExercisesTool: Tool {
         var bodyPart: String?
         @Guide(description: "Optional equipment such as barbell, dumbbell, cable, or bodyweight.")
         var equipment: String?
-        @Guide(description: "Set true when exercise form instructions are needed.")
-        var includeDescription: Bool?
         @Guide(description: "Max results, 1 to 12. Defaults to 8.")
         var limit: Int?
     }
@@ -202,7 +200,7 @@ struct SearchExercisesTool: Tool {
                 query: arguments.query,
                 bodyPart: arguments.bodyPart,
                 equipment: arguments.equipment,
-                includeDescription: arguments.includeDescription ?? false,
+                includeDescription: false,
                 limit: Int32(arguments.limit ?? 8)
             )
         }

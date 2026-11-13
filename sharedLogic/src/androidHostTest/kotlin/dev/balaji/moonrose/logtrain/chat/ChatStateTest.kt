@@ -241,6 +241,8 @@ class ChatStateTest {
         assertTrue(svInstructions.contains("Respond in Swedish."))
         assertTrue(svInstructions.contains("Squat"))
         assertTrue(svInstructions.contains("No medical"))
+        assertTrue(svInstructions.contains("use your own strength-training knowledge"))
+        assertTrue(svInstructions.contains("quote ONLY numbers, dates, exercises, and units"))
 
         val messages = (1..6).map { i ->
             ChatMessage("m$i", ChatMessage.ROLE_USER, "Turn $i text", ChatMessage.STATUS_COMPLETE)

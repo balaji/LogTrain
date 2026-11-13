@@ -102,8 +102,8 @@ internal class ChatContextRouter(
             if (plan.wantsProgression || (!plan.wantsPr && !plan.wantsForm && !plan.wantsSubstitutes)) {
                 outputs += toolbox.getExerciseProgression(exerciseQuery = ex, weeks = 12)
             }
-            if (plan.wantsForm) {
-                outputs += toolbox.searchExercises(query = ex, includeDescription = true, limit = 2)
+            if (plan.wantsForm || (seedContext.kind == "exercise" && !plan.wantsSubstitutes)) {
+                outputs += toolbox.searchExercises(query = ex, includeDescription = false, limit = 1)
             }
             if (plan.wantsSubstitutes) {
                 val resolved = (ExerciseMatcher.resolve(ex, exercises) as? ExerciseMatchResult.Matched)?.exercise
@@ -117,11 +117,11 @@ internal class ChatContextRouter(
             }
         } else {
             if (plan.wantsPr) outputs += toolbox.getPersonalRecords(exerciseQuery = null, limit = 5)
-            if (plan.wantsForm || plan.wantsSubstitutes || plan.bodyPart != null || plan.equipment != null) {
+            if (plan.wantsSubstitutes || plan.bodyPart != null || plan.equipment != null) {
                 outputs += toolbox.searchExercises(
                     bodyPart = plan.bodyPart,
                     equipment = plan.equipment,
-                    includeDescription = plan.wantsForm,
+                    includeDescription = false,
                     limit = 6,
                 )
             }
@@ -140,7 +140,7 @@ internal class ChatContextRouter(
             outputs += toolbox.getTrainingSummary(weeks = 8)
         }
 
-        if (outputs.isEmpty()) {
+        if (outputs.isEmpty() && !plan.wantsForm) {
             when (seedContext.kind) {
                 "exercise" -> if (seedContext.exerciseName.isNotBlank()) {
                     outputs += toolbox.getExerciseProgression(seedContext.exerciseName, weeks = 12)
@@ -199,7 +199,6 @@ internal class ChatContextRouter(
 
         val wantsPr = containsAny(padded, PR_KEYWORDS)
         val wantsProgression = containsAny(padded, PROGRESSION_KEYWORDS)
-        val wantsForm = containsAny(padded, FORM_KEYWORDS)
         val wantsSubstitutes = containsAny(padded, SUBSTITUTE_KEYWORDS)
         val wantsRecentWorkouts = containsAny(padded, RECENT_WORKOUT_KEYWORDS)
         val wantsPrograms = containsAny(padded, PROGRAM_KEYWORDS)
@@ -213,6 +212,16 @@ internal class ChatContextRouter(
                 matchedExercise == null
             )
         val wantsSummary = containsAny(padded, SUMMARY_KEYWORDS)
+        val asksExerciseExplanation = containsAny(padded, EXPLANATION_KEYWORDS) &&
+            !padded.contains(" my ") &&
+            !wantsPr &&
+            !wantsProgression &&
+            !wantsSubstitutes &&
+            !wantsRecentWorkouts &&
+            !wantsPrograms &&
+            !wantsBodyMetrics &&
+            !wantsSummary
+        val wantsForm = containsAny(padded, FORM_KEYWORDS) || asksExerciseExplanation
 
         return RoutedPlan(
             exerciseQuery = matchedExercise,
@@ -311,7 +320,11 @@ internal class ChatContextRouter(
         )
         val FORM_KEYWORDS = listOf(
             "form", "how to", "how do i", "technique", "cue", "cues",
-            "perform", "instruction", "instructions",
+            "perform", "instruction", "instructions", "explain", "describe",
+            "mistakes", "muscles worked", "what muscles",
+        )
+        val EXPLANATION_KEYWORDS = listOf(
+            "what is", "what are", "tell me about",
         )
         val SUBSTITUTE_KEYWORDS = listOf(
             "substitute", "substitutes", "substitution", "alternative",

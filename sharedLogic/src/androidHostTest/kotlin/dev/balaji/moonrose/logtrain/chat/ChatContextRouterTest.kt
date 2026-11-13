@@ -115,7 +115,19 @@ class ChatContextRouterTest {
             "How do I perform this with good form?",
             ChatSeedContext(kind = "exercise", exerciseId = 1L, exerciseName = "Barbell Bench Press"),
         )
-        assertTrue(tbExercise.calls.contains("search:q=Barbell Bench Press,bp=,eq=,desc=true"))
+        assertEquals(listOf("search:q=Barbell Bench Press,bp=,eq=,desc=false"), tbExercise.calls)
+
+        val tbExplain = RecordingToolbox()
+        router(tbExplain).route(
+            "What is Barbell Bench Press?",
+            ChatSeedContext(kind = "exercise", exerciseId = 1L, exerciseName = "Barbell Bench Press"),
+        )
+        assertEquals(listOf("search:q=Barbell Bench Press,bp=,eq=,desc=false"), tbExplain.calls)
+
+        val tbUnknownForm = RecordingToolbox()
+        val unknownOut = router(tbUnknownForm).route("How do I perform a Jefferson Curl?")
+        assertTrue(tbUnknownForm.calls.isEmpty())
+        assertEquals("", unknownOut.summary)
     }
 
     @Test
