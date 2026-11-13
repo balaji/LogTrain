@@ -1,4 +1,6 @@
 import Foundation
+import SwiftUI
+import SharedUI
 
 /// Navigation value for pushing the workout session screen. Shared by every
 /// entry point (Programs list, routine detail's play button, the mini bar)
@@ -44,5 +46,59 @@ struct WorkoutSessionTarget: Hashable {
         guard hasPendingOpen else { return nil }
         hasPendingOpen = false
         return pendingTarget
+    }
+}
+
+/// Prompts the user to dismiss or discard when starting a workout while another
+/// workout is already in progress, then invokes `onProceed` after discarding.
+struct WorkoutInProgressAlertModifier: ViewModifier {
+    @Binding var pendingTarget: WorkoutSessionTarget?
+    let onProceed: @MainActor (WorkoutSessionTarget) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .alert(
+                L10n.workoutInProgressTitle,
+                isPresented: Binding(
+                    get: { pendingTarget != nil },
+                    set: { if !$0 { pendingTarget = nil } }
+                ),
+                presenting: pendingTarget
+            ) { target in
+                Button(L10n.discardWorkout, role: .destructive) {
+                    pendingTarget = nil
+                    Task { @MainActor in
+                        if let session = WorkoutSessionRepository.shared.activeSession.value {
+                            try? await WorkoutSessionRepository.shared.discard(sessionId: session.sessionId)
+                        }
+                        onProceed(target)
+                    }
+                }
+                Button(L10n.cancel, role: .cancel) {
+                    pendingTarget = nil
+                }
+            }
+    }
+}
+
+extension View {
+    func workoutInProgressAlert(
+        pendingTarget: Binding<WorkoutSessionTarget?>,
+        onProceed: @escaping @MainActor (WorkoutSessionTarget) -> Void
+    ) -> some View {
+        modifier(WorkoutInProgressAlertModifier(pendingTarget: pendingTarget, onProceed: onProceed))
+    }
+}
+
+@MainActor
+func requestStartWorkout(
+    _ target: WorkoutSessionTarget,
+    pendingTarget: Binding<WorkoutSessionTarget?>,
+    onProceed: @MainActor (WorkoutSessionTarget) -> Void
+) {
+    if WorkoutSessionRepository.shared.activeSession.value != nil {
+        pendingTarget.wrappedValue = target
+    } else {
+        onProceed(target)
     }
 }

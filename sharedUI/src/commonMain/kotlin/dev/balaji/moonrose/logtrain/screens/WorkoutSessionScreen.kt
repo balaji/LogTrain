@@ -897,6 +897,72 @@ private fun SessionSetRow(
 private val CompletedGreen = Color(0xFF43A047)
 
 /**
+ * Returns a callback that starts [WorkoutSessionRoute] immediately when idle,
+ * or prompts the user to dismiss or discard the active workout first.
+ */
+@Composable
+fun rememberStartWorkoutHandler(
+    onLaunch: (WorkoutSessionRoute) -> Unit,
+): (WorkoutSessionRoute) -> Unit {
+    val activeSession by WorkoutSessionRepository.activeSession.collectAsState()
+    val latestOnLaunch by rememberUpdatedState(onLaunch)
+    val scope = rememberCoroutineScope()
+    var pendingRoute by remember { mutableStateOf<WorkoutSessionRoute?>(null) }
+    var discarding by remember { mutableStateOf(false) }
+
+    if (pendingRoute != null) {
+        AlertDialog(
+            onDismissRequest = { if (!discarding) pendingRoute = null },
+            title = { Text(stringResource(Res.string.workout_in_progress_title)) },
+            confirmButton = {
+                TextButton(
+                    enabled = !discarding,
+                    onClick = {
+                        val target = pendingRoute ?: return@TextButton
+                        val session = activeSession ?: run {
+                            pendingRoute = null
+                            latestOnLaunch(target)
+                            return@TextButton
+                        }
+                        discarding = true
+                        scope.launch {
+                            try {
+                                WorkoutSessionRepository.discard(session.sessionId)
+                            } finally {
+                                discarding = false
+                                pendingRoute = null
+                            }
+                            latestOnLaunch(target)
+                        }
+                    },
+                ) {
+                    Text(
+                        stringResource(Res.string.discard_workout),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !discarding,
+                    onClick = { pendingRoute = null },
+                ) {
+                    Text(stringResource(Res.string.cancel))
+                }
+            },
+        )
+    }
+
+    return { route ->
+        if (activeSession != null) {
+            pendingRoute = route
+        } else {
+            latestOnLaunch(route)
+        }
+    }
+}
+
+/**
  * Compact countdown bar shown immediately under the set that triggered the
  * rest timer. Automatically hides when the timer finishes or moves.
  */

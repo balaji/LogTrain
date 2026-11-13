@@ -34,6 +34,7 @@
     <string name="nothing_to_save_title">Nothing to save</string>
     <string name="nothing_to_save_message">There are no completed sets to save. Discard?</string>
     <string name="discard_workout">Discard workout</string>
+    <string name="workout_in_progress_title">A Workout is in progress</string>
     <string name="finish_workout">Finish workout</string>
     <string name="rest_timer_countdown">Rest · %1$s</string>
     <string name="rest_over_title">Rest is over</string>

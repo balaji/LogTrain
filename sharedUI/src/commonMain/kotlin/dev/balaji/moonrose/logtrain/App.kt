@@ -75,6 +75,7 @@ import dev.balaji.moonrose.logtrain.screens.ProfileSetupFlow
 import dev.balaji.moonrose.logtrain.screens.formatElapsed
 import dev.balaji.moonrose.logtrain.screens.remainingSecondsUntil
 import dev.balaji.moonrose.logtrain.screens.rememberElapsedSeconds
+import dev.balaji.moonrose.logtrain.screens.rememberStartWorkoutHandler
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -124,7 +125,7 @@ private fun MainTabs() {
     var showDiscardConfirm by remember { mutableStateOf(false) }
     var showNothingToSave by remember { mutableStateOf(false) }
     var workoutMenuExpanded by remember { mutableStateOf(false) }
-    var showDirectEmptyWorkout by remember { mutableStateOf(false) }
+    var directWorkoutSession by remember { mutableStateOf<WorkoutSessionRoute?>(null) }
     var directWorkoutLaunchId by remember { mutableIntStateOf(0) }
     val emptyWorkoutTitle = stringResource(Res.string.empty_workout_title)
 
@@ -135,7 +136,7 @@ private fun MainTabs() {
     var showWorkouts by remember { mutableStateOf(false) }
     val workoutsStack = remember { NavStack(WorkoutsRoute) }
     val sessionScreenVisible = stack.current is WorkoutSessionRoute ||
-        showDirectEmptyWorkout ||
+        directWorkoutSession != null ||
         (showWorkouts && workoutsStack.current is WorkoutSessionRoute)
 
     val activeRestTimer by WorkoutSessionRepository.activeRestTimer.collectAsState()
@@ -148,21 +149,24 @@ private fun MainTabs() {
     fun clearSessionRoutes() {
         stacks.values.forEach { s -> s.removeAll { it is WorkoutSessionRoute } }
         workoutsStack.removeAll { it is WorkoutSessionRoute }
-        showDirectEmptyWorkout = false
+        directWorkoutSession = null
     }
 
     fun openActiveSession() {
         val session = activeSession ?: return
         workoutMenuExpanded = false
-        if (workoutsStack.current !is WorkoutSessionRoute) {
-            workoutsStack.push(
-                WorkoutSessionRoute(
-                    routineId = session.routineId,
-                    title = session.title,
-                ),
-            )
+        val target = WorkoutSessionRoute(
+            routineId = session.routineId,
+            title = session.title,
+        )
+        if (showWorkouts) {
+            if (workoutsStack.current !is WorkoutSessionRoute) {
+                workoutsStack.push(target)
+            }
+        } else {
+            directWorkoutLaunchId += 1
+            directWorkoutSession = target
         }
-        showWorkouts = true
     }
 
     fun completeActiveSession() {
@@ -175,6 +179,11 @@ private fun MainTabs() {
                 showNothingToSave = true
             }
         }
+    }
+
+    val startDirectWorkout = rememberStartWorkoutHandler { route ->
+        directWorkoutLaunchId += 1
+        directWorkoutSession = route
     }
 
     Scaffold(
@@ -216,8 +225,12 @@ private fun MainTabs() {
                     onToggle = { workoutMenuExpanded = !workoutMenuExpanded },
                     onStartEmptyWorkout = {
                         workoutMenuExpanded = false
-                        directWorkoutLaunchId += 1
-                        showDirectEmptyWorkout = true
+                        startDirectWorkout(
+                            WorkoutSessionRoute(
+                                routineId = 0L,
+                                title = emptyWorkoutTitle,
+                            ),
+                        )
                     },
                     onChooseProgram = {
                         workoutMenuExpanded = false
@@ -311,21 +324,24 @@ private fun MainTabs() {
         }
     }
 
-    PlatformBackHandler(enabled = showDirectEmptyWorkout) {
-        showDirectEmptyWorkout = false
+    PlatformBackHandler(enabled = directWorkoutSession != null) {
+        directWorkoutSession = null
     }
     AnimatedVisibility(
-        visible = showDirectEmptyWorkout,
+        visible = directWorkoutSession != null,
         enter = slideInVertically(initialOffsetY = { it }),
         exit = slideOutVertically(targetOffsetY = { it }),
     ) {
-        Surface(Modifier.fillMaxSize()) {
-            key(directWorkoutLaunchId) {
-                ScreenContent(
-                    route = WorkoutSessionRoute(routineId = 0L, title = emptyWorkoutTitle),
-                    onNavigate = {},
-                    onGoBack = { showDirectEmptyWorkout = false },
-                )
+        val sessionRoute = directWorkoutSession
+        if (sessionRoute != null) {
+            Surface(Modifier.fillMaxSize()) {
+                key(directWorkoutLaunchId) {
+                    ScreenContent(
+                        route = sessionRoute,
+                        onNavigate = {},
+                        onGoBack = { directWorkoutSession = null },
+                    )
+                }
             }
         }
     }

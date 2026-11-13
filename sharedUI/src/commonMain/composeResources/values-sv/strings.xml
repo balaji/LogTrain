@@ -34,6 +34,7 @@
     <string name="nothing_to_save_title">Inget att spara</string>
     <string name="nothing_to_save_message">Det finns inga slutförda set att spara. Kasta?</string>
     <string name="discard_workout">Kasta träningspass</string>
+    <string name="workout_in_progress_title">Ett träningspass pågår</string>
     <string name="finish_workout">Avsluta träningspass</string>
     <string name="rest_timer_countdown">Vila · %1$s</string>
     <string name="rest_over_title">Vilan är slut</string>

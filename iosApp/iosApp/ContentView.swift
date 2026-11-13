@@ -80,11 +80,17 @@ enum RestTimerSoundPlayer {
 
 // MARK: - Coordinators
 
+struct DirectWorkoutTarget: Identifiable {
+    let id = UUID()
+    let routineId: Int64
+    let title: String
+}
+
 @Observable class AppNavigationCoordinator {
     enum AppTab { case exercises, calendar, progress, profile }
     var selectedTab: AppTab = .exercises
     var showingWorkouts = false
-    var showingEmptyWorkout = false
+    var presentedWorkout: DirectWorkoutTarget?
     var workoutMenuExpanded = false
 }
 
@@ -183,10 +189,12 @@ private struct WorkoutsSheet: View {
     }
 }
 
-private struct EmptyWorkoutSheet: View {
+private struct WorkoutSessionSheet: View {
+    let target: DirectWorkoutTarget
+
     var body: some View {
         NavigationStack {
-            WorkoutSessionView(routineId: 0, title: L10n.emptyWorkoutTitle)
+            WorkoutSessionView(routineId: target.routineId, title: target.title)
         }
         .modifier(SheetAppearanceModifier())
     }
@@ -370,6 +378,7 @@ struct ContentView: View {
     @State private var lastFinishedTimerMillis: Int64 = 0
     @State private var showDiscardConfirm = false
     @State private var showNothingToSave = false
+    @State private var pendingWorkoutTarget: WorkoutSessionTarget?
 
     var body: some View {
         if profileState.hasProfile == true {
@@ -425,8 +434,8 @@ struct ContentView: View {
                     restTotalSeconds: Int(activeRestTimer?.durationSeconds ?? WorkoutSessionFormStateKt.REST_TIMER_DURATION_SECONDS)
                 )
             }
-            .sheet(isPresented: $appCoordinator.showingEmptyWorkout) {
-                EmptyWorkoutSheet()
+            .sheet(item: $appCoordinator.presentedWorkout) { target in
+                WorkoutSessionSheet(target: target)
             }
             .task {
                 for await session in WorkoutSessionRepository.shared.activeSession {
@@ -468,6 +477,12 @@ struct ContentView: View {
                     showNothingToSave: $showNothingToSave
                 )
             )
+            .workoutInProgressAlert(pendingTarget: $pendingWorkoutTarget) { target in
+                appCoordinator.presentedWorkout = DirectWorkoutTarget(
+                    routineId: target.routineId,
+                    title: target.title
+                )
+            }
         } else if profileState.hasProfile == false {
             ProfileSetupView()
         } else {
@@ -478,7 +493,17 @@ struct ContentView: View {
     private var floatingWorkoutMenu: FloatingWorkoutMenuInset {
         FloatingWorkoutMenuInset(
             isExpanded: $appCoordinator.workoutMenuExpanded,
-            onStartEmptyWorkout: { appCoordinator.showingEmptyWorkout = true },
+            onStartEmptyWorkout: {
+                requestStartWorkout(
+                    WorkoutSessionTarget(routineId: 0, title: L10n.emptyWorkoutTitle),
+                    pendingTarget: $pendingWorkoutTarget
+                ) { target in
+                    appCoordinator.presentedWorkout = DirectWorkoutTarget(
+                        routineId: target.routineId,
+                        title: target.title
+                    )
+                }
+            },
             onChooseProgram: { appCoordinator.showingWorkouts = true }
         )
     }
@@ -490,8 +515,7 @@ struct ContentView: View {
             restTotalSeconds: Int(activeRestTimer?.durationSeconds ?? WorkoutSessionFormStateKt.REST_TIMER_DURATION_SECONDS),
             onOpen: { session in
                 appCoordinator.workoutMenuExpanded = false
-                appCoordinator.showingWorkouts = true
-                WorkoutSessionPresentation.shared.requestOpen(
+                appCoordinator.presentedWorkout = DirectWorkoutTarget(
                     routineId: session.routineId,
                     title: session.title
                 )

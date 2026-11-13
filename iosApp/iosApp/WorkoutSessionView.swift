@@ -48,7 +48,7 @@ struct WorkoutSessionView: View {
             }
         }
         .task { await bootstrap() }
-        .task { await followActiveSession() }
+        .task(id: sessionId) { await followActiveSession() }
         .task(id: plateKeyboard != nil) { await followPlateKeyboard() }
         .task {
             for await settings in UserSettingsRepository.shared.settings {
@@ -180,6 +180,10 @@ struct WorkoutSessionView: View {
         for await value in formState.uiState {
             uiState = value
             updateRemainingSeconds(for: value.restTimer)
+            if value.finished || value.discarded {
+                dismiss()
+                return
+            }
         }
     }
 
@@ -210,12 +214,13 @@ struct WorkoutSessionView: View {
     /// Only acts once it has seen its own session, so an emission for an
     /// unrelated older session can't pop a screen that's still bootstrapping.
     private func followActiveSession() async {
+        guard let sessionId else { return }
         for await session in WorkoutSessionRepository.shared.activeSession {
-            guard let sessionId else { continue }
             if session?.sessionId == sessionId {
                 ownSessionObserved = true
             } else if ownSessionObserved {
                 dismiss()
+                return
             }
         }
     }

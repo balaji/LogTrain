@@ -114,7 +114,6 @@ struct ProgramsView: View {
     @State private var path = NavigationPath()
     @State private var programs: [Program]?
     @State private var routines: [Routine]?
-    @State private var activeSession: ActiveWorkoutSession? = WorkoutSessionRepository.shared.activeSession.value
     @State private var expandedProgramId: Int64?
     @State private var expandedSampleId: String?
     @State private var myProgramsExpanded = true
@@ -125,6 +124,7 @@ struct ProgramsView: View {
     @State private var copyTarget: SampleProgram?
     @State private var routineInfo: SampleRoutine?
     @State private var errorMessage: String?
+    @State private var pendingWorkoutTarget: WorkoutSessionTarget?
 
     /// Static, code-defined catalog: unlike programs/routines there is nothing to observe.
     private let samplePrograms = SamplePrograms.shared.all
@@ -142,7 +142,12 @@ struct ProgramsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .scrollBounceBehavior(.basedOnSize)
             .navigationDestination(for: RoutineTarget.self) { target in
-                RoutineDetailView(routineId: target.routineId, title: target.title, isNew: target.isNew)
+                RoutineDetailView(
+                    routineId: target.routineId,
+                    title: target.title,
+                    isNew: target.isNew,
+                    onStartWorkout: { path.append($0) }
+                )
             }
             .navigationDestination(for: WorkoutSessionTarget.self) { target in
                 WorkoutSessionView(routineId: target.routineId, title: target.title)
@@ -180,11 +185,6 @@ struct ProgramsView: View {
                     routines = list
                 }
             }
-            .task {
-                for await session in WorkoutSessionRepository.shared.activeSession {
-                    activeSession = session
-                }
-            }
         }
     }
 
@@ -192,11 +192,24 @@ struct ProgramsView: View {
         Group {
             if let programs {
                 List {
-                    if activeSession == nil {
-                        Section {
-                            NavigationLink(value: WorkoutSessionTarget(routineId: 0, title: L10n.emptyWorkoutTitle)) {
-                                Text(L10n.startEmptyWorkout)
+                    Section {
+                        Button {
+                            requestStartWorkout(
+                                WorkoutSessionTarget(routineId: 0, title: L10n.emptyWorkoutTitle),
+                                pendingTarget: $pendingWorkoutTarget
+                            ) { target in
+                                path.append(target)
                             }
+                        } label: {
+                            HStack {
+                                Text(L10n.startEmptyWorkout)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .contentShape(Rectangle())
                         }
                     }
                     userProgramsSection(programs)
@@ -251,6 +264,9 @@ struct ProgramsView: View {
             Button(L10n.ok) { errorMessage = nil }
         } message: {
             Text(errorMessage ?? "")
+        }
+        .workoutInProgressAlert(pendingTarget: $pendingWorkoutTarget) { target in
+            path.append(target)
         }
     }
 

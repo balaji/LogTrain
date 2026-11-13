@@ -50,6 +50,8 @@ enum L10n {
     static let discardWorkoutTitle = String(localized: "discard_workout_title", defaultValue: "Discard workout?")
     static let discardWorkoutMessage = String(localized: "discard_workout_message", defaultValue: "This workout and all logged sets will be deleted.")
     static let discard = String(localized: "discard", defaultValue: "Discard")
+    static let discardWorkout = String(localized: "discard_workout", defaultValue: "Discard workout")
+    static let workoutInProgressTitle = String(localized: "workout_in_progress_title", defaultValue: "A Workout is in progress")
     static let nothingToSaveTitle = String(localized: "nothing_to_save_title", defaultValue: "Nothing to save")
     static let nothingToSaveMessage = String(localized: "nothing_to_save_message", defaultValue: "There are no completed sets to save. Discard?")
     static func restTimerCountdown(_ remaining: String) -> String {

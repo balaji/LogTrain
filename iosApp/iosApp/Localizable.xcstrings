@@ -409,6 +409,40 @@
         }
       }
     },
+    "discard_workout": {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kasta träningspass"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discard workout"
+          }
+        }
+      }
+    },
+    "workout_in_progress_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ett träningspass pågår"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A Workout is in progress"
+          }
+        }
+      }
+    },
     "nothing_to_save_title": {
       "extractionState": "manual",
       "localizations": {
