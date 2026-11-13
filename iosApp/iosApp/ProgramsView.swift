@@ -114,6 +114,7 @@ struct ProgramsView: View {
     @State private var path = NavigationPath()
     @State private var programs: [Program]?
     @State private var routines: [Routine]?
+    @State private var activeSession: ActiveWorkoutSession? = WorkoutSessionRepository.shared.activeSession.value
     @State private var expandedProgramId: Int64?
     @State private var expandedSampleId: String?
     @State private var myProgramsExpanded = true
@@ -179,6 +180,11 @@ struct ProgramsView: View {
                     routines = list
                 }
             }
+            .task {
+                for await session in WorkoutSessionRepository.shared.activeSession {
+                    activeSession = session
+                }
+            }
         }
     }
 
@@ -186,9 +192,11 @@ struct ProgramsView: View {
         Group {
             if let programs {
                 List {
-                    Section {
-                        NavigationLink(value: WorkoutSessionTarget(routineId: 0, title: L10n.emptyWorkoutTitle)) {
-                            Text(L10n.startEmptyWorkout)
+                    if activeSession == nil {
+                        Section {
+                            NavigationLink(value: WorkoutSessionTarget(routineId: 0, title: L10n.emptyWorkoutTitle)) {
+                                Text(L10n.startEmptyWorkout)
+                            }
                         }
                     }
                     userProgramsSection(programs)

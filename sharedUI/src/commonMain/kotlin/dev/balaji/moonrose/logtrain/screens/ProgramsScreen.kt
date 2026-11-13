@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.unit.dp
 import dev.balaji.moonrose.logtrain.db.ProgramRepository
+import dev.balaji.moonrose.logtrain.db.WorkoutSessionRepository
 import dev.balaji.moonrose.logtrain.model.Program
 import dev.balaji.moonrose.logtrain.model.Routine
 import dev.balaji.moonrose.logtrain.model.SampleProgram
@@ -78,6 +79,7 @@ fun ProgramsScreen(onNavigate: (Route) -> Unit, onGoBack: () -> Unit = {}) {
     val routinesByProgram by remember {
         ProgramRepository.routines.map { routines -> routines.groupBy(Routine::programId) }
     }.collectAsState(initial = emptyMap())
+    val activeSession by WorkoutSessionRepository.activeSession.collectAsState()
     var actionError by remember { mutableStateOf<String?>(null) }
     var dialog by remember { mutableStateOf<ProgramDialog?>(null) }
     var expandedProgramId by remember { mutableStateOf<Long?>(null) }
@@ -114,6 +116,7 @@ fun ProgramsScreen(onNavigate: (Route) -> Unit, onGoBack: () -> Unit = {}) {
             expandedProgramId = expandedProgramId,
             routinesByProgram = routinesByProgram,
             contentPadding = contentPadding,
+            showStartEmptyWorkout = activeSession == null,
             onStartEmptyWorkout = {
                 onNavigate(WorkoutSessionRoute(routineId = 0L, title = emptyWorkoutTitle))
             },
@@ -240,6 +243,7 @@ private fun ProgramsBody(
     expandedProgramId: Long?,
     routinesByProgram: Map<Long, List<Routine>>,
     contentPadding: PaddingValues,
+    showStartEmptyWorkout: Boolean,
     onStartEmptyWorkout: () -> Unit,
     onToggle: (Program) -> Unit,
     onRename: (Program) -> Unit,
@@ -262,10 +266,12 @@ private fun ProgramsBody(
         return
     }
     LazyColumn(contentPadding = contentPadding) {
-        item(key = "start-empty-workout") {
-            StartEmptyWorkoutRow(onClick = onStartEmptyWorkout)
-            HorizontalDivider()
-            Spacer(Modifier.height(24.dp))
+        if (showStartEmptyWorkout) {
+            item(key = "start-empty-workout") {
+                StartEmptyWorkoutRow(onClick = onStartEmptyWorkout)
+                HorizontalDivider()
+                Spacer(Modifier.height(24.dp))
+            }
         }
         item(key = "my-programs-header") {
             CollapsibleSectionHeader(
