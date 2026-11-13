@@ -24,6 +24,9 @@ object ExerciseRepository {
     val exercises: Flow<List<Exercise>> =
         AppDb.db.exerciseDao().observeAll().map { entities -> entities.map { it.toDomain() } }
 
+    suspend fun getAll(): List<Exercise> =
+        AppDb.db.exerciseDao().getAll().map { it.toDomain() }
+
     suspend fun findById(id: Long): Exercise? = AppDb.db.exerciseDao().findById(id)?.toDomain()
 
     suspend fun create(
@@ -109,4 +112,5 @@ private fun ExerciseEntity.toDomain() = Exercise(
     bodyPart = bodyPart,
     equipment = equipment,
     builtin = builtin,
+    otherBodyParts = otherBodyParts.orEmpty().filter { it.isNotBlank() },
 )

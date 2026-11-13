@@ -104,4 +104,5 @@ data class Exercise(
     val equipment: String?,
     /** Seeded catalog entry: cannot be edited or deleted. */
     val builtin: Boolean,
+    val otherBodyParts: List<String> = emptyList(),
 )
