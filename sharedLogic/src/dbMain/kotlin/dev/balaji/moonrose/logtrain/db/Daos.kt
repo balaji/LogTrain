@@ -322,6 +322,20 @@ interface WorkoutSessionDao {
     ): List<RecentCompletedSessionRow>
 
     @Query(
+        "SELECT s.id AS id, s.routine_id AS routine_id, r.name AS routine_name, " +
+            "s.performed_at AS performed_at, s.completed_at AS completed_at " +
+            "FROM workout_sessions s LEFT JOIN routines r ON r.id = s.routine_id " +
+            "WHERE s.profile_id = :profileId AND s.completed_at IS NOT NULL " +
+            "AND s.performed_at >= :startMillis AND s.performed_at < :endMillis " +
+            "ORDER BY s.performed_at",
+    )
+    suspend fun getCompletedWithRoutineInRange(
+        profileId: Long,
+        startMillis: Long,
+        endMillis: Long,
+    ): List<RecentCompletedSessionRow>
+
+    @Query(
         "SELECT routine_id AS routine_id, MAX(performed_at) AS last_performed_at " +
             "FROM workout_sessions " +
             "WHERE profile_id = :profileId AND completed_at IS NOT NULL AND routine_id IS NOT NULL " +

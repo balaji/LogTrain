@@ -169,6 +169,27 @@ object ChatToolbox {
         )
     }
 
+    /** Completed workouts performed on one specific [epochDay], in chronological order. */
+    suspend fun getWorkoutsForDay(epochDay: Long): ToolOutput {
+        val settings = UserSettingsRepository.settings.first()
+        val zone = TimeZone.currentSystemDefault()
+        val startMillis = startOfDayMillis(epochDay, zone)
+        val endMillis = startOfDayMillis(epochDay + 1L, zone)
+        val sessions = AppDb.db.workoutSessionDao()
+            .getCompletedWithRoutineInRange(PROFILE_ID, startMillis, endMillis)
+        if (sessions.isEmpty()) {
+            return ToolOutput("No completed workouts logged on ${shortDate(epochDay)}.")
+        }
+        val details = AppDb.db.workoutSessionDetailDao()
+            .getCompletedForSessions(sessions.map { it.id })
+        return recentWorkoutsFrom(
+            sessions = sessions,
+            details = details,
+            zone = zone,
+            unit = settings.weightUnit,
+        )
+    }
+
     /**
      * Programs, their routines in order, target exercises/sets, and when each routine
      * was last performed. Optionally narrow to a specific [routineQuery].
