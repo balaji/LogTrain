@@ -116,7 +116,7 @@ struct ProfileView: View {
                                         }
                                     }
                                 )) {
-                                    ForEach(RestTimerSound.entries, id: \.self) { sound in
+                                    ForEach(RestTimerSound.allCases, id: \.self) { sound in
                                         Text(L10n.restTimerSoundLabel(sound)).tag(sound)
                                     }
                                 }

@@ -189,7 +189,7 @@ struct ContentView: View {
     @State private var activeRestTimer: RestTimerTarget?
     @State private var restRemainingSeconds = 0
     @State private var notificationsEnabled = false
-    @State private var restTimerSound: RestTimerSound = .default_
+    @State private var restTimerSound: RestTimerSound = .`default`
     @State private var lastStartedTimerMillis: Int64 = 0
     @State private var lastFinishedTimerMillis: Int64 = 0
     @State private var showDiscardConfirm = false
