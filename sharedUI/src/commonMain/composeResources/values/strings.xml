@@ -104,6 +104,7 @@
 
     <!-- Exercises -->
     <string name="add_exercise_cd">Add Exercise</string>
+    <string name="add_new">Add New</string>
     <string name="search_exercises">Search exercises</string>
     <string name="clear_search">Clear search</string>
     <string name="body_part">Body part</string>

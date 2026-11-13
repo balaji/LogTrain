@@ -26,7 +26,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,9 +34,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
@@ -88,13 +87,13 @@ fun ExercisesScreen(
             topBar = {
                 TopAppBar(
                     title = { Text(stringResource(Res.string.tab_exercises)) },
-                    actions = { WorkoutsTopBarButton(onClick = onOpenWorkouts) },
+                    actions = {
+                        TextButton(onClick = { onNavigate(ExerciseCreateRoute) }) {
+                            Text(stringResource(Res.string.add_new))
+                        }
+                        WorkoutsTopBarButton(onClick = onOpenWorkouts)
+                    },
                 )
-            },
-            floatingActionButton = {
-                FloatingActionButton(onClick = { onNavigate(ExerciseCreateRoute) }) {
-                    Icon(Icons.Filled.Add, contentDescription = stringResource(Res.string.add_exercise_cd))
-                }
             },
         ) { padding ->
             ExercisesBody(contentPadding = padding, onOpen = onOpen)

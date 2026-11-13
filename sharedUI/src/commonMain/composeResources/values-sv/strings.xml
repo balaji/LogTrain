@@ -104,6 +104,7 @@
 
     <!-- Exercises -->
     <string name="add_exercise_cd">Lägg till övning</string>
+    <string name="add_new">Lägg till ny</string>
     <string name="search_exercises">Sök övningar</string>
     <string name="clear_search">Rensa sökning</string>
     <string name="body_part">Kroppsdel</string>
