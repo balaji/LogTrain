@@ -32,6 +32,7 @@ enum L10n {
     static let expand = String(localized: "expand", defaultValue: "Expand")
     static let create = String(localized: "create", defaultValue: "Create")
     static let name = String(localized: "name", defaultValue: "Name")
+    static let close = String(localized: "close", defaultValue: "Close")
     static let somethingWentWrong = String(localized: "something_went_wrong", defaultValue: "Something went wrong")
     // iOS-only
     static let done = String(localized: "done", defaultValue: "Done")
@@ -90,6 +91,8 @@ enum L10n {
     // MARK: - Programs
     static let programsTitle = String(localized: "programs_title", defaultValue: "Programs")
     static let emptyWorkoutTitle = String(localized: "empty_workout_title", defaultValue: "Empty workout")
+    static let emptyWorkout = String(localized: "empty_workout", defaultValue: "Empty Workout")
+    static let chooseProgram = String(localized: "choose_program", defaultValue: "Choose Program")
     static let newProgram = String(localized: "new_program", defaultValue: "New program")
     static let renameProgram = String(localized: "rename_program", defaultValue: "Rename program")
     static let deleteProgramTitle = String(localized: "delete_program_title", defaultValue: "Delete program?")

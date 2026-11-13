@@ -87,7 +87,7 @@ import dev.balaji.moonrose.logtrain.sharedui.resources.*
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProgressScreen(onOpenWorkouts: () -> Unit = {}) {
+fun ProgressScreen() {
     val state = remember { ProgressScreenState() }
     val provider = rememberInsightGenerationProvider()
     val narrationState = remember(provider) { InsightNarrationState(provider) }
@@ -99,7 +99,6 @@ fun ProgressScreen(onOpenWorkouts: () -> Unit = {}) {
             topBar = {
                 TopAppBar(
                     title = { Text(stringResource(Res.string.tab_progress)) },
-                    actions = { WorkoutsTopBarButton(onClick = onOpenWorkouts) },
                 )
             },
         ) { padding ->

@@ -1,10 +1,17 @@
 package dev.balaji.moonrose.logtrain
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,6 +26,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -30,15 +39,18 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -111,11 +123,19 @@ private fun MainTabs() {
     val scope = rememberCoroutineScope()
     var showDiscardConfirm by remember { mutableStateOf(false) }
     var showNothingToSave by remember { mutableStateOf(false) }
+    var workoutMenuExpanded by remember { mutableStateOf(false) }
+    var showDirectEmptyWorkout by remember { mutableStateOf(false) }
+    var directWorkoutLaunchId by remember { mutableIntStateOf(0) }
+    val emptyWorkoutTitle = stringResource(Res.string.empty_workout_title)
+
+    PlatformBackHandler(enabled = workoutMenuExpanded) { workoutMenuExpanded = false }
+
     // Workouts is a single app-level overlay (mirroring the iOS sheet) rather
     // than a route pushed onto a tab's stack, so it can't stack per-tab.
     var showWorkouts by remember { mutableStateOf(false) }
     val workoutsStack = remember { NavStack(WorkoutsRoute) }
     val sessionScreenVisible = stack.current is WorkoutSessionRoute ||
+        showDirectEmptyWorkout ||
         (showWorkouts && workoutsStack.current is WorkoutSessionRoute)
 
     val activeRestTimer by WorkoutSessionRepository.activeRestTimer.collectAsState()
@@ -128,10 +148,12 @@ private fun MainTabs() {
     fun clearSessionRoutes() {
         stacks.values.forEach { s -> s.removeAll { it is WorkoutSessionRoute } }
         workoutsStack.removeAll { it is WorkoutSessionRoute }
+        showDirectEmptyWorkout = false
     }
 
     fun openActiveSession() {
         val session = activeSession ?: return
+        workoutMenuExpanded = false
         if (workoutsStack.current !is WorkoutSessionRoute) {
             workoutsStack.push(
                 WorkoutSessionRoute(
@@ -173,6 +195,7 @@ private fun MainTabs() {
                         NavigationBarItem(
                             selected = currentTab == tab.route,
                             onClick = {
+                                workoutMenuExpanded = false
                                 if (currentTab == tab.route) {
                                     stacks.getValue(tab.route).popToRoot()
                                 } else {
@@ -186,6 +209,24 @@ private fun MainTabs() {
                 }
             }
         },
+        floatingActionButton = {
+            if (!sessionScreenVisible && !showWorkouts) {
+                WorkoutFloatingMenu(
+                    expanded = workoutMenuExpanded,
+                    onToggle = { workoutMenuExpanded = !workoutMenuExpanded },
+                    onStartEmptyWorkout = {
+                        workoutMenuExpanded = false
+                        directWorkoutLaunchId += 1
+                        showDirectEmptyWorkout = true
+                    },
+                    onChooseProgram = {
+                        workoutMenuExpanded = false
+                        workoutsStack.popToRoot()
+                        showWorkouts = true
+                    },
+                )
+            }
+        },
     ) { padding ->
         Box(
             Modifier
@@ -197,8 +238,22 @@ private fun MainTabs() {
                 route = stack.current,
                 onNavigate = stack::push,
                 onGoBack = stack::pop,
-                onOpenWorkouts = { showWorkouts = true },
             )
+            AnimatedVisibility(
+                visible = workoutMenuExpanded && !sessionScreenVisible && !showWorkouts,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.32f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { workoutMenuExpanded = false },
+                )
+            }
         }
     }
 
@@ -252,6 +307,25 @@ private fun MainTabs() {
                         )
                     }
                 }
+            }
+        }
+    }
+
+    PlatformBackHandler(enabled = showDirectEmptyWorkout) {
+        showDirectEmptyWorkout = false
+    }
+    AnimatedVisibility(
+        visible = showDirectEmptyWorkout,
+        enter = slideInVertically(initialOffsetY = { it }),
+        exit = slideOutVertically(targetOffsetY = { it }),
+    ) {
+        Surface(Modifier.fillMaxSize()) {
+            key(directWorkoutLaunchId) {
+                ScreenContent(
+                    route = WorkoutSessionRoute(routineId = 0L, title = emptyWorkoutTitle),
+                    onNavigate = {},
+                    onGoBack = { showDirectEmptyWorkout = false },
+                )
             }
         }
     }
@@ -459,6 +533,57 @@ private fun ActiveSessionOverlay(
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
             )
+        }
+    }
+}
+
+/**
+ * Bottom-right floating workout button and its two flowing options ("Empty
+ * Workout" and "Choose Program").
+ */
+@Composable
+private fun WorkoutFloatingMenu(
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    onStartEmptyWorkout: () -> Unit,
+    onChooseProgram: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.End,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }) + scaleIn(initialScale = 0.85f),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }) + scaleOut(targetScale = 0.85f),
+        ) {
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                ExtendedFloatingActionButton(
+                    onClick = onStartEmptyWorkout,
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    icon = { Icon(Icons.Filled.PlayArrow, contentDescription = null) },
+                    text = { Text(stringResource(Res.string.empty_workout)) },
+                )
+                ExtendedFloatingActionButton(
+                    onClick = onChooseProgram,
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    icon = { Icon(Icons.AutoMirrored.Filled.Assignment, contentDescription = null) },
+                    text = { Text(stringResource(Res.string.choose_program)) },
+                )
+            }
+        }
+        FloatingActionButton(onClick = onToggle) {
+            AnimatedContent(targetState = expanded) { isExpanded ->
+                Icon(
+                    imageVector = if (isExpanded) Icons.Filled.Close else Icons.AutoMirrored.Filled.Assignment,
+                    contentDescription = stringResource(if (isExpanded) Res.string.close else Res.string.tab_workouts),
+                )
+            }
         }
     }
 }

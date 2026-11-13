@@ -84,6 +84,8 @@ enum RestTimerSoundPlayer {
     enum AppTab { case exercises, calendar, progress, profile }
     var selectedTab: AppTab = .exercises
     var showingWorkouts = false
+    var showingEmptyWorkout = false
+    var workoutMenuExpanded = false
 }
 
 /// nil until the database's first emission, then tracks whether a profile row exists.
@@ -116,22 +118,31 @@ private extension View {
 
 // MARK: - Workouts entry point
 
-/// Top-trailing button shown on every tab root now that Workouts no longer
-/// has a tab of its own; presents the workouts/programs sheet. Detail screens
-/// never show it — their nav bars belong to contextual actions.
-private struct WorkoutsToolbar: ViewModifier {
-    let onOpen: () -> Void
+private struct SheetAppearanceModifier: ViewModifier {
+    @State private var appearance: Appearance = .system
+    @State private var systemColorScheme: ColorScheme = .light
 
     func body(content: Content) -> some View {
         content
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: onOpen) {
-                        Image(systemName: "list.clipboard")
-                    }
-                    .accessibilityLabel(L10n.tabWorkouts)
+            .observeSystemColorScheme($systemColorScheme)
+            .preferredColorScheme(preferredScheme)
+            .task {
+                for await settings in UserSettingsRepository.shared.settings {
+                    appearance = settings.appearance
                 }
             }
+    }
+
+    // Resolving to nil here doesn't reliably clear a previously-set
+    // .preferredColorScheme override on a *presented* sheet (SwiftUI/UIKit
+    // bug), so "system" resolves to a concrete tracked value instead; see
+    // SystemColorScheme.swift.
+    private var preferredScheme: ColorScheme? {
+        switch appearance {
+        case .light: .light
+        case .dark: .dark
+        case .system: systemColorScheme
+        }
     }
 }
 
@@ -139,8 +150,6 @@ private struct WorkoutsSheet: View {
     let activeSession: ActiveWorkoutSession?
     let restRemainingSeconds: Int
     let restTotalSeconds: Int
-    @State private var appearance: Appearance = .system
-    @State private var systemColorScheme: ColorScheme = .light
     @State private var showDiscardConfirm = false
     @State private var showNothingToSave = false
 
@@ -170,25 +179,16 @@ private struct WorkoutsSheet: View {
                     showNothingToSave: $showNothingToSave
                 )
             )
-            .observeSystemColorScheme($systemColorScheme)
-            .preferredColorScheme(preferredScheme)
-            .task {
-                for await settings in UserSettingsRepository.shared.settings {
-                    appearance = settings.appearance
-                }
-            }
+            .modifier(SheetAppearanceModifier())
     }
+}
 
-    // Resolving to nil here doesn't reliably clear a previously-set
-    // .preferredColorScheme override on a *presented* sheet (SwiftUI/UIKit
-    // bug), so "system" resolves to a concrete tracked value instead; see
-    // SystemColorScheme.swift.
-    private var preferredScheme: ColorScheme? {
-        switch appearance {
-        case .light: .light
-        case .dark: .dark
-        case .system: systemColorScheme
+private struct EmptyWorkoutSheet: View {
+    var body: some View {
+        NavigationStack {
+            WorkoutSessionView(routineId: 0, title: L10n.emptyWorkoutTitle)
         }
+        .modifier(SheetAppearanceModifier())
     }
 }
 
@@ -238,9 +238,121 @@ private struct ActiveSessionAlerts: ViewModifier {
     }
 }
 
-extension View {
-    func workoutsToolbar(onOpen: @escaping () -> Void) -> some View {
-        modifier(WorkoutsToolbar(onOpen: onOpen))
+private struct FloatingWorkoutMenuInset: ViewModifier {
+    @Binding var isExpanded: Bool
+    let onStartEmptyWorkout: () -> Void
+    let onChooseProgram: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                FloatingWorkoutMenuOverlay(
+                    isExpanded: $isExpanded,
+                    onStartEmptyWorkout: onStartEmptyWorkout,
+                    onChooseProgram: onChooseProgram
+                )
+            }
+    }
+}
+
+private struct FloatingWorkoutMenuOverlay: View {
+    @Binding var isExpanded: Bool
+    let onStartEmptyWorkout: () -> Void
+    let onChooseProgram: () -> Void
+
+    var body: some View {
+        ZStack {
+            if isExpanded {
+                Color.black.opacity(0.28)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {
+                            isExpanded = false
+                        }
+                    }
+            }
+
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 12) {
+                        if isExpanded {
+                            FloatingWorkoutOptionButton(
+                                title: L10n.emptyWorkout,
+                                systemImage: "play.fill"
+                            ) {
+                                isExpanded = false
+                                onStartEmptyWorkout()
+                            }
+                            .transition(
+                                .asymmetric(
+                                    insertion: .move(edge: .bottom)
+                                        .combined(with: .opacity)
+                                        .combined(with: .scale(scale: 0.85, anchor: .bottomTrailing)),
+                                    removal: .opacity.combined(with: .scale(scale: 0.85, anchor: .bottomTrailing))
+                                )
+                            )
+
+                            FloatingWorkoutOptionButton(
+                                title: L10n.chooseProgram,
+                                systemImage: "list.clipboard"
+                            ) {
+                                isExpanded = false
+                                onChooseProgram()
+                            }
+                            .transition(
+                                .asymmetric(
+                                    insertion: .move(edge: .bottom)
+                                        .combined(with: .opacity)
+                                        .combined(with: .scale(scale: 0.85, anchor: .bottomTrailing)),
+                                    removal: .opacity.combined(with: .scale(scale: 0.85, anchor: .bottomTrailing))
+                                )
+                            )
+                        }
+
+                        Button {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {
+                                isExpanded.toggle()
+                            }
+                        } label: {
+                            Image(systemName: isExpanded ? "xmark" : "list.clipboard")
+                                .font(.title2.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .contentTransition(.symbolEffect(.replace))
+                                .frame(width: 56, height: 56)
+                                .glassEffect(.regular.tint(.accentColor).interactive(), in: .circle)
+                                .shadow(color: .black.opacity(0.18), radius: 8, y: 4)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(isExpanded ? L10n.close : L10n.tabWorkouts)
+                    }
+                    .padding(.trailing, 16)
+                    .padding(.bottom, 16)
+                }
+            }
+        }
+        .animation(.spring(response: 0.28, dampingFraction: 0.85), value: isExpanded)
+    }
+}
+
+private struct FloatingWorkoutOptionButton: View {
+    let title: String
+    let systemImage: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .glassEffect(.regular.interactive(), in: .capsule)
+                .shadow(color: .black.opacity(0.14), radius: 6, y: 3)
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -267,18 +379,18 @@ struct ContentView: View {
                     NavigationStack {
                         ExercisesView()
                             .navigationTitle(L10n.tabExercises)
-                            .workoutsToolbar { appCoordinator.showingWorkouts = true }
                             .tabRootStyle()
                     }
+                    .modifier(floatingWorkoutMenu)
                     .modifier(sessionBarInset)
                 }
                 Tab(L10n.tabHistory, systemImage: "calendar",
                     value: AppNavigationCoordinator.AppTab.calendar) {
                     NavigationStack {
                         CalendarView()
-                            .workoutsToolbar { appCoordinator.showingWorkouts = true }
                             .tabRootStyle()
                     }
+                    .modifier(floatingWorkoutMenu)
                     .modifier(sessionBarInset)
                 }
                 Tab(L10n.tabProgress, systemImage: "chart.line.uptrend.xyaxis",
@@ -286,9 +398,9 @@ struct ContentView: View {
                     NavigationStack {
                         ProgressTabView()
                             .navigationTitle(L10n.tabProgress)
-                            .workoutsToolbar { appCoordinator.showingWorkouts = true }
                             .tabRootStyle()
                     }
+                    .modifier(floatingWorkoutMenu)
                     .modifier(sessionBarInset)
                 }
                 Tab(L10n.profile, systemImage: "gearshape",
@@ -296,19 +408,25 @@ struct ContentView: View {
                     NavigationStack {
                         ProfileView()
                             .navigationTitle(L10n.profile)
-                            .workoutsToolbar { appCoordinator.showingWorkouts = true }
                             .tabRootStyle()
                     }
+                    .modifier(floatingWorkoutMenu)
                     .modifier(sessionBarInset)
                 }
             }
             .tabBarMinimizeBehavior(.automatic)
+            .onChange(of: appCoordinator.selectedTab) {
+                appCoordinator.workoutMenuExpanded = false
+            }
             .sheet(isPresented: $appCoordinator.showingWorkouts) {
                 WorkoutsSheet(
                     activeSession: activeSession,
                     restRemainingSeconds: restRemainingSeconds,
                     restTotalSeconds: Int(activeRestTimer?.durationSeconds ?? WorkoutSessionFormStateKt.REST_TIMER_DURATION_SECONDS)
                 )
+            }
+            .sheet(isPresented: $appCoordinator.showingEmptyWorkout) {
+                EmptyWorkoutSheet()
             }
             .task {
                 for await session in WorkoutSessionRepository.shared.activeSession {
@@ -357,12 +475,21 @@ struct ContentView: View {
         }
     }
 
+    private var floatingWorkoutMenu: FloatingWorkoutMenuInset {
+        FloatingWorkoutMenuInset(
+            isExpanded: $appCoordinator.workoutMenuExpanded,
+            onStartEmptyWorkout: { appCoordinator.showingEmptyWorkout = true },
+            onChooseProgram: { appCoordinator.showingWorkouts = true }
+        )
+    }
+
     private var sessionBarInset: ActiveSessionBarInset {
         ActiveSessionBarInset(
             session: activeSession,
             restRemainingSeconds: restRemainingSeconds,
             restTotalSeconds: Int(activeRestTimer?.durationSeconds ?? WorkoutSessionFormStateKt.REST_TIMER_DURATION_SECONDS),
             onOpen: { session in
+                appCoordinator.workoutMenuExpanded = false
                 appCoordinator.showingWorkouts = true
                 WorkoutSessionPresentation.shared.requestOpen(
                     routineId: session.routineId,
@@ -370,9 +497,13 @@ struct ContentView: View {
                 )
             },
             onComplete: { session in
+                appCoordinator.workoutMenuExpanded = false
                 completeWorkoutSession(session) { showNothingToSave = true }
             },
-            onDiscard: { showDiscardConfirm = true }
+            onDiscard: {
+                appCoordinator.workoutMenuExpanded = false
+                showDiscardConfirm = true
+            }
         )
     }
 

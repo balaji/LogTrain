@@ -18,7 +18,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -70,20 +69,6 @@ private sealed interface ProgramDialog {
     data class DeleteRoutine(val routine: Routine) : ProgramDialog
     data class CopySample(val sample: SampleProgram) : ProgramDialog
     data class ViewSampleRoutine(val routine: SampleRoutine) : ProgramDialog
-}
-
-/**
- * Entry point to the workouts/programs screen, shown as the trailing top-bar
- * action on each tab root now that Workouts no longer has a tab of its own.
- */
-@Composable
-fun WorkoutsTopBarButton(onClick: () -> Unit) {
-    IconButton(onClick = onClick) {
-        Icon(
-            Icons.AutoMirrored.Filled.Assignment,
-            contentDescription = stringResource(Res.string.tab_workouts),
-        )
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -73,6 +73,8 @@
     <!-- Programs -->
     <string name="programs_title">Program</string>
     <string name="empty_workout_title">Tomt pass</string>
+    <string name="empty_workout">Tomt pass</string>
+    <string name="choose_program">Välj program</string>
     <string name="new_program_cd">Nytt program</string>
     <string name="new_program">Nytt program</string>
     <string name="rename_program">Byt namn på program</string>

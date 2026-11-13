@@ -22,19 +22,15 @@ fun ScreenContent(
     route: Route,
     onNavigate: (Route) -> Unit,
     onGoBack: () -> Unit,
-    // Workouts is an app-level overlay (like the iOS sheet), not a route, so
-    // opening it is a callback up to the scaffold rather than a navigation.
-    onOpenWorkouts: () -> Unit = {},
 ) {
     when (route) {
-        ExercisesRoute -> ExercisesScreen(onNavigate = onNavigate, onOpenWorkouts = onOpenWorkouts)
+        ExercisesRoute -> ExercisesScreen(onNavigate = onNavigate)
         WorkoutsRoute -> ProgramsScreen(onNavigate = onNavigate, onGoBack = onGoBack)
         CalendarRoute -> CalendarScreen(
             onDayClick = { epochDay -> onNavigate(DayDetailRoute(epochDay)) },
-            onOpenWorkouts = onOpenWorkouts,
         )
-        ProgressRoute -> ProgressScreen(onOpenWorkouts = onOpenWorkouts)
-        ProfileRoute -> ProfileScreen(onOpenWorkouts = onOpenWorkouts)
+        ProgressRoute -> ProgressScreen()
+        ProfileRoute -> ProfileScreen()
         is RoutineDetailRoute -> RoutineDetailScreen(route = route, onNavigate = onNavigate, onGoBack = onGoBack)
         ExerciseCreateRoute -> ExerciseCreateScreen(onGoBack = onGoBack)
         is ExerciseDetailRoute -> ExerciseDetailScreen(route = route, onGoBack = onGoBack)

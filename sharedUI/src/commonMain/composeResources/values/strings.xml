@@ -73,6 +73,8 @@
     <!-- Programs -->
     <string name="programs_title">Programs</string>
     <string name="empty_workout_title">Empty workout</string>
+    <string name="empty_workout">Empty Workout</string>
+    <string name="choose_program">Choose Program</string>
     <string name="new_program_cd">New Program</string>
     <string name="new_program">New program</string>
     <string name="rename_program">Rename program</string>
