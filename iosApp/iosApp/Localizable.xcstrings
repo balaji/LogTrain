@@ -1446,6 +1446,23 @@
         }
       }
     },
+    "add_new": {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lägg till ny"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add New"
+          }
+        }
+      }
+    },
     "search_exercises": {
       "extractionState": "manual",
       "localizations": {

@@ -141,6 +141,7 @@ enum L10n {
     static let sampleRoutineLower = String(localized: "sample_routine_lower", defaultValue: "Lower")
 
     // MARK: - Exercises
+    static let addNew = String(localized: "add_new", defaultValue: "Add New")
     static let searchExercises = String(localized: "search_exercises", defaultValue: "Search exercises")
     static let bodyPart = String(localized: "body_part", defaultValue: "Body part")
     static let equipment = String(localized: "equipment", defaultValue: "Equipment")

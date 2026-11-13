@@ -75,7 +75,7 @@ struct ExercisesView: View {
         .toolbar {
             if onExerciseSelected == nil {
                 ToolbarItem(placement: .primaryAction) {
-                    Button(L10n.add) {
+                    Button(L10n.addNew) {
                         showingCreateSheet = true
                     }
                     .accessibilityLabel(L10n.addExercise)

@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateListOf
  * Minimal back stack for platforms where Compose owns navigation
  * (Android). On iOS the SwiftUI shell owns the stack instead.
  */
-class NavStack(start: TopLevelRoute) {
+class NavStack(start: Route) {
     val backStack = mutableStateListOf<Route>(start)
 
     val current: Route get() = backStack.last()

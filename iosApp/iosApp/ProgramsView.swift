@@ -110,6 +110,7 @@ private enum DeleteTarget: Identifiable {
 }
 
 struct ProgramsView: View {
+    @Environment(\.dismiss) private var dismiss
     @State private var path = NavigationPath()
     @State private var programs: [Program]?
     @State private var routines: [Routine]?
@@ -138,7 +139,6 @@ struct ProgramsView: View {
             listWithAlerts
             .navigationTitle(L10n.programsTitle)
             .navigationBarTitleDisplayMode(.inline)
-            .profileToolbar()
             .scrollBounceBehavior(.basedOnSize)
             .navigationDestination(for: RoutineTarget.self) { target in
                 RoutineDetailView(routineId: target.routineId, title: target.title, isNew: target.isNew)
@@ -146,14 +146,20 @@ struct ProgramsView: View {
             .navigationDestination(for: WorkoutSessionTarget.self) { target in
                 WorkoutSessionView(routineId: target.routineId, title: target.title)
             }
+            .onAppear {
+                if let target = WorkoutSessionPresentation.shared.consumePendingOpen() {
+                    path = NavigationPath([target])
+                }
+            }
             .onChange(of: WorkoutSessionPresentation.shared.openRequestID) {
-                // Replace the whole stack rather than appending: a stale
-                // session screen may still be pushed here from an earlier
-                // visit, and stacking a second one on top of it is what
-                // used to break the mini bar's visibility tracking.
-                path = NavigationPath([WorkoutSessionPresentation.shared.pendingTarget])
+                if let target = WorkoutSessionPresentation.shared.consumePendingOpen() {
+                    path = NavigationPath([target])
+                }
             }
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(L10n.done) { dismiss() }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         promptText = ""

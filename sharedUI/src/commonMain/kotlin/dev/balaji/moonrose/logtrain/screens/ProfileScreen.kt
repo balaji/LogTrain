@@ -11,13 +11,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Brightness6
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
@@ -65,6 +63,7 @@ import dev.balaji.moonrose.logtrain.model.RestTimerSound
 import dev.balaji.moonrose.logtrain.model.WeightUnit
 import dev.balaji.moonrose.logtrain.model.clampRestTimerSeconds
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
+import dev.balaji.moonrose.logtrain.navigation.PlatformBackHandler
 import dev.balaji.moonrose.logtrain.notifications.NotificationPermissionResult
 import dev.balaji.moonrose.logtrain.notifications.rememberNotificationPermissionRequester
 import dev.balaji.moonrose.logtrain.notifications.rememberNotificationSettingsOpener
@@ -75,48 +74,48 @@ import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(onGoBack: () -> Unit) {
+fun ProfileScreen(onOpenWorkouts: () -> Unit = {}) {
+    var editing by remember { mutableStateOf(false) }
+
     if (LocalUseNativeNavigation.current) {
-        ProfileContent(Modifier.padding(WindowInsets.safeDrawing.asPaddingValues()))
+        ProfileContent(
+            editing = editing,
+            onEditingChange = { editing = it },
+            modifier = Modifier.padding(WindowInsets.safeDrawing.asPaddingValues()),
+        )
     } else {
+        PlatformBackHandler(enabled = editing) { editing = false }
         Scaffold(
             topBar = {
                 TopAppBar(
                     title = { Text(stringResource(Res.string.profile)) },
                     navigationIcon = {
-                        IconButton(onClick = onGoBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.back))
+                        if (editing) {
+                            IconButton(onClick = { editing = false }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.back))
+                            }
                         }
                     },
+                    actions = { WorkoutsTopBarButton(onClick = onOpenWorkouts) },
                 )
             },
         ) { padding ->
-            ProfileContent(Modifier.padding(padding))
+            ProfileContent(
+                editing = editing,
+                onEditingChange = { editing = it },
+                modifier = Modifier.padding(padding),
+            )
         }
     }
 }
 
-/**
- * Entry point to the profile screen, shown as the leading top-bar action on
- * each tab root now that Profile no longer has a tab of its own.
- */
 @Composable
-fun ProfileTopBarButton(onClick: () -> Unit) {
-    IconButton(onClick = onClick) {
-        // 32dp (vs. the default 24dp) still fits the 48dp touch target.
-        Icon(
-            Icons.Filled.AccountCircle,
-            contentDescription = stringResource(Res.string.profile),
-            modifier = Modifier.size(32.dp),
-        )
-    }
-}
-
-@Composable
-private fun ProfileContent(modifier: Modifier = Modifier) {
+private fun ProfileContent(
+    editing: Boolean,
+    onEditingChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val profile by ProfileRepository.profile.collectAsState(initial = null)
-    var editing by remember { mutableStateOf(false) }
-
     val current = profile ?: return
 
     // No verticalScroll here: ProfileForm scrolls itself, and nesting it in
@@ -125,10 +124,10 @@ private fun ProfileContent(modifier: Modifier = Modifier) {
         if (editing) {
             ProfileForm(
                 initial = current,
-                onSaved = { editing = false },
+                onSaved = { onEditingChange(false) },
             )
         } else {
-            ProfileDetails(profile = current, onEdit = { editing = true })
+            ProfileDetails(profile = current, onEdit = { onEditingChange(true) })
         }
     }
 }
