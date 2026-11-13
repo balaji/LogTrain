@@ -2,11 +2,11 @@ package dev.balaji.moonrose.logtrain.db
 
 import dev.balaji.moonrose.logtrain.model.Exercise
 import dev.balaji.moonrose.logtrain.model.ExerciseType
-import dev.balaji.moonrose.logtrain.model.PlateMath
+import dev.balaji.moonrose.logtrain.model.SetField
 import dev.balaji.moonrose.logtrain.model.SetType
+import dev.balaji.moonrose.logtrain.model.WeightUnit
 import dev.balaji.moonrose.logtrain.model.isSetComplete
 import dev.balaji.moonrose.logtrain.model.requiredSetFields
-import dev.balaji.moonrose.logtrain.model.SetField
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -15,6 +15,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -33,6 +34,21 @@ data class DraftSessionSet(
     val actualDistance: String = "",
     val setType: SetType = SetType.NORMAL,
     val completed: Boolean = false,
+    // Recorded numeric values + units so toggling units mid-workout converts
+    // display strings uniformly without losing precision on untouched sets.
+    internal val rawTargetWeight: Double? = null,
+    internal val rawTargetDistance: Double? = null,
+    internal val targetUnit: WeightUnit = WeightUnit.METRIC,
+    internal val rawActualWeight: Double? = null,
+    internal val rawActualDistance: Double? = null,
+    internal val actualUnit: WeightUnit = WeightUnit.METRIC,
+)
+
+internal fun DraftSessionSet.formattedFor(unit: WeightUnit): DraftSessionSet = copy(
+    targetWeight = rawTargetWeight?.let { WeightUnit.formatWeight(it, targetUnit, unit) } ?: targetWeight,
+    targetDistance = rawTargetDistance?.let { WeightUnit.formatDistance(it, targetUnit, unit) } ?: targetDistance,
+    actualWeight = rawActualWeight?.let { WeightUnit.formatWeight(it, actualUnit, unit) } ?: actualWeight,
+    actualDistance = rawActualDistance?.let { WeightUnit.formatDistance(it, actualUnit, unit) } ?: actualDistance,
 )
 
 /** Whether the logged values satisfy every field [type] requires. */
@@ -40,7 +56,7 @@ private fun DraftSessionSet.meetsRequirements(type: ExerciseType): Boolean =
     type.isSetComplete(
         reps = actualReps.toIntOrNull(),
         durationSeconds = parseDurationSeconds(actualDuration),
-        distance = actualDistance.toDoubleOrNull(),
+        distance = rawActualDistance ?: actualDistance.toDoubleOrNull(),
     )
 
 data class DraftSessionExercise(
@@ -53,6 +69,7 @@ data class DraftSessionExercise(
      * N; rows beyond the list show a placeholder.
      */
     val previousSets: List<String> = emptyList(),
+    internal val previousSetRows: List<PreviousSetRow> = emptyList(),
 ) {
     /**
      * Whether weight cells offer the plate keyboard. Barbell only for now —
@@ -201,6 +218,19 @@ data class WorkoutSessionUiState(
             restTimer = nextTimer,
         )
     }
+
+    internal fun withDisplayUnit(unit: WeightUnit): WorkoutSessionUiState = copy(
+        exercises = exercises.map { ex ->
+            ex.copy(
+                sets = ex.sets.map { it.formattedFor(unit) },
+                previousSets = if (ex.previousSetRows.isNotEmpty()) {
+                    formatPreviousSets(ex.previousSetRows, ex.exercise, unit)
+                } else {
+                    ex.previousSets
+                },
+            )
+        },
+    )
 }
 
 class WorkoutSessionFormState(internal val sessionId: Long) {
@@ -209,6 +239,7 @@ class WorkoutSessionFormState(internal val sessionId: Long) {
     private var nextId = 0L
     private val scope = CoroutineScope(Dispatchers.Main)
     private var restTimerDurationSeconds: Long = REST_TIMER_DURATION_SECONDS
+    private var currentWeightUnit: WeightUnit = WeightUnit.METRIC
 
     // Serializes persist() runs so a debounced autosave and an explicit
     // save/finish can never interleave their delete+insert rewrites.
@@ -225,9 +256,17 @@ class WorkoutSessionFormState(internal val sessionId: Long) {
         settingsJob = scope.launch {
             UserSettingsRepository.settings.collect { settings ->
                 restTimerDurationSeconds = settings.restTimerDurationSeconds.toLong()
+                val newUnit = settings.weightUnit
+                if (newUnit != currentWeightUnit) {
+                    currentWeightUnit = newUnit
+                    if (!_uiState.value.loading) {
+                        updateState(_uiState.value.withDisplayUnit(newUnit))
+                    }
+                }
             }
         }
         scope.launch {
+            currentWeightUnit = UserSettingsRepository.settings.first().weightUnit
             val session = AppDb.db.workoutSessionDao().findById(sessionId)
             val details = AppDb.db.workoutSessionDetailDao().getForSession(sessionId)
             // Details arrive in flat position order with sets of the same
@@ -242,7 +281,9 @@ class WorkoutSessionFormState(internal val sessionId: Long) {
                     DraftSessionExercise(
                         id = nextId++,
                         exercise = ex,
-                        sets = currentSets.toList().ifEmpty { listOf(DraftSessionSet()) },
+                        sets = currentSets.toList().ifEmpty {
+                            listOf(DraftSessionSet(targetUnit = currentWeightUnit, actualUnit = currentWeightUnit))
+                        },
                     ),
                 )
             }
@@ -255,22 +296,28 @@ class WorkoutSessionFormState(internal val sessionId: Long) {
                 }
                 currentSets.add(
                     DraftSessionSet(
-                        targetWeight = detail.targetWeight?.formatWeight().orEmpty(),
                         targetReps = detail.targetReps?.toString().orEmpty(),
                         targetDuration = formatDurationText(detail.targetDuration),
-                        targetDistance = detail.targetDistance?.formatWeight().orEmpty(),
-                        actualWeight = detail.actualWeight?.formatWeight().orEmpty(),
                         actualReps = detail.actualReps?.toString().orEmpty(),
                         actualDuration = formatDurationText(detail.actualDuration),
-                        actualDistance = detail.actualDistance?.formatWeight().orEmpty(),
                         setType = detail.setType,
                         completed = detail.completed,
+                        rawTargetWeight = detail.targetWeight,
+                        rawTargetDistance = detail.targetDistance,
+                        targetUnit = detail.weightUnit,
+                        rawActualWeight = detail.actualWeight,
+                        rawActualDistance = detail.actualDistance,
+                        actualUnit = detail.weightUnit,
                     ),
                 )
             }
             flush()
             val withPrevious = grouped.map { draft ->
-                draft.copy(previousSets = loadPreviousSets(draft.exercise))
+                val rows = loadPreviousSetRows(draft.exercise)
+                draft.copy(
+                    previousSetRows = rows,
+                    previousSets = formatPreviousSets(rows, draft.exercise, currentWeightUnit),
+                )
             }
             if (!closed) {
                 updateState(
@@ -278,7 +325,7 @@ class WorkoutSessionFormState(internal val sessionId: Long) {
                         loading = false,
                         exercises = withPrevious,
                         startedAt = session?.performedAt ?: 0L,
-                    ),
+                    ).withDisplayUnit(currentWeightUnit),
                 )
             }
         }
@@ -310,21 +357,33 @@ class WorkoutSessionFormState(internal val sessionId: Long) {
     fun addExercise(exercise: Exercise) {
         val draftId = nextId++
         val current = _uiState.value
+        val unit = currentWeightUnit
         updateState(
             current.copy(
-                exercises = current.exercises + DraftSessionExercise(id = draftId, exercise = exercise),
+                exercises = current.exercises + DraftSessionExercise(
+                    id = draftId,
+                    exercise = exercise,
+                    sets = listOf(DraftSessionSet(targetUnit = unit, actualUnit = unit)),
+                ),
             ),
         )
         scheduleAutosave()
         // Previous values come from the db; fill them in once loaded.
         scope.launch {
-            val previous = loadPreviousSets(exercise)
-            if (previous.isEmpty() || closed) return@launch
+            val rows = loadPreviousSetRows(exercise)
+            if (rows.isEmpty() || closed) return@launch
             val state = _uiState.value
             updateState(
                 state.copy(
                     exercises = state.exercises.map {
-                        if (it.id == draftId) it.copy(previousSets = previous) else it
+                        if (it.id == draftId) {
+                            it.copy(
+                                previousSetRows = rows,
+                                previousSets = formatPreviousSets(rows, exercise, currentWeightUnit),
+                            )
+                        } else {
+                            it
+                        }
                     },
                 ),
             )
@@ -332,7 +391,10 @@ class WorkoutSessionFormState(internal val sessionId: Long) {
     }
 
     fun addSet(exerciseIndex: Int) {
-        updateExercise(exerciseIndex) { ex -> ex.copy(sets = ex.sets + DraftSessionSet()) }
+        val unit = currentWeightUnit
+        updateExercise(exerciseIndex) { ex ->
+            ex.copy(sets = ex.sets + DraftSessionSet(targetUnit = unit, actualUnit = unit))
+        }
     }
 
     fun removeSet(exerciseIndex: Int, setIndex: Int) {
@@ -356,7 +418,20 @@ class WorkoutSessionFormState(internal val sessionId: Long) {
 
     fun updateActualWeight(exerciseIndex: Int, setIndex: Int, value: String) {
         val weight = value.filterDecimal()
-        updateSet(exerciseIndex, setIndex) { set, _ -> set.copy(actualWeight = weight) }
+        val unit = currentWeightUnit
+        updateSet(exerciseIndex, setIndex) { set, _ ->
+            val convertedDistance = if (set.actualUnit != unit) {
+                set.rawActualDistance?.let { set.actualUnit.convertDistance(it, unit) }
+            } else {
+                set.rawActualDistance
+            }
+            set.copy(
+                actualWeight = weight,
+                rawActualWeight = weight.toDoubleOrNull(),
+                rawActualDistance = convertedDistance,
+                actualUnit = unit,
+            )
+        }
     }
 
     fun updateActualReps(exerciseIndex: Int, setIndex: Int, value: String) {
@@ -370,7 +445,21 @@ class WorkoutSessionFormState(internal val sessionId: Long) {
     }
 
     fun updateActualDistance(exerciseIndex: Int, setIndex: Int, value: String) {
-        updateActualField(exerciseIndex, setIndex) { it.copy(actualDistance = value.filterDistance()) }
+        val distance = value.filterDistance()
+        val unit = currentWeightUnit
+        updateActualField(exerciseIndex, setIndex) { set ->
+            val convertedWeight = if (set.actualUnit != unit) {
+                set.rawActualWeight?.let { set.actualUnit.convertWeight(it, unit) }
+            } else {
+                set.rawActualWeight
+            }
+            set.copy(
+                actualDistance = distance,
+                rawActualDistance = distance.toDoubleOrNull(),
+                rawActualWeight = convertedWeight,
+                actualUnit = unit,
+            )
+        }
     }
 
     /**
@@ -480,21 +569,30 @@ class WorkoutSessionFormState(internal val sessionId: Long) {
         state.exercises.forEach { draft ->
             val sets = if (draft.sets.isEmpty()) listOf(DraftSessionSet()) else draft.sets
             sets.forEach { set ->
+                val actualWeight = set.rawActualWeight ?: set.actualWeight.toDoubleOrNull()
+                val actualDistance = set.rawActualDistance ?: set.actualDistance.toDoubleOrNull()
+                val rawTargetWeight = set.rawTargetWeight ?: set.targetWeight.toDoubleOrNull()
+                val rawTargetDistance = set.rawTargetDistance ?: set.targetDistance.toDoubleOrNull()
+                val hasActualMeasurement = actualWeight != null || actualDistance != null
+                val rowUnit = if (hasActualMeasurement) set.actualUnit else set.targetUnit
+                val targetWeight = rawTargetWeight?.let { set.targetUnit.convertWeight(it, rowUnit) }
+                val targetDistance = rawTargetDistance?.let { set.targetUnit.convertDistance(it, rowUnit) }
                 AppDb.db.workoutSessionDetailDao().insert(
                     WorkoutSessionDetailEntity(
                         workoutSessionId = sessionId,
                         workSetDetailId = null,
                         exerciseId = draft.exercise.id,
                         position = position++,
-                        targetWeight = set.targetWeight.toDoubleOrNull(),
+                        targetWeight = targetWeight,
                         targetReps = set.targetReps.toIntOrNull(),
                         targetDuration = parseDurationSeconds(set.targetDuration),
-                        targetDistance = set.targetDistance.toDoubleOrNull(),
-                        actualWeight = set.actualWeight.toDoubleOrNull(),
+                        targetDistance = targetDistance,
+                        actualWeight = actualWeight,
                         actualReps = set.actualReps.toIntOrNull(),
                         actualDuration = parseDurationSeconds(set.actualDuration),
-                        actualDistance = set.actualDistance.toDoubleOrNull(),
+                        actualDistance = actualDistance,
                         setType = set.setType,
+                        weightUnit = rowUnit,
                         completed = set.completed,
                         createdAt = now,
                         updatedAt = now,
@@ -504,21 +602,9 @@ class WorkoutSessionFormState(internal val sessionId: Long) {
         }
     }
 
-    private suspend fun loadPreviousSets(exercise: Exercise): List<String> =
+    private suspend fun loadPreviousSetRows(exercise: Exercise): List<PreviousSetRow> =
         AppDb.db.workoutSessionDetailDao()
             .getLatestCompletedSets(PROFILE_ID, exercise.id)
-            .map { row ->
-                val type = ExerciseType.fromValue(exercise.exerciseType) ?: ExerciseType.STRENGTH
-                val fields = type.requiredSetFields()
-                // Blank entries keep the list positionally aligned; the UI
-                // shows its placeholder for them.
-                listOfNotNull(
-                    row.actualWeight?.formatWeight()?.let { "${it}kg" },
-                    row.actualReps?.takeIf { SetField.REPS in fields }?.let { "x $it" },
-                    row.actualDuration?.takeIf { SetField.DURATION in fields }?.let { formatDurationHhMm(it) },
-                    row.actualDistance?.takeIf { SetField.DISTANCE in fields }?.formatWeight(),
-                ).joinToString(" ")
-            }
 
     private fun updateExercise(index: Int, transform: (DraftSessionExercise) -> DraftSessionExercise) {
         val current = _uiState.value
@@ -543,4 +629,24 @@ class WorkoutSessionFormState(internal val sessionId: Long) {
 
 private const val AUTOSAVE_DEBOUNCE_MS = 500L
 
-private fun Double.formatWeight(): String = PlateMath.formatWeight(this)
+internal fun formatPreviousSets(
+    rows: List<PreviousSetRow>,
+    exercise: Exercise,
+    displayUnit: WeightUnit,
+): List<String> {
+    val type = ExerciseType.fromValue(exercise.exerciseType) ?: ExerciseType.STRENGTH
+    val fields = type.requiredSetFields()
+    val unitSuffix = if (displayUnit == WeightUnit.IMPERIAL) "lb" else "kg"
+    return rows.map { row ->
+        // Blank entries keep the list positionally aligned; the UI
+        // shows its placeholder for them.
+        listOfNotNull(
+            row.actualWeight?.let { "${WeightUnit.formatWeight(it, row.weightUnit, displayUnit)}$unitSuffix" },
+            row.actualReps?.takeIf { SetField.REPS in fields }?.let { "x $it" },
+            row.actualDuration?.takeIf { SetField.DURATION in fields }?.let { formatDurationHhMm(it) },
+            row.actualDistance?.takeIf { SetField.DISTANCE in fields }?.let {
+                WeightUnit.formatDistance(it, row.weightUnit, displayUnit)
+            },
+        ).joinToString(" ")
+    }
+}

@@ -58,6 +58,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -108,6 +109,10 @@ fun RoutineDetailScreen(route: RoutineDetailRoute, onNavigate: (Route) -> Unit, 
     var formStateKey by remember { mutableIntStateOf(0) }
     val formState = remember(formStateKey) { RoutineFormState(route.routineId, route.title) }
     val uiState by formState.uiState.collectAsState()
+    val settings by UserSettingsRepository.settings.collectAsState(initial = UserSettings())
+    LaunchedEffect(formState, settings.weightUnit) {
+        formState.setDisplayUnit(settings.weightUnit)
+    }
     val startWorkout = rememberStartWorkoutHandler { workoutRoute ->
         onNavigate(workoutRoute)
     }

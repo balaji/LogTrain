@@ -1,9 +1,10 @@
 package dev.balaji.moonrose.logtrain.db
 
 import dev.balaji.moonrose.logtrain.model.SetType
+import dev.balaji.moonrose.logtrain.model.WeightUnit
 import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
@@ -36,6 +37,7 @@ data class DaySession(
 data class DayDetailUiState(
     val loading: Boolean = true,
     val sessions: List<DaySession> = emptyList(),
+    val weightUnit: WeightUnit = WeightUnit.METRIC,
 )
 
 class DayDetailState(private val epochDay: Long) {
@@ -49,25 +51,36 @@ class DayDetailState(private val epochDay: Long) {
         val zone = TimeZone.currentSystemDefault()
         val startMillis = LocalDate.fromEpochDays(epochDay).atStartOfDayIn(zone).toEpochMilliseconds()
         val endMillis = LocalDate.fromEpochDays(epochDay + 1).atStartOfDayIn(zone).toEpochMilliseconds()
-        AppDb.db.workoutSessionDao()
-            .observeCompletedInRange(PROFILE_ID, startMillis, endMillis)
-            .map { sessions ->
-                DayDetailUiState(loading = false, sessions = sessions.map { toDaySession(it) })
-            }
+        combine(
+            AppDb.db.workoutSessionDao().observeCompletedInRange(PROFILE_ID, startMillis, endMillis),
+            UserSettingsRepository.settings,
+        ) { sessions, settings ->
+            DayDetailUiState(
+                loading = false,
+                sessions = sessions.map { toDaySession(it, settings.weightUnit) },
+                weightUnit = settings.weightUnit,
+            )
+        }
     }
 
-    private suspend fun toDaySession(session: WorkoutSessionEntity): DaySession {
+    private suspend fun toDaySession(
+        session: WorkoutSessionEntity,
+        displayUnit: WeightUnit,
+    ): DaySession {
         val routine = session.routineId?.let { AppDb.db.routineDao().findById(it) }
         val details = AppDb.db.workoutSessionDetailDao().getForSession(session.id)
         return DaySession(
             id = session.id,
             routineName = routine?.name,
-            exercises = groupByExercise(details),
+            exercises = groupByExercise(details, displayUnit),
         )
     }
 
     /** Details arrive in flat position order with sets of the same exercise adjacent. */
-    private suspend fun groupByExercise(details: List<WorkoutSessionDetailEntity>): List<DaySessionExercise> {
+    private suspend fun groupByExercise(
+        details: List<WorkoutSessionDetailEntity>,
+        displayUnit: WeightUnit,
+    ): List<DaySessionExercise> {
         val grouped = mutableListOf<DaySessionExercise>()
         var currentExerciseId = -1L
         var currentName = ""
@@ -84,14 +97,14 @@ class DayDetailState(private val epochDay: Long) {
             }
             currentSets.add(
                 DaySessionSet(
-                    targetWeight = detail.targetWeight?.formatDayDetailNumber().orEmpty(),
+                    targetWeight = detail.targetWeight?.let { WeightUnit.formatWeight(it, detail.weightUnit, displayUnit) }.orEmpty(),
                     targetReps = detail.targetReps?.toString().orEmpty(),
                     targetDuration = detail.targetDuration?.let(::formatDurationHhMm).orEmpty(),
-                    targetDistance = detail.targetDistance?.formatDayDetailNumber().orEmpty(),
-                    actualWeight = detail.actualWeight?.formatDayDetailNumber().orEmpty(),
+                    targetDistance = detail.targetDistance?.let { WeightUnit.formatDistance(it, detail.weightUnit, displayUnit) }.orEmpty(),
+                    actualWeight = detail.actualWeight?.let { WeightUnit.formatWeight(it, detail.weightUnit, displayUnit) }.orEmpty(),
                     actualReps = detail.actualReps?.toString().orEmpty(),
                     actualDuration = detail.actualDuration?.let(::formatDurationHhMm).orEmpty(),
-                    actualDistance = detail.actualDistance?.formatDayDetailNumber().orEmpty(),
+                    actualDistance = detail.actualDistance?.let { WeightUnit.formatDistance(it, detail.weightUnit, displayUnit) }.orEmpty(),
                     setType = detail.setType,
                     completed = detail.completed,
                 ),
@@ -101,6 +114,3 @@ class DayDetailState(private val epochDay: Long) {
         return grouped
     }
 }
-
-private fun Double.formatDayDetailNumber(): String =
-    if (this == toLong().toDouble()) toLong().toString() else toString()

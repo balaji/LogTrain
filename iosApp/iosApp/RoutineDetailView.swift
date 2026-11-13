@@ -103,6 +103,7 @@ struct RoutineDetailView: View {
             }
         }
         .task(id: formVersion) {
+            formState.setDisplayUnit(unit: weightUnit)
             for await state in formState.uiState {
                 uiState = state
             }
@@ -110,6 +111,7 @@ struct RoutineDetailView: View {
         .task {
             for await settings in UserSettingsRepository.shared.settings {
                 weightUnit = settings.weightUnit
+                formState.setDisplayUnit(unit: settings.weightUnit)
             }
         }
         .task {

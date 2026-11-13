@@ -58,7 +58,7 @@ class ProgressScreenState {
                     bodyPartBreakdown = bodyParts,
                     weightUnit = settings.weightUnit,
                     latestBodyWeight = entries.firstOrNull()
-                        ?.let { InsightMath.formatNumber(it.weight) }
+                        ?.let { InsightMath.formatNumber(it.weightUnit.convertWeight(it.weight, settings.weightUnit)) }
                         .orEmpty(),
                     savingWeight = _uiState.value.savingWeight,
                     progressionOptions = progressionOptions,

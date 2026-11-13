@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
@@ -113,6 +114,7 @@ object WorkoutSessionRepository {
         )
 
         val workSets = AppDb.db.workSetDao().getForRoutine(routineId)
+        val currentUnit = UserSettingsRepository.settings.first().weightUnit
         var position = 1
         for (ws in workSets) {
             val details = AppDb.db.workSetDetailDao().getForWorkSet(ws.id)
@@ -133,6 +135,7 @@ object WorkoutSessionRepository {
                         actualReps = null,
                         actualDuration = null,
                         actualDistance = null,
+                        weightUnit = currentUnit,
                         completed = false,
                         createdAt = now,
                         updatedAt = now,
@@ -155,6 +158,7 @@ object WorkoutSessionRepository {
                             actualDuration = null,
                             actualDistance = null,
                             setType = detail.setType,
+                            weightUnit = detail.weightUnit,
                             completed = false,
                             createdAt = now,
                             updatedAt = now,

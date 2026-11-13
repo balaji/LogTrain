@@ -3,6 +3,7 @@ package dev.balaji.moonrose.logtrain.model
 import dev.balaji.moonrose.logtrain.calendar.WeekStart
 import dev.balaji.moonrose.logtrain.insights.BmiClassification
 import dev.balaji.moonrose.logtrain.insights.BmiFormula
+import dev.balaji.moonrose.logtrain.insights.InsightMath
 import dev.balaji.moonrose.logtrain.insights.OneRmFormula
 
 /**
@@ -23,10 +24,10 @@ enum class Appearance(val value: String) {
 }
 
 /**
- * Weight display units. Persisted as the lowercase [value] string in
- * user_settings. Logged set weights are unit-agnostic raw numbers that this
- * setting only relabels; the conversions below exist for the BMI calculator,
- * which needs true kilograms regardless of the display unit.
+ * Weight and distance display units. Persisted as the lowercase [value] string
+ * in user_settings and on recorded work-set, session-set, and body-metric rows
+ * so each logged number keeps the unit it was entered in and converts cleanly
+ * whenever the display preference changes.
  */
 enum class WeightUnit(val value: String) {
     METRIC("metric"),
@@ -39,10 +40,41 @@ enum class WeightUnit(val value: String) {
     /** A weight in kilograms, expressed in this unit for display. */
     fun fromKilograms(kg: Double): Double = if (this == IMPERIAL) kg / KG_PER_LB else kg
 
+    /** Converts a weight recorded in `this` unit into [target]. */
+    fun convertWeight(value: Double, target: WeightUnit): Double =
+        if (this == target) value else target.fromKilograms(toKilograms(value))
+
+    /** A distance the user typed in this unit, expressed in kilometers. */
+    fun toKilometers(value: Double): Double = if (this == IMPERIAL) value * KM_PER_MILE else value
+
+    /** A distance in kilometers, expressed in this unit for display. */
+    fun fromKilometers(km: Double): Double = if (this == IMPERIAL) km / KM_PER_MILE else km
+
+    /** Converts a distance recorded in `this` unit into [target]. */
+    fun convertDistance(value: Double, target: WeightUnit): Double =
+        if (this == target) value else target.fromKilometers(toKilometers(value))
+
     companion object {
         private const val KG_PER_LB = 0.45359237
+        private const val KM_PER_MILE = 1.609344
 
         fun fromValue(value: String?): WeightUnit = entries.firstOrNull { it.value == value } ?: METRIC
+
+        /**
+         * Formats [value] recorded in [from] for display in [to]. Preserves the
+         * exact recorded number when no conversion is needed; otherwise rounds to
+         * 1 decimal place.
+         */
+        fun formatWeight(value: Double, from: WeightUnit, to: WeightUnit): String =
+            if (from == to) PlateMath.formatWeight(value) else InsightMath.formatNumber(from.convertWeight(value, to), 1)
+
+        /**
+         * Formats [value] recorded in [from] for display in [to]. Preserves the
+         * exact recorded number when no conversion is needed; otherwise rounds to
+         * 1 decimal place.
+         */
+        fun formatDistance(value: Double, from: WeightUnit, to: WeightUnit): String =
+            if (from == to) PlateMath.formatWeight(value) else InsightMath.formatNumber(from.convertDistance(value, to), 1)
     }
 }
 

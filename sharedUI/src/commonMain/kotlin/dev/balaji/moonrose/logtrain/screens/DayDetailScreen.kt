@@ -36,6 +36,7 @@ import dev.balaji.moonrose.logtrain.db.DayDetailUiState
 import dev.balaji.moonrose.logtrain.db.DaySession
 import dev.balaji.moonrose.logtrain.db.DaySessionExercise
 import dev.balaji.moonrose.logtrain.model.SetType
+import dev.balaji.moonrose.logtrain.model.WeightUnit
 import dev.balaji.moonrose.logtrain.navigation.DayDetailRoute
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import org.jetbrains.compose.resources.stringResource
@@ -89,13 +90,13 @@ private fun DayDetailContent(route: DayDetailRoute, modifier: Modifier = Modifie
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         items(uiState.sessions, key = { it.id }) { session ->
-            SessionSummaryCard(session)
+            SessionSummaryCard(session, uiState.weightUnit)
         }
     }
 }
 
 @Composable
-private fun SessionSummaryCard(session: DaySession) {
+private fun SessionSummaryCard(session: DaySession, weightUnit: WeightUnit) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             session.routineName ?: stringResource(Res.string.workout),
@@ -103,14 +104,14 @@ private fun SessionSummaryCard(session: DaySession) {
             color = MaterialTheme.colorScheme.primary,
         )
         session.exercises.forEach { exercise ->
-            ExerciseSummaryRow(exercise)
+            ExerciseSummaryRow(exercise, weightUnit)
         }
         HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
     }
 }
 
 @Composable
-private fun ExerciseSummaryRow(exercise: DaySessionExercise) {
+private fun ExerciseSummaryRow(exercise: DaySessionExercise, weightUnit: WeightUnit) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(exercise.name, style = MaterialTheme.typography.bodyLarge)
         var workingSetNumber = 0
@@ -131,12 +132,14 @@ private fun ExerciseSummaryRow(exercise: DaySessionExercise) {
                 val reps = set.actualReps.ifBlank { set.targetReps }
                 val duration = set.actualDuration.ifBlank { set.targetDuration }
                 val distance = set.actualDistance.ifBlank { set.targetDistance }
+                val weightRes = if (weightUnit == WeightUnit.METRIC) Res.string.weight_kg_value else Res.string.weight_lb_value
+                val distanceRes = if (weightUnit == WeightUnit.METRIC) Res.string.distance_km_value else Res.string.distance_mi_value
                 Text(
                     listOfNotNull(
-                        weight.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.weight_kg_value, it) },
+                        weight.takeIf { it.isNotBlank() }?.let { stringResource(weightRes, it) },
                         reps.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.reps_value, it) },
                         duration.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.duration_value, it) },
-                        distance.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.distance_km_value, it) },
+                        distance.takeIf { it.isNotBlank() }?.let { stringResource(distanceRes, it) },
                     ).joinToString(" · ").ifBlank { "—" },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

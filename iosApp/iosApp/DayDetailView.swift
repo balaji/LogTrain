@@ -9,7 +9,7 @@ import SharedUI
 struct DayDetailView: View {
     let epochDay: Int64
     @State private var state: DayDetailState
-    @State private var uiState = DayDetailUiState(loading: true, sessions: [])
+    @State private var uiState = DayDetailUiState(loading: true, sessions: [], weightUnit: .metric)
 
     init(epochDay: Int64) {
         self.epochDay = epochDay
@@ -27,7 +27,7 @@ struct DayDetailView: View {
                     ForEach(uiState.sessions, id: \.id) { session in
                         Section(session.routineName ?? L10n.workout) {
                             ForEach(Array(session.exercises.enumerated()), id: \.offset) { _, exercise in
-                                ExerciseSummaryRow(exercise: exercise)
+                                ExerciseSummaryRow(exercise: exercise, weightUnit: uiState.weightUnit)
                             }
                         }
                     }
@@ -54,6 +54,7 @@ struct DayDetailView: View {
 
 private struct ExerciseSummaryRow: View {
     let exercise: DaySessionExercise
+    let weightUnit: WeightUnit
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -88,10 +89,14 @@ private struct ExerciseSummaryRow: View {
         let duration = set.actualDuration.isEmpty ? set.targetDuration : set.actualDuration
         let distance = set.actualDistance.isEmpty ? set.targetDistance : set.actualDistance
         var parts: [String] = []
-        if !weight.isEmpty { parts.append(L10n.weightKgValue(weight)) }
+        if !weight.isEmpty {
+            parts.append(weightUnit == .metric ? L10n.weightKgValue(weight) : L10n.weightLbValue(weight))
+        }
         if !reps.isEmpty { parts.append(L10n.repsValue(reps)) }
         if !duration.isEmpty { parts.append(L10n.durationValue(duration)) }
-        if !distance.isEmpty { parts.append(L10n.distanceKmValue(distance)) }
+        if !distance.isEmpty {
+            parts.append(weightUnit == .metric ? L10n.distanceKmValue(distance) : L10n.distanceMiValue(distance))
+        }
         return parts.isEmpty ? "—" : parts.joined(separator: " · ")
     }
 }

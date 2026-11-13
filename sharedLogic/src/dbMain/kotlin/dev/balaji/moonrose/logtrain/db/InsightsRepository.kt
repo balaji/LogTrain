@@ -15,6 +15,7 @@ import dev.balaji.moonrose.logtrain.insights.SparkSeries
 import dev.balaji.moonrose.logtrain.insights.TrainingFrequency
 import dev.balaji.moonrose.logtrain.insights.WeeklyVolumePoint
 import dev.balaji.moonrose.logtrain.model.ProgressionCardConfig
+import dev.balaji.moonrose.logtrain.model.WeightUnit
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.Flow
@@ -39,30 +40,46 @@ internal data class SetPoint(
     val reps: Int,
     val duration: Int,
     val distance: Double,
+    val weightUnit: WeightUnit = WeightUnit.METRIC,
 )
+
+internal fun SetPoint.convertedTo(targetUnit: WeightUnit): SetPoint =
+    if (weightUnit == targetUnit) {
+        this
+    } else {
+        copy(
+            weight = weightUnit.convertWeight(weight, targetUnit),
+            distance = weightUnit.convertDistance(distance, targetUnit),
+            weightUnit = targetUnit,
+        )
+    }
 
 /**
  * Deterministic analytics over completed workout history. All numbers are
- * computed here (never by a language model); the chat tools and the Progress
- * cards both read from this repository. Days are keyed on performed_at in the
- * device timezone at emission time, like CalendarRepository.
+ * computed here (never by a language model); the Progress cards read from
+ * this repository. Days are keyed on performed_at in the device timezone at
+ * emission time, like CalendarRepository.
  */
 object InsightsRepository {
     /**
      * Total volume per trailing 7-day window, oldest first, covering exactly
-     * [weeks] windows up to the one ending today.
+     * [weeks] windows up to the one ending today, converted to the user's
+     * current display unit.
      */
     suspend fun weeklyVolume(weeks: Int = 8): List<WeeklyVolumePoint> {
+        val settings = UserSettingsRepository.settings.first()
         val today = WeekMath.todayEpochDay()
         val firstWindowStart = today - 7L * weeks + 1
         val sets = completedSetsSince(startOfDayMillis(firstWindowStart))
+            .map { it.convertedTo(settings.weightUnit) }
         return weeklyVolumeFrom(sets, weeks, today)
     }
 
     /** Best sets by estimated 1RM, one per exercise, best first; all-time. */
     suspend fun personalRecords(limit: Int = 5, exerciseName: String? = null): List<ExercisePr> {
         val settings = UserSettingsRepository.settings.first()
-        return personalRecordsFrom(completedSetsSince(0), limit, exerciseName, settings.oneRmFormula)
+        val sets = completedSetsSince(0).map { it.convertedTo(settings.weightUnit) }
+        return personalRecordsFrom(sets, limit, exerciseName, settings.oneRmFormula)
     }
 
     /** Weekly best estimated 1RM for one exercise over the last [weeks] weeks; null when it has no history. */
@@ -71,6 +88,7 @@ object InsightsRepository {
         val today = WeekMath.todayEpochDay()
         val firstWeekStart = WeekMath.weekStartOnOrBefore(today, settings.weekStart) - 7L * (weeks - 1)
         val sets = completedSetsSince(startOfDayMillis(firstWeekStart))
+            .map { it.convertedTo(settings.weightUnit) }
         return progressionFrom(sets, exerciseName, today, settings.weekStart, settings.oneRmFormula)
     }
 
@@ -110,9 +128,9 @@ object InsightsRepository {
             val zone = TimeZone.currentSystemDefault()
             val today = WeekMath.todayEpochDay()
             buildCards(
-                sets = rows.map { it.toSetPoint(zone) },
+                sets = rows.map { it.toSetPoint(zone).convertedTo(settings.weightUnit) },
                 sessionDays = performedAt.map { millisToEpochDay(it, zone) },
-                bodyWeight = trendFrom(weightEntries.filter { it.epochDay >= today - 90 }, today),
+                bodyWeight = trendFrom(weightEntries.filter { it.epochDay >= today - 90 }, today, settings.weightUnit),
                 todayEpochDay = today,
                 weekStart = settings.weekStart,
                 progressionConfigs = settings.progressionCards,
@@ -134,7 +152,7 @@ object InsightsRepository {
         ) { rows, settings ->
             val zone = TimeZone.currentSystemDefault()
             eligibleProgressionExercises(
-                sets = rows.map { it.toSetPoint(zone) },
+                sets = rows.map { it.toSetPoint(zone).convertedTo(settings.weightUnit) },
                 todayEpochDay = WeekMath.todayEpochDay(),
                 weekStart = settings.weekStart,
             )
@@ -175,6 +193,7 @@ internal fun CompletedSetRow.toSetPoint(zone: TimeZone): SetPoint =
         reps = actualReps ?: 0,
         duration = actualDuration ?: 0,
         distance = actualDistance ?: 0.0,
+        weightUnit = weightUnit,
     )
 
 @OptIn(ExperimentalTime::class)
