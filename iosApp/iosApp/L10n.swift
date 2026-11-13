@@ -256,13 +256,12 @@ enum L10n {
     static func restTimerSoundLabel(_ sound: RestTimerSound) -> String {
         switch sound {
         case .none: return restSoundNone
-        case .default_: return restSoundDefault
+        case .`default`: return restSoundDefault
         case .proxima: return restSoundProxima
         case .mira: return restSoundMira
         case .antares: return restSoundAntares
         case .altair: return restSoundAltair
         case .deneb: return restSoundDeneb
-        default: return restSoundDefault
         }
     }
     // iOS-only: the week-start picker shows full weekday names
