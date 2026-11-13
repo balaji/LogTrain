@@ -124,6 +124,7 @@ struct ProgramsView: View {
     @State private var copyTarget: SampleProgram?
     @State private var routineInfo: SampleRoutine?
     @State private var errorMessage: String?
+    @State private var pendingWorkoutTarget: WorkoutSessionTarget?
 
     /// Static, code-defined catalog: unlike programs/routines there is nothing to observe.
     private let samplePrograms = SamplePrograms.shared.all
@@ -141,7 +142,12 @@ struct ProgramsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .scrollBounceBehavior(.basedOnSize)
             .navigationDestination(for: RoutineTarget.self) { target in
-                RoutineDetailView(routineId: target.routineId, title: target.title, isNew: target.isNew)
+                RoutineDetailView(
+                    routineId: target.routineId,
+                    title: target.title,
+                    isNew: target.isNew,
+                    onStartWorkout: { path.append($0) }
+                )
             }
             .navigationDestination(for: WorkoutSessionTarget.self) { target in
                 WorkoutSessionView(routineId: target.routineId, title: target.title)
@@ -187,8 +193,23 @@ struct ProgramsView: View {
             if let programs {
                 List {
                     Section {
-                        NavigationLink(value: WorkoutSessionTarget(routineId: 0, title: L10n.emptyWorkoutTitle)) {
-                            Text(L10n.startEmptyWorkout)
+                        Button {
+                            requestStartWorkout(
+                                WorkoutSessionTarget(routineId: 0, title: L10n.emptyWorkoutTitle),
+                                pendingTarget: $pendingWorkoutTarget
+                            ) { target in
+                                path.append(target)
+                            }
+                        } label: {
+                            HStack {
+                                Text(L10n.startEmptyWorkout)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .contentShape(Rectangle())
                         }
                     }
                     userProgramsSection(programs)
@@ -243,6 +264,9 @@ struct ProgramsView: View {
             Button(L10n.ok) { errorMessage = nil }
         } message: {
             Text(errorMessage ?? "")
+        }
+        .workoutInProgressAlert(pendingTarget: $pendingWorkoutTarget) { target in
+            path.append(target)
         }
     }
 

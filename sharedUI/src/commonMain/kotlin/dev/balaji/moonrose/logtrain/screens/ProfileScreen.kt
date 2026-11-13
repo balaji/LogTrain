@@ -74,7 +74,7 @@ import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(onOpenWorkouts: () -> Unit = {}) {
+fun ProfileScreen() {
     var editing by remember { mutableStateOf(false) }
 
     if (LocalUseNativeNavigation.current) {
@@ -96,7 +96,6 @@ fun ProfileScreen(onOpenWorkouts: () -> Unit = {}) {
                             }
                         }
                     },
-                    actions = { WorkoutsTopBarButton(onClick = onOpenWorkouts) },
                 )
             },
         ) { padding ->

@@ -5,6 +5,7 @@ struct RoutineDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let routineId: Int64
     let isNew: Bool
+    let onStartWorkout: (WorkoutSessionTarget) -> Void
     @State private var isEditing: Bool
     @State private var formState: RoutineFormState
     @State private var uiState: RoutineDetailUiState
@@ -12,12 +13,20 @@ struct RoutineDetailView: View {
     @State private var nameBeforeEdit = ""
     @State private var showExercisePicker = false
     @State private var weightUnit: WeightUnit = .metric
+    @State private var pendingWorkoutTarget: WorkoutSessionTarget?
+    @State private var hasActiveSession = WorkoutSessionRepository.shared.activeSession.value != nil
 
     @State private var reorder = ExerciseReorderModel()
 
-    init(routineId: Int64, title: String, isNew: Bool = false) {
+    init(
+        routineId: Int64,
+        title: String,
+        isNew: Bool = false,
+        onStartWorkout: @escaping (WorkoutSessionTarget) -> Void = { _ in }
+    ) {
         self.routineId = routineId
         self.isNew = isNew
+        self.onStartWorkout = onStartWorkout
         let state = RoutineFormState(routineId: routineId, initialName: title)
         _formState = State(initialValue: state)
         _uiState = State(initialValue: state.uiState.value)
@@ -42,6 +51,7 @@ struct RoutineDetailView: View {
         .navigationTitle(uiState.name.isEmpty ? L10n.routine : uiState.name)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(isEditing && !isNew)
+        .workoutInProgressAlert(pendingTarget: $pendingWorkoutTarget, onProceed: onStartWorkout)
         .toolbar {
             if isEditing {
                 if !isNew {
@@ -102,6 +112,11 @@ struct RoutineDetailView: View {
                 weightUnit = settings.weightUnit
             }
         }
+        .task {
+            for await session in WorkoutSessionRepository.shared.activeSession {
+                hasActiveSession = (session != nil)
+            }
+        }
     }
 
     // MARK: - Read-only view
@@ -120,10 +135,16 @@ struct RoutineDetailView: View {
             }
 
             if !uiState.workSets.isEmpty {
-                NavigationLink(value: WorkoutSessionTarget(
-                    routineId: routineId,
-                    title: uiState.name.isEmpty ? L10n.workout : uiState.name
-                )) {
+                Button {
+                    requestStartWorkout(
+                        WorkoutSessionTarget(
+                            routineId: routineId,
+                            title: uiState.name.isEmpty ? L10n.workout : uiState.name
+                        ),
+                        pendingTarget: $pendingWorkoutTarget,
+                        onProceed: onStartWorkout
+                    )
+                } label: {
                     Image(systemName: "play.fill")
                         .font(.title2)
                         .foregroundStyle(.white)
@@ -132,7 +153,8 @@ struct RoutineDetailView: View {
                         .clipShape(Circle())
                         .shadow(color: .blue.opacity(0.3), radius: 8, y: 4)
                 }
-                .padding(.bottom, 24)
+                .padding(.bottom, hasActiveSession ? 92 : 24)
+                .animation(.easeInOut(duration: 0.2), value: hasActiveSession)
             }
         }
     }

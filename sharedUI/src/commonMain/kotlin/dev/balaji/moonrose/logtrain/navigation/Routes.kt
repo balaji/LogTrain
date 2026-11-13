@@ -16,7 +16,7 @@ data object ExercisesRoute : TopLevelRoute {
     override val title get() = "Exercises"
 }
 
-// Not a tab: reached from the workouts button on each tab root's top bar.
+// Not a tab: reached from the floating workout menu's "Choose Program" option.
 data object WorkoutsRoute : Route {
     override val title get() = "Workouts"
 }

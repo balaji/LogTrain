@@ -71,7 +71,6 @@ private fun weekdayLabels(weekStartsMonday: Boolean): List<String> {
 @Composable
 fun CalendarScreen(
     onDayClick: (epochDay: Long) -> Unit = {},
-    onOpenWorkouts: () -> Unit = {},
 ) {
     // Local state, not a route: toggling between the calendar grid and the
     // session list must not grow the navigation back stack.
@@ -92,7 +91,6 @@ fun CalendarScreen(
                                 contentDescription = if (showSessionList) stringResource(Res.string.show_calendar) else stringResource(Res.string.show_workout_history),
                             )
                         }
-                        WorkoutsTopBarButton(onClick = onOpenWorkouts)
                     },
                 )
             },

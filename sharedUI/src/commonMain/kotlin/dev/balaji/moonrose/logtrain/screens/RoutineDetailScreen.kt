@@ -108,6 +108,9 @@ fun RoutineDetailScreen(route: RoutineDetailRoute, onNavigate: (Route) -> Unit, 
     var formStateKey by remember { mutableIntStateOf(0) }
     val formState = remember(formStateKey) { RoutineFormState(route.routineId, route.title) }
     val uiState by formState.uiState.collectAsState()
+    val startWorkout = rememberStartWorkoutHandler { workoutRoute ->
+        onNavigate(workoutRoute)
+    }
 
     if (LocalUseNativeNavigation.current) {
         if (isEditing) {
@@ -165,10 +168,12 @@ fun RoutineDetailScreen(route: RoutineDetailRoute, onNavigate: (Route) -> Unit, 
                 if (!isEditing && uiState.workSets.isNotEmpty()) {
                     FloatingActionButton(
                         onClick = {
-                            onNavigate(WorkoutSessionRoute(
-                                routineId = route.routineId,
-                                title = uiState.name.ifBlank { route.title },
-                            ))
+                            startWorkout(
+                                WorkoutSessionRoute(
+                                    routineId = route.routineId,
+                                    title = uiState.name.ifBlank { route.title },
+                                ),
+                            )
                         },
                     ) {
                         Icon(Icons.Default.PlayArrow, contentDescription = stringResource(Res.string.start_workout))

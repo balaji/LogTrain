@@ -32,6 +32,7 @@ enum L10n {
     static let expand = String(localized: "expand", defaultValue: "Expand")
     static let create = String(localized: "create", defaultValue: "Create")
     static let name = String(localized: "name", defaultValue: "Name")
+    static let close = String(localized: "close", defaultValue: "Close")
     static let somethingWentWrong = String(localized: "something_went_wrong", defaultValue: "Something went wrong")
     // iOS-only
     static let done = String(localized: "done", defaultValue: "Done")
@@ -49,6 +50,8 @@ enum L10n {
     static let discardWorkoutTitle = String(localized: "discard_workout_title", defaultValue: "Discard workout?")
     static let discardWorkoutMessage = String(localized: "discard_workout_message", defaultValue: "This workout and all logged sets will be deleted.")
     static let discard = String(localized: "discard", defaultValue: "Discard")
+    static let discardWorkout = String(localized: "discard_workout", defaultValue: "Discard workout")
+    static let workoutInProgressTitle = String(localized: "workout_in_progress_title", defaultValue: "A Workout is in progress")
     static let nothingToSaveTitle = String(localized: "nothing_to_save_title", defaultValue: "Nothing to save")
     static let nothingToSaveMessage = String(localized: "nothing_to_save_message", defaultValue: "There are no completed sets to save. Discard?")
     static func restTimerCountdown(_ remaining: String) -> String {
@@ -90,6 +93,8 @@ enum L10n {
     // MARK: - Programs
     static let programsTitle = String(localized: "programs_title", defaultValue: "Programs")
     static let emptyWorkoutTitle = String(localized: "empty_workout_title", defaultValue: "Empty workout")
+    static let emptyWorkout = String(localized: "empty_workout", defaultValue: "Empty Workout")
+    static let chooseProgram = String(localized: "choose_program", defaultValue: "Choose Program")
     static let newProgram = String(localized: "new_program", defaultValue: "New program")
     static let renameProgram = String(localized: "rename_program", defaultValue: "Rename program")
     static let deleteProgramTitle = String(localized: "delete_program_title", defaultValue: "Delete program?")

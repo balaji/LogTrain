@@ -34,6 +34,7 @@
     <string name="nothing_to_save_title">Inget att spara</string>
     <string name="nothing_to_save_message">Det finns inga slutförda set att spara. Kasta?</string>
     <string name="discard_workout">Kasta träningspass</string>
+    <string name="workout_in_progress_title">Ett träningspass pågår</string>
     <string name="finish_workout">Avsluta träningspass</string>
     <string name="rest_timer_countdown">Vila · %1$s</string>
     <string name="rest_over_title">Vilan är slut</string>
@@ -73,6 +74,8 @@
     <!-- Programs -->
     <string name="programs_title">Program</string>
     <string name="empty_workout_title">Tomt pass</string>
+    <string name="empty_workout">Tomt pass</string>
+    <string name="choose_program">Välj program</string>
     <string name="new_program_cd">Nytt program</string>
     <string name="new_program">Nytt program</string>
     <string name="rename_program">Byt namn på program</string>
