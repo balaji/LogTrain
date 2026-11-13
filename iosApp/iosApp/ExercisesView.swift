@@ -14,6 +14,7 @@ struct ExercisesView: View {
     @State private var showingCreateSheet = false
     @State private var deleteTarget: Exercise?
     @State private var deleteErrorMessage: String?
+    @FocusState private var isSearchFocused: Bool
 
     private var bodyParts: [String] {
         Array(Set((exercises ?? []).compactMap(\.bodyPart))).sorted()
@@ -63,6 +64,7 @@ struct ExercisesView: View {
                             }
                         }
                     }
+                    .scrollDismissesKeyboard(.interactively)
                 }
             } else {
                 ProgressView()
@@ -71,7 +73,9 @@ struct ExercisesView: View {
         .navigationDestination(for: Int64.self) { id in
             ExerciseDetailView(exerciseId: id)
         }
-        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: Text(L10n.searchExercises))
+        .safeAreaBar(edge: .top, spacing: 0) {
+            searchAndFilterBar
+        }
         .toolbar {
             if onExerciseSelected == nil {
                 ToolbarItem(placement: .primaryAction) {
@@ -80,44 +84,6 @@ struct ExercisesView: View {
                     }
                     .accessibilityLabel(L10n.addExercise)
                 }
-                ToolbarSpacer(.fixed, placement: .primaryAction)
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    Menu(L10n.bodyPart) {
-                        Button(L10n.any) { selectedBodyPart = nil }
-                        ForEach(bodyParts, id: \.self) { option in
-                            Button {
-                                selectedBodyPart = option
-                            } label: {
-                                if selectedBodyPart == option {
-                                    Label(L10n.exerciseCatalogLabel(option), systemImage: "checkmark")
-                                } else {
-                                    Text(L10n.exerciseCatalogLabel(option))
-                                }
-                            }
-                        }
-                    }
-                    Menu(L10n.equipment) {
-                        Button(L10n.any) { selectedEquipment = nil }
-                        ForEach(equipmentOptions, id: \.self) { option in
-                            Button {
-                                selectedEquipment = option
-                            } label: {
-                                if selectedEquipment == option {
-                                    Label(L10n.exerciseCatalogLabel(option), systemImage: "checkmark")
-                                } else {
-                                    Text(L10n.exerciseCatalogLabel(option))
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    Image(systemName: hasActiveFilters
-                        ? "line.3.horizontal.decrease.circle.fill"
-                        : "line.3.horizontal.decrease.circle")
-                }
-                .tint(hasActiveFilters ? .accentColor : nil)
             }
         }
         .sheet(isPresented: $showingCreateSheet) {
@@ -151,6 +117,84 @@ struct ExercisesView: View {
                     uniqueKeysWithValues: counts.map { ($0.exerciseId, Int($0.setCount)) }
                 )
             }
+        }
+    }
+
+    private var searchAndFilterBar: some View {
+        GlassEffectContainer(spacing: 10) {
+            HStack(spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                        .onTapGesture {
+                            isSearchFocused = true
+                        }
+                    TextField(L10n.searchExercises, text: $searchText)
+                        .padding(.vertical, 10)
+                        .focused($isSearchFocused)
+                        .submitLabel(.search)
+                        .autocorrectionDisabled()
+                    if !searchText.isEmpty {
+                        Button {
+                            searchText = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(L10n.clearSearch)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .frame(minHeight: 44)
+                .glassEffect(.regular.interactive(), in: .capsule)
+
+                filterMenu
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 4)
+        .padding(.bottom, 8)
+    }
+
+    private var filterMenu: some View {
+        Menu {
+            Menu(L10n.bodyPart) {
+                Button(L10n.any) { selectedBodyPart = nil }
+                ForEach(bodyParts, id: \.self) { option in
+                    Button {
+                        selectedBodyPart = option
+                    } label: {
+                        if selectedBodyPart == option {
+                            Label(L10n.exerciseCatalogLabel(option), systemImage: "checkmark")
+                        } else {
+                            Text(L10n.exerciseCatalogLabel(option))
+                        }
+                    }
+                }
+            }
+            Menu(L10n.equipment) {
+                Button(L10n.any) { selectedEquipment = nil }
+                ForEach(equipmentOptions, id: \.self) { option in
+                    Button {
+                        selectedEquipment = option
+                    } label: {
+                        if selectedEquipment == option {
+                            Label(L10n.exerciseCatalogLabel(option), systemImage: "checkmark")
+                        } else {
+                            Text(L10n.exerciseCatalogLabel(option))
+                        }
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: hasActiveFilters
+                ? "line.3.horizontal.decrease.circle.fill"
+                : "line.3.horizontal.decrease.circle")
+                .font(.title3)
+                .foregroundStyle(hasActiveFilters ? Color.accentColor : Color.primary)
+                .frame(width: 44, height: 44)
+                .glassEffect(.regular.interactive(), in: .circle)
         }
     }
 

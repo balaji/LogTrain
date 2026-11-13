@@ -51,15 +51,6 @@ struct ProgressTabView: View {
                 }
             }
         }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showLogWeight = true
-                } label: {
-                    Label(L10n.logWeight, systemImage: "scalemass")
-                }
-            }
-        }
         .alert(L10n.logBodyWeight, isPresented: $showLogWeight) {
             TextField("\(L10n.weight) (\(unitLabel(uiState.weightUnit)))", text: $weightText)
                 .keyboardType(.decimalPad)

@@ -148,6 +148,7 @@ enum L10n {
     // MARK: - Exercises
     static let addNew = String(localized: "add_new", defaultValue: "Add New")
     static let searchExercises = String(localized: "search_exercises", defaultValue: "Search exercises")
+    static let clearSearch = String(localized: "clear_search", defaultValue: "Clear search")
     static let bodyPart = String(localized: "body_part", defaultValue: "Body part")
     static let equipment = String(localized: "equipment", defaultValue: "Equipment")
     static let noExercisesMatch = String(localized: "no_exercises_match", defaultValue: "No exercises match your filters.")
