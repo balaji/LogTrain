@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Brightness6
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
@@ -33,6 +35,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SingleChoiceSegmentedButtonRowScope
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -252,28 +255,48 @@ private fun ToolsSection() {
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(top = 24.dp, bottom = 4.dp),
     )
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable { showOneRmCalculator = true }.padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(stringResource(Res.string.one_rm_calculator), style = MaterialTheme.typography.bodyLarge)
-        Text(oneRmFormulaLabel(currentSettings.oneRmFormula), color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
+    ToolRow(
+        label = stringResource(Res.string.one_rm_calculator),
+        value = oneRmFormulaLabel(currentSettings.oneRmFormula),
+        onClick = { showOneRmCalculator = true },
+    )
     HorizontalDivider()
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable { showBmiCalculator = true }.padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(stringResource(Res.string.bmi_calculator), style = MaterialTheme.typography.bodyLarge)
-        Text(bmiFormulaLabel(currentSettings.bmiFormula), color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
+    ToolRow(
+        label = stringResource(Res.string.bmi_calculator),
+        value = bmiFormulaLabel(currentSettings.bmiFormula),
+        onClick = { showBmiCalculator = true },
+    )
     if (showOneRmCalculator) {
         OneRmCalculatorSheet(settings = currentSettings, onDismiss = { showOneRmCalculator = false })
     }
     if (showBmiCalculator) {
         BmiCalculatorSheet(settings = currentSettings, profile = profile, onDismiss = { showBmiCalculator = false })
+    }
+}
+
+@Composable
+private fun ToolRow(
+    label: String,
+    value: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(value, color = MaterialTheme.colorScheme.primary)
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -394,6 +417,30 @@ private fun DeveloperSection() {
     }
 }
 
+private val SETTINGS_SEGMENT_WIDTH = 208.dp
+
+@Composable
+private fun SegmentedSettingRow(
+    label: String,
+    content: @Composable SingleChoiceSegmentedButtonRowScope.() -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f).padding(end = 12.dp),
+        )
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier.width(SETTINGS_SEGMENT_WIDTH),
+            content = content,
+        )
+    }
+}
+
 @Composable
 private fun <T> SettingRow(
     label: String,
@@ -402,21 +449,14 @@ private fun <T> SettingRow(
     optionLabel: @Composable (T) -> String,
     onSelect: (T) -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge)
-        SingleChoiceSegmentedButtonRow {
-            options.forEachIndexed { index, option ->
-                SegmentedButton(
-                    selected = option == selected,
-                    onClick = { onSelect(option) },
-                    shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                ) {
-                    Text(optionLabel(option))
-                }
+    SegmentedSettingRow(label) {
+        options.forEachIndexed { index, option ->
+            SegmentedButton(
+                selected = option == selected,
+                onClick = { onSelect(option) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+            ) {
+                Text(optionLabel(option))
             }
         }
     }
@@ -448,29 +488,22 @@ private fun SettingSwitchRow(
 
 @Composable
 private fun AppearanceSettingRow(selected: Appearance, onSelect: (Appearance) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(stringResource(Res.string.appearance), style = MaterialTheme.typography.bodyLarge)
-        SingleChoiceSegmentedButtonRow {
-            Appearance.entries.forEachIndexed { index, appearance ->
-                SegmentedButton(
-                    selected = appearance == selected,
-                    onClick = { onSelect(appearance) },
-                    shape = SegmentedButtonDefaults.itemShape(index = index, count = Appearance.entries.size),
-                    icon = {},
-                ) {
-                    Icon(
-                        imageVector = when (appearance) {
-                            Appearance.LIGHT -> Icons.Filled.LightMode
-                            Appearance.DARK -> Icons.Filled.DarkMode
-                            Appearance.SYSTEM -> Icons.Filled.Brightness6
-                        },
-                        contentDescription = appearanceLabel(appearance),
-                    )
-                }
+    SegmentedSettingRow(stringResource(Res.string.appearance)) {
+        Appearance.entries.forEachIndexed { index, appearance ->
+            SegmentedButton(
+                selected = appearance == selected,
+                onClick = { onSelect(appearance) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = Appearance.entries.size),
+                icon = {},
+            ) {
+                Icon(
+                    imageVector = when (appearance) {
+                        Appearance.LIGHT -> Icons.Filled.LightMode
+                        Appearance.DARK -> Icons.Filled.DarkMode
+                        Appearance.SYSTEM -> Icons.Filled.Brightness6
+                    },
+                    contentDescription = appearanceLabel(appearance),
+                )
             }
         }
     }
