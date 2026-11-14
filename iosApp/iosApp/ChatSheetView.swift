@@ -237,9 +237,13 @@ private struct ChatBubbleRow: View {
                                 .foregroundStyle(.secondary)
                         }
                     } else if !message.text.isEmpty {
-                        Text(message.text)
-                            .font(.body)
-                            .textSelection(.enabled)
+                        if isUser {
+                            Text(message.text)
+                                .font(.body)
+                                .textSelection(.enabled)
+                        } else {
+                            MarkdownTextView(markdown: message.text)
+                        }
                     }
 
                     if message.status == ChatMessage.companion.STATUS_CANCELLED {

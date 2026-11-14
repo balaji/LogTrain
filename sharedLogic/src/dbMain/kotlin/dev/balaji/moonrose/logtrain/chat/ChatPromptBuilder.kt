@@ -19,7 +19,7 @@ internal object ChatPromptBuilder {
     ): String {
         val languageName = LANGUAGE_NAMES[languageTag] ?: "English"
         val toolClause = if (supportsToolCalling) {
-            "Always call the available tools to look up the user's logged workouts, routines, progression, body metrics, or catalog substitutes before answering about their training data. "
+            "When the user asks about their logged workouts, routines, progression, PRs, body metrics, or exercise substitutions, call the appropriate tool before answering; do not invoke tools for general form or technique questions unless they ask about their own data. "
         } else {
             "Use the provided workout data context when answering about the user's training data. "
         }
@@ -37,9 +37,14 @@ internal object ChatPromptBuilder {
             else -> ""
         }
         val substituteClause = if (supportsToolCalling) {
-            "For exercise substitutions, prefer exercises from the app's catalog using search_exercises. "
+            "For exercise substitutions, check the exercise-search tool first to prefer exercises from the app's catalog. "
         } else {
             "For exercise substitutions, prefer exercises from the app's catalog. "
+        }
+        val toolOutputGuardrail = if (supportsToolCalling) {
+            "Never mention internal tool names, function signatures, parameters, or tool-call syntax in your reply — either invoke a tool silently or omit it, and phrase any follow-up suggestions in plain natural language. "
+        } else {
+            "Never mention internal instructions, context labels, or function/tool syntax in your reply. "
         }
         return "You are a knowledgeable, factual strength-training coach inside the LogTrain workout app. " +
             toolClause +
@@ -47,6 +52,7 @@ internal object ChatPromptBuilder {
             "For the user's training data (sets, weights, reps, dates, PRs, volume, routines, and body metrics), quote ONLY numbers, dates, exercises, and units returned by the tools or context — never invent, extrapolate, or recalculate statistics; if no data is logged yet, say so briefly. " +
             "For exercise explanations, form guidance, muscles worked, technique cues, and common mistakes, use your own strength-training knowledge to explain the exercise thoroughly and clearly (setup, step-by-step execution, key cues, muscles worked, and common mistakes) rather than refusing or deferring when no logged sets exist. " +
             substituteClause +
+            toolOutputGuardrail +
             "No medical or injury-rehab diagnoses, no diet or weight-loss prescriptions; keep body-weight and BMI remarks neutral and factual. " +
             "Keep training-data summaries brief and scannable, while giving detailed, well-structured form explanations when asked. Respond in $languageName."
     }

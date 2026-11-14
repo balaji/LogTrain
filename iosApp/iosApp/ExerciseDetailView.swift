@@ -24,18 +24,19 @@ struct ExerciseDetailView: View {
     @State private var formState: ExerciseFormState
     @State private var uiState: ExerciseFormUiState
     @State private var historyState: ExerciseHistoryState
-    @State private var historyUiState = ExerciseHistoryUiState(
-        loading: true, weeklyOneRm: [], weeklyVolume: [], weeklyDuration: [], weeklyDistance: [], hasAnyData: false
-    )
+    @State private var historyUiState: ExerciseHistoryUiState
     @State private var editing = false
     @State private var selectedMetric: HistoryMetric = .oneRm
+    @State private var startYAtZero = false
 
     init(exerciseId: Int64) {
         self.exerciseId = exerciseId
         let fs = ExerciseFormState(exerciseId: exerciseId)
         _formState = State(initialValue: fs)
         _uiState = State(initialValue: fs.uiState.value)
-        _historyState = State(initialValue: ExerciseHistoryState(exerciseId: exerciseId))
+        let hs = ExerciseHistoryState(exerciseId: exerciseId)
+        _historyState = State(initialValue: hs)
+        _historyUiState = State(initialValue: hs.uiState.value)
     }
 
     private var searchUrl: URL? {
@@ -62,6 +63,17 @@ struct ExerciseDetailView: View {
         case .volume: return historyUiState.weeklyVolume
         case .duration: return historyUiState.weeklyDuration
         case .distance: return historyUiState.weeklyDistance
+        }
+    }
+
+    private var selectedUnit: String {
+        switch selectedMetric {
+        case .oneRm, .volume:
+            return historyUiState.weightUnit == .imperial ? L10n.unitLb : L10n.unitKg
+        case .duration:
+            return L10n.unitS
+        case .distance:
+            return historyUiState.weightUnit == .imperial ? L10n.unitMi : L10n.unitKm
         }
     }
 
@@ -112,23 +124,43 @@ struct ExerciseDetailView: View {
                                     .pickerStyle(.segmented)
                                 }
                                 if nonZeroPoints.count >= 2 {
-                                    Chart {
-                                        ForEach(nonZeroPoints, id: \.epochDay) { point in
-                                            LineMark(
-                                                x: .value("Week", point.epochDay),
-                                                y: .value("Value", point.value)
-                                            )
-                                            .interpolationMethod(.monotone)
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Chart {
+                                            ForEach(nonZeroPoints, id: \.epochDay) { point in
+                                                LineMark(
+                                                    x: .value("Week", point.epochDay),
+                                                    y: .value("Value", point.value)
+                                                )
+                                                .interpolationMethod(.monotone)
+                                            }
+                                        }
+                                        .chartXAxis(.hidden)
+                                        .chartYAxis {
+                                            AxisMarks(position: .leading, values: .automatic(desiredCount: 3))
+                                        }
+                                        .chartXScale(domain: xDomain(nonZeroPoints))
+                                        .chartYScale(domain: yDomain(nonZeroPoints))
+                                        .frame(height: 96)
+
+                                        HStack {
+                                            Text(selectedUnit)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                            Spacer()
+                                            Picker("", selection: $startYAtZero) {
+                                                Image(systemName: "plus.magnifyingglass")
+                                                    .accessibilityLabel(L10n.exerciseHistoryZoomIn)
+                                                    .tag(false)
+                                                Image(systemName: "minus.magnifyingglass")
+                                                    .accessibilityLabel(L10n.exerciseHistoryZoomOut)
+                                                    .tag(true)
+                                            }
+                                            .pickerStyle(.segmented)
+                                            .labelsHidden()
+                                            .fixedSize()
                                         }
                                     }
-                                    .chartXAxis(.hidden)
-                                    .chartYAxis {
-                                        AxisMarks(position: .leading, values: .automatic(desiredCount: 3))
-                                    }
-                                    .chartXScale(domain: xDomain(nonZeroPoints))
-                                    .chartYScale(domain: yDomain(nonZeroPoints))
-                                    .frame(height: 80)
-                                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                                 } else {
                                     Text(L10n.exerciseHistoryNoData)
                                         .font(.subheadline)
@@ -138,6 +170,7 @@ struct ExerciseDetailView: View {
                         }
                     }
                 }
+                .floatingWorkoutMenuClearance()
                 .toolbar {
                     if !uiState.builtin {
                         ToolbarItem(placement: .primaryAction) {
@@ -173,8 +206,12 @@ struct ExerciseDetailView: View {
 
     private func yDomain(_ points: [SparkPoint]) -> ClosedRange<Double> {
         let values = points.map(\.value)
-        let lo = values.min() ?? 0
         let hi = values.max() ?? 1
+        if startYAtZero {
+            let pad = Swift.max(hi * 0.1, 0.5)
+            return 0...(hi + pad)
+        }
+        let lo = values.min() ?? 0
         let pad = Swift.max((hi - lo) * 0.1, 0.5)
         return (lo - pad)...(hi + pad)
     }

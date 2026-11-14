@@ -155,6 +155,7 @@ struct ProfileFormView: View {
                 .disabled(uiState.saving)
             }
         }
+        .floatingWorkoutMenuClearance()
         // Typing in any text field puts the height wheels away.
         .onChange(of: focusedField) { _, newValue in
             if newValue != nil {

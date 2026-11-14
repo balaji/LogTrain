@@ -44,6 +44,7 @@ import dev.balaji.moonrose.logtrain.db.DaySessionExercise
 import dev.balaji.moonrose.logtrain.model.SetType
 import dev.balaji.moonrose.logtrain.model.WeightUnit
 import dev.balaji.moonrose.logtrain.navigation.DayDetailRoute
+import dev.balaji.moonrose.logtrain.navigation.LocalBottomFabPadding
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import org.jetbrains.compose.resources.stringResource
 import dev.balaji.moonrose.logtrain.sharedui.resources.*
@@ -105,7 +106,12 @@ private fun DayDetailContent(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            top = 16.dp,
+            end = 16.dp,
+            bottom = 16.dp + LocalBottomFabPadding.current,
+        ),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         if (onOpenChat != null) {

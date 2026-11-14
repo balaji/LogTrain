@@ -43,6 +43,7 @@ struct DayDetailView: View {
                         }
                     }
                 }
+                .floatingWorkoutMenuClearance()
             }
         }
         .navigationTitle(dayTitle)

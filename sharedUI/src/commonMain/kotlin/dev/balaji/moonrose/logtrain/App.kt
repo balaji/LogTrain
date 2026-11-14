@@ -66,6 +66,7 @@ import dev.balaji.moonrose.logtrain.navigation.CalendarRoute
 import dev.balaji.moonrose.logtrain.navigation.DayDetailRoute
 import dev.balaji.moonrose.logtrain.navigation.ExerciseDetailRoute
 import dev.balaji.moonrose.logtrain.navigation.ExercisesRoute
+import dev.balaji.moonrose.logtrain.navigation.LocalBottomFabPadding
 import dev.balaji.moonrose.logtrain.navigation.NavStack
 import dev.balaji.moonrose.logtrain.navigation.PlatformBackHandler
 import dev.balaji.moonrose.logtrain.navigation.ProfileRoute
@@ -265,12 +266,16 @@ private fun MainTabs() {
                 .padding(padding)
                 .consumeWindowInsets(padding),
         ) {
-            ScreenContent(
-                route = stack.current,
-                onNavigate = stack::push,
-                onGoBack = stack::pop,
-                onOpenChat = openChat,
-            )
+            CompositionLocalProvider(
+                LocalBottomFabPadding provides if (!sessionScreenVisible && !showWorkouts) 72.dp else 0.dp,
+            ) {
+                ScreenContent(
+                    route = stack.current,
+                    onNavigate = stack::push,
+                    onGoBack = stack::pop,
+                    onOpenChat = openChat,
+                )
+            }
             AnimatedVisibility(
                 visible = workoutMenuExpanded && !sessionScreenVisible && !showWorkouts,
                 enter = fadeIn(),

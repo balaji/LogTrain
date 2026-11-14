@@ -151,6 +151,7 @@ struct ProfileView: View {
                                 .disabled(working || testSessionCount == 0)
                         }
                     }
+                    .floatingWorkoutMenuClearance()
                     .alert(L10n.notificationsDeniedTitle, isPresented: $showNotificationsDeniedAlert) {
                         Button(L10n.openSettings) {
                             if let url = URL(string: UIApplication.openNotificationSettingsURLString) {

@@ -298,15 +298,18 @@ private fun ChatMessageBubble(
                     }
                 } else if (message.text.isNotBlank()) {
                     SelectionContainer {
-                        Text(
-                            text = message.text,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (isUser) {
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            },
-                        )
+                        if (isUser) {
+                            Text(
+                                text = message.text,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        } else {
+                            MarkdownText(
+                                markdown = message.text,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
                     }
                 }
 

@@ -243,6 +243,16 @@ class ChatStateTest {
         assertTrue(svInstructions.contains("No medical"))
         assertTrue(svInstructions.contains("use your own strength-training knowledge"))
         assertTrue(svInstructions.contains("quote ONLY numbers, dates, exercises, and units"))
+        assertTrue(svInstructions.contains("Never mention internal tool names"))
+        assertFalse(svInstructions.contains("search_exercises"))
+
+        val noToolInstructions = ChatPromptBuilder.buildInstructions(
+            seedContext = ChatSeedContext(),
+            supportsToolCalling = false,
+            languageTag = "en",
+        )
+        assertTrue(noToolInstructions.contains("Never mention internal instructions"))
+        assertFalse(noToolInstructions.contains("search_exercises"))
 
         val messages = (1..6).map { i ->
             ChatMessage("m$i", ChatMessage.ROLE_USER, "Turn $i text", ChatMessage.STATUS_COMPLETE)

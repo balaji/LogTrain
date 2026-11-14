@@ -65,6 +65,7 @@ import dev.balaji.moonrose.logtrain.model.REST_TIMER_STEP_SECONDS
 import dev.balaji.moonrose.logtrain.model.RestTimerSound
 import dev.balaji.moonrose.logtrain.model.WeightUnit
 import dev.balaji.moonrose.logtrain.model.clampRestTimerSeconds
+import dev.balaji.moonrose.logtrain.navigation.LocalBottomFabPadding
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import dev.balaji.moonrose.logtrain.navigation.PlatformBackHandler
 import dev.balaji.moonrose.logtrain.notifications.NotificationPermissionResult
@@ -139,7 +140,14 @@ private fun ProfileDetails(profile: Profile, onEdit: () -> Unit) {
     val settings by UserSettingsRepository.settings.collectAsState(initial = null)
     val unit = settings?.weightUnit ?: WeightUnit.METRIC
     Column(
-        modifier = Modifier.verticalScroll(rememberScrollState()).padding(24.dp),
+        modifier = Modifier
+            .verticalScroll(rememberScrollState())
+            .padding(
+                start = 24.dp,
+                top = 24.dp,
+                end = 24.dp,
+                bottom = 24.dp + LocalBottomFabPadding.current,
+            ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         ProfileField(stringResource(Res.string.name), profile.name)

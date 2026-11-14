@@ -52,6 +52,7 @@ internal fun ProgressionChart(
     series: List<SparkSeries>,
     showPctChange: Boolean,
     modifier: Modifier = Modifier,
+    startYAtZero: Boolean = false,
 ) {
     val colors = series.indices.map { seriesColor(it) }
     val labelStyle = MaterialTheme.typography.labelSmall
@@ -69,7 +70,8 @@ internal fun ProgressionChart(
         val all = lines.flatten()
         val minX = all.minOf { it.epochDay }
         val maxX = all.maxOf { it.epochDay }
-        val minY = all.minOf { it.value }
+        val rawMinY = all.minOf { it.value }
+        val minY = if (startYAtZero && !showPctChange) minOf(0.0, rawMinY) else rawMinY
         val maxY = all.maxOf { it.value }
         val spanX = (maxX - minX).coerceAtLeast(1).toFloat()
         val spanY = (maxY - minY).toFloat().coerceAtLeast(1e-3f)

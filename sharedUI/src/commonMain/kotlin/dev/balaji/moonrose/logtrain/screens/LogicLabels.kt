@@ -40,6 +40,14 @@ internal fun weightUnitLabel(unit: WeightUnit): String = stringResource(
 )
 
 @Composable
+internal fun distanceUnitLabel(unit: WeightUnit): String = stringResource(
+    when (unit) {
+        WeightUnit.METRIC -> Res.string.unit_km
+        WeightUnit.IMPERIAL -> Res.string.unit_mi
+    },
+)
+
+@Composable
 internal fun restTimerSoundLabel(sound: RestTimerSound): String = stringResource(
     when (sound) {
         RestTimerSound.NONE -> Res.string.rest_sound_none

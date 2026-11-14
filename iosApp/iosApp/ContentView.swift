@@ -246,6 +246,35 @@ private struct ActiveSessionAlerts: ViewModifier {
     }
 }
 
+private struct HasFloatingWorkoutMenuKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var hasFloatingWorkoutMenu: Bool {
+        get { self[HasFloatingWorkoutMenuKey.self] }
+        set { self[HasFloatingWorkoutMenuKey.self] = newValue }
+    }
+}
+
+private struct FloatingWorkoutMenuClearance: ViewModifier {
+    @Environment(\.hasFloatingWorkoutMenu) private var hasFloatingWorkoutMenu
+
+    func body(content: Content) -> some View {
+        if hasFloatingWorkoutMenu {
+            content.contentMargins(.bottom, 80, for: .scrollContent)
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    func floatingWorkoutMenuClearance() -> some View {
+        modifier(FloatingWorkoutMenuClearance())
+    }
+}
+
 private struct FloatingWorkoutMenuInset: ViewModifier {
     @Binding var isExpanded: Bool
     let onStartEmptyWorkout: () -> Void
@@ -253,6 +282,7 @@ private struct FloatingWorkoutMenuInset: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .environment(\.hasFloatingWorkoutMenu, true)
             .overlay {
                 FloatingWorkoutMenuOverlay(
                     isExpanded: $isExpanded,

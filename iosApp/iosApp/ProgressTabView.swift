@@ -152,6 +152,7 @@ struct ProgressTabView: View {
                 }
             }
         }
+        .floatingWorkoutMenuClearance()
     }
 
     /// The configured selection backing a progression card; falls back to the

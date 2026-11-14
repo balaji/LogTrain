@@ -49,6 +49,7 @@ class ExerciseHistoryState(private val exerciseId: Long) {
                     weeklyDuration = duration,
                     weeklyDistance = distance,
                     hasAnyData = (oneRm + volume + duration + distance).any { it.value > 0.0 },
+                    weightUnit = settings.weightUnit,
                 )
             }.collect { _uiState.value = it }
         }

@@ -134,6 +134,8 @@
     <string name="exercise_history_metric_volume">Volym</string>
     <string name="exercise_history_metric_duration">Tid</string>
     <string name="exercise_history_metric_distance">Distans</string>
+    <string name="exercise_history_zoom_in">Zooma in y-axeln</string>
+    <string name="exercise_history_zoom_out">Zooma ut y-axeln till 0</string>
 
     <!-- Exercise list — completed set count badge -->
     <plurals name="exercise_set_count">
@@ -232,6 +234,9 @@
     <!-- Weight units -->
     <string name="unit_kg">kg</string>
     <string name="unit_lb">lb</string>
+    <string name="unit_km">km</string>
+    <string name="unit_mi">mi</string>
+    <string name="unit_s">s</string>
 
     <!-- Months (short) -->
     <string name="month_jan_short">Jan</string>

@@ -65,6 +65,7 @@ struct ExercisesView: View {
                         }
                     }
                     .scrollDismissesKeyboard(.interactively)
+                    .floatingWorkoutMenuClearance()
                 }
             } else {
                 ProgressView()

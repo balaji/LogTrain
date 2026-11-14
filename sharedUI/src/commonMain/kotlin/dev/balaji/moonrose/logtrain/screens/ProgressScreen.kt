@@ -73,6 +73,7 @@ import dev.balaji.moonrose.logtrain.insights.InsightMath
 import dev.balaji.moonrose.logtrain.insights.SparkPoint
 import dev.balaji.moonrose.logtrain.insights.SparkSeries
 import dev.balaji.moonrose.logtrain.insights.llm.CardNarration
+import dev.balaji.moonrose.logtrain.navigation.LocalBottomFabPadding
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import kotlin.math.PI
 import kotlin.math.cos
@@ -137,7 +138,12 @@ private fun ProgressContent(
     } else {
         LazyColumn(
             modifier = modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                top = 16.dp,
+                end = 16.dp,
+                bottom = 16.dp + LocalBottomFabPadding.current,
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item(key = "log_weight") {

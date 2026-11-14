@@ -33,6 +33,7 @@ import dev.balaji.moonrose.logtrain.db.ProfileFormState
 import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
 import dev.balaji.moonrose.logtrain.model.Profile
 import dev.balaji.moonrose.logtrain.model.WeightUnit
+import dev.balaji.moonrose.logtrain.navigation.LocalBottomFabPadding
 import org.jetbrains.compose.resources.stringResource
 import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
@@ -62,7 +63,12 @@ fun ProfileForm(
         modifier = Modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .padding(
+                start = 24.dp,
+                top = 24.dp,
+                end = 24.dp,
+                bottom = 24.dp + LocalBottomFabPadding.current,
+            ),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

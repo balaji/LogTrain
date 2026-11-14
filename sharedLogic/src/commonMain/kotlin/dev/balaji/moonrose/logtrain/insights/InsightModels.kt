@@ -1,5 +1,7 @@
 package dev.balaji.moonrose.logtrain.insights
 
+import dev.balaji.moonrose.logtrain.model.WeightUnit
+
 /*
  * Insight models are primitive-typed (Long/Int/Double/String) like the
  * calendar models: they cross the SKIE bridge to SwiftUI, where boxed
@@ -189,4 +191,5 @@ data class ExerciseHistoryUiState(
     /** Total distance per week. Non-empty only for DISTANCE / REPS_DISTANCE / DISTANCE_DURATION. */
     val weeklyDistance: List<SparkPoint> = emptyList(),
     val hasAnyData: Boolean = false,
+    val weightUnit: WeightUnit = WeightUnit.METRIC,
 )

@@ -58,6 +58,7 @@ import dev.balaji.moonrose.logtrain.db.InsightsRepository
 import dev.balaji.moonrose.logtrain.model.Exercise
 import dev.balaji.moonrose.logtrain.navigation.ExerciseCreateRoute
 import dev.balaji.moonrose.logtrain.navigation.ExerciseDetailRoute
+import dev.balaji.moonrose.logtrain.navigation.LocalBottomFabPadding
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import dev.balaji.moonrose.logtrain.navigation.Route
 import kotlin.math.roundToInt
@@ -175,7 +176,10 @@ private fun ExercisesBody(
                     Text(stringResource(Res.string.no_exercises_match))
                 }
             }
-            else -> LazyColumn(modifier = Modifier.weight(1f)) {
+            else -> LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(bottom = if (allowDelete) LocalBottomFabPadding.current else 0.dp),
+            ) {
                 if (customExercises.isNotEmpty()) {
                     item(key = "my-exercises-header") { SectionHeader(stringResource(Res.string.my_exercises)) }
                     items(customExercises, key = Exercise::id) { exercise ->

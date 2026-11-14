@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -47,6 +48,7 @@ import dev.balaji.moonrose.logtrain.calendar.WeekStart
 import dev.balaji.moonrose.logtrain.db.CalendarRepository
 import dev.balaji.moonrose.logtrain.db.CompletedWorkoutDay
 import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
+import dev.balaji.moonrose.logtrain.navigation.LocalBottomFabPadding
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import org.jetbrains.compose.resources.stringResource
 import dev.balaji.moonrose.logtrain.sharedui.resources.*
@@ -119,7 +121,11 @@ private fun CalendarContent(modifier: Modifier, onDayClick: (Long) -> Unit) {
         val listState = rememberLazyListState(
             initialFirstVisibleItemIndex = (current.currentWeekIndex - 2).coerceAtLeast(0),
         )
-        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = LocalBottomFabPadding.current),
+        ) {
             items(current.weeks, key = { it.weekStartEpochDay }) { week ->
                 WeekRow(week, onDayClick)
             }
@@ -184,7 +190,10 @@ private fun CompletedSessionList(modifier: Modifier, onDayClick: (Long) -> Unit)
         return
     }
 
-    LazyColumn(modifier.fillMaxSize()) {
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = LocalBottomFabPadding.current),
+    ) {
         items(current, key = { it.epochDay }) { day ->
             CompletedSessionRow(day, onDayClick)
             HorizontalDivider()

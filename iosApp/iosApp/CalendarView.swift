@@ -61,6 +61,7 @@ struct CalendarView: View {
                         }
                     }
                 }
+                .floatingWorkoutMenuClearance()
                 .onAppear {
                     let index = max(Int(model.currentWeekIndex) - 2, 0)
                     guard model.weeks.indices.contains(index) else { return }
@@ -175,6 +176,7 @@ private struct CompletedSessionListView: View {
                             CompletedSessionRow(day: day)
                         }
                     }
+                    .floatingWorkoutMenuClearance()
                 }
             } else {
                 ProgressView()
