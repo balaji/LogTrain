@@ -23,13 +23,13 @@ private enum ProfileFormField: Hashable {
 
 /// Native SwiftUI replacement for the Compose `ProfileForm`, bound to the
 /// shared `ProfileFormState` via SKIE's Swift `StateFlow` bridge. Weight and
-/// height are entered in the user's unit system (kg/cm or lb + ft/in); the
-/// shared form state converts back to the canonical kg/cm on save.
+/// height can be switched between metric (kg/cm) and imperial (lb + ft/in);
+/// the shared form state converts back to canonical kg/cm and persists the
+/// unit preference to settings on save.
 struct ProfileFormView: View {
     let saveLabel: String
     let onSaved: () -> Void
 
-    private let unit: WeightUnit
     @State private var formState: ProfileFormState
     @State private var uiState: ProfileFormUiState
     @State private var heightWheelsExpanded = false
@@ -42,7 +42,6 @@ struct ProfileFormView: View {
         onSaved: @escaping () -> Void = {}
     ) {
         let state = ProfileFormState(initial: initial, unit: unit)
-        self.unit = unit
         _formState = State(initialValue: state)
         _uiState = State(initialValue: state.uiState.value)
         self.saveLabel = saveLabel
@@ -93,8 +92,27 @@ struct ProfileFormView: View {
                         Text(L10n.genderLabel(option)).tag(option)
                     }
                 }
+            }
 
-                LabeledContent("\(L10n.weight) (\(unit == .imperial ? L10n.unitLb : L10n.unitKg))") {
+            Section {
+                Picker(L10n.weightUnits, selection: Binding(
+                    get: { uiState.unit },
+                    set: { newUnit in
+                        if newUnit == .imperial && focusedField == .height {
+                            focusedField = nil
+                        }
+                        if newUnit == .metric {
+                            withAnimation { heightWheelsExpanded = false }
+                        }
+                        formState.updateUnit(unit: newUnit)
+                    }
+                )) {
+                    Text(L10n.unitsMetric).tag(WeightUnit.metric)
+                    Text(L10n.unitsImperial).tag(WeightUnit.imperial)
+                }
+                .pickerStyle(.segmented)
+
+                LabeledContent("\(L10n.weight) (\(uiState.unit == .imperial ? L10n.unitLb : L10n.unitKg))") {
                     TextField("", text: Binding(
                         get: { uiState.weight },
                         set: { formState.updateWeight(value: $0) }
@@ -104,7 +122,7 @@ struct ProfileFormView: View {
                     .focused($focusedField, equals: .weight)
                 }
 
-                if unit == .imperial {
+                if uiState.unit == .imperial {
                     FeetInchesField(
                         label: L10n.height,
                         feet: Binding(

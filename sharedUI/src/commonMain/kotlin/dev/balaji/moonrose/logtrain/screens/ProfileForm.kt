@@ -13,6 +13,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -35,9 +38,9 @@ import dev.balaji.moonrose.logtrain.sharedui.resources.*
 
 /**
  * Profile create/edit form, shared by the first-run setup flow and the
- * Profile tab's edit mode. Weight and height are entered in the user's unit
- * system (kg/cm or lb + ft/in); the shared form state converts back to the
- * canonical kg/cm on save.
+ * Profile tab's edit mode. Weight and height can be switched between metric
+ * (kg/cm) and imperial (lb + ft/in); the shared form state converts back to
+ * canonical kg/cm and persists the unit preference to settings on save.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,8 +50,8 @@ fun ProfileForm(
     onSaved: () -> Unit = {},
 ) {
     val settings by UserSettingsRepository.settings.collectAsState(initial = null)
-    val unit = settings?.weightUnit ?: return
-    val formState = remember(unit) { ProfileFormState(initial, unit) }
+    val initialUnit = settings?.weightUnit ?: return
+    val formState = remember { ProfileFormState(initial, initialUnit) }
     val uiState by formState.uiState.collectAsState()
     var genderExpanded by remember { mutableStateOf(false) }
     var heightWheelsExpanded by remember { mutableStateOf(false) }
@@ -115,15 +118,36 @@ fun ProfileForm(
                 }
             }
         }
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            WeightUnit.entries.forEachIndexed { index, entry ->
+                SegmentedButton(
+                    selected = uiState.unit == entry,
+                    onClick = {
+                        if (entry == WeightUnit.METRIC) heightWheelsExpanded = false
+                        formState.updateUnit(entry)
+                    },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = WeightUnit.entries.size),
+                ) {
+                    Text(
+                        stringResource(
+                            when (entry) {
+                                WeightUnit.METRIC -> Res.string.units_metric
+                                WeightUnit.IMPERIAL -> Res.string.units_imperial
+                            },
+                        ),
+                    )
+                }
+            }
+        }
         OutlinedTextField(
             value = uiState.weight,
             onValueChange = formState::updateWeight,
-            label = { Text("${stringResource(Res.string.weight)} (${weightUnitLabel(unit)})") },
+            label = { Text("${stringResource(Res.string.weight)} (${weightUnitLabel(uiState.unit)})") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             singleLine = true,
             modifier = Modifier.fillMaxWidth().then(collapseWheels),
         )
-        if (unit == WeightUnit.METRIC) {
+        if (uiState.unit == WeightUnit.METRIC) {
             OutlinedTextField(
                 value = uiState.height,
                 onValueChange = formState::updateHeight,

@@ -22,6 +22,7 @@ data class ProfileFormUiState(
     val name: String = "",
     val age: String = "",
     val gender: String? = null,
+    val unit: WeightUnit = WeightUnit.METRIC,
     /** In the form's display unit (kg or lb); [ProfileFormState.save] converts back. */
     val weight: String = "",
     /** Centimeters; only used when the form's unit is metric. */
@@ -38,6 +39,8 @@ data class ProfileFormUiState(
 const val MAX_NAME_LENGTH = 50
 const val MIN_AGE = 1
 const val MAX_AGE = 120
+private const val MIN_WHEEL_FEET = 3
+private const val MAX_WHEEL_FEET = 8
 
 /**
  * Language-neutral keys persisted in profile.gender; the UI layers map them
@@ -53,28 +56,57 @@ private val DEFAULT_FEET_INCHES = HeightConversion.cmToFeetInches(170.0)
  * Profile create/edit form state, shared by the Compose form and the native
  * SwiftUI form so validation and save logic live in one place.
  *
- * Weight and height are edited in [unit]'s display units but stored
- * canonically in kg/cm. To keep repeated edit/save round-trips from drifting
- * the stored values through rounded display text, [save] persists the
- * original stored value whenever a field still shows its prefill.
+ * Weight and height are edited in [ProfileFormUiState.unit]'s display units
+ * but stored canonically in kg/cm; [save] also persists the chosen unit in
+ * user settings. To keep repeated edit/save round-trips or unit toggles from
+ * drifting stored values through rounded display text, [save] and [updateUnit]
+ * preserve the original stored values until a field is actually edited.
  */
-class ProfileFormState(initial: Profile? = null, private val unit: WeightUnit = WeightUnit.METRIC) {
+class ProfileFormState internal constructor(
+    initial: Profile? = null,
+    unit: WeightUnit = WeightUnit.METRIC,
+    private val saveProfile: suspend (
+        name: String,
+        age: Int?,
+        gender: String?,
+        weight: Double?,
+        height: Double?,
+    ) -> Unit,
+    private val saveUnit: suspend (WeightUnit) -> Unit,
+    private val scope: CoroutineScope,
+) {
+    constructor(initial: Profile? = null, unit: WeightUnit = WeightUnit.METRIC) : this(
+        initial = initial,
+        unit = unit,
+        saveProfile = { name, age, gender, weight, height ->
+            ProfileRepository.save(
+                name = name,
+                age = age,
+                gender = gender,
+                weight = weight,
+                height = height,
+            )
+        },
+        saveUnit = { UserSettingsRepository.setWeightUnit(it) },
+        scope = CoroutineScope(Dispatchers.Main),
+    )
+
     private val initialWeightKg = initial?.weight
     private val initialHeightCm = initial?.height
-    private val initialWeightText =
-        initialWeightKg?.let { InsightMath.formatNumber(unit.fromKilograms(it)) } ?: ""
-    private val initialHeightText = initialHeightCm?.let { InsightMath.formatNumber(it) } ?: ""
     private val initialFeetInches = initialHeightCm?.let { HeightConversion.cmToFeetInches(it) }
-    private var heightWheelTouched = false
+    private var weightPrefilled = initialWeightKg != null
+    private var heightPrefilled = initialHeightCm != null
+    private var heightWheelSelected = false
 
     private val _uiState = MutableStateFlow(
         ProfileFormUiState(
             name = initial?.name ?: "",
             age = initial?.age?.toString() ?: "",
             gender = initial?.gender,
-            weight = initialWeightText,
-            height = initialHeightText,
-            heightFeet = (initialFeetInches ?: DEFAULT_FEET_INCHES).feet,
+            unit = unit,
+            weight = initialWeightKg?.let { InsightMath.formatNumber(unit.fromKilograms(it)) } ?: "",
+            height = initialHeightCm?.let { InsightMath.formatNumber(it) } ?: "",
+            heightFeet = (initialFeetInches ?: DEFAULT_FEET_INCHES).feet.coerceIn(MIN_WHEEL_FEET, MAX_WHEEL_FEET),
             heightInches = (initialFeetInches ?: DEFAULT_FEET_INCHES).inches,
         ),
     )
@@ -93,17 +125,50 @@ class ProfileFormState(initial: Profile? = null, private val unit: WeightUnit = 
         _uiState.value = _uiState.value.copy(gender = value)
     }
 
+    fun updateUnit(unit: WeightUnit) {
+        val state = _uiState.value
+        if (state.unit == unit) return
+        val currentWeightKg = weightKgToSave(state)
+        val currentHeightCm = heightCmToSave(state)
+        if (unit == WeightUnit.IMPERIAL && currentHeightCm != null && !heightPrefilled) {
+            heightWheelSelected = true
+        }
+        if (unit == WeightUnit.METRIC && currentHeightCm == null) {
+            heightWheelSelected = false
+        }
+        val feetInches = currentHeightCm?.let { HeightConversion.cmToFeetInches(it) } ?: DEFAULT_FEET_INCHES
+        _uiState.value = state.copy(
+            unit = unit,
+            weight = currentWeightKg?.let { InsightMath.formatNumber(unit.fromKilograms(it)) } ?: "",
+            height = currentHeightCm?.let { InsightMath.formatNumber(it) } ?: "",
+            heightFeet = feetInches.feet.coerceIn(MIN_WHEEL_FEET, MAX_WHEEL_FEET),
+            heightInches = feetInches.inches,
+        )
+    }
+
     fun updateWeight(value: String) {
-        _uiState.value = _uiState.value.copy(weight = value.filterDecimal())
+        val filtered = value.filterDecimal()
+        if (filtered != _uiState.value.weight) {
+            weightPrefilled = false
+        }
+        _uiState.value = _uiState.value.copy(weight = filtered)
     }
 
     fun updateHeight(value: String) {
-        _uiState.value = _uiState.value.copy(height = value.filterDecimal())
+        val filtered = value.filterDecimal()
+        if (filtered != _uiState.value.height) {
+            heightPrefilled = false
+            heightWheelSelected = false
+        }
+        _uiState.value = _uiState.value.copy(height = filtered)
     }
 
     fun updateHeightFeetInches(feet: Int, inches: Int) {
-        heightWheelTouched = true
-        _uiState.value = _uiState.value.copy(heightFeet = feet, heightInches = inches)
+        val state = _uiState.value
+        if (feet == state.heightFeet && inches == state.heightInches) return
+        heightPrefilled = false
+        heightWheelSelected = true
+        _uiState.value = state.copy(heightFeet = feet, heightInches = inches)
     }
 
     fun save(onSaved: () -> Unit) {
@@ -115,38 +180,43 @@ class ProfileFormState(initial: Profile? = null, private val unit: WeightUnit = 
             return
         }
         _uiState.value = state.copy(saving = true)
-        CoroutineScope(Dispatchers.Main).launch {
-            ProfileRepository.save(
-                name = state.name.trim(),
-                age = state.age.toIntOrNull(),
-                gender = state.gender,
-                weight = weightKgToSave(state),
-                height = heightCmToSave(state),
+        scope.launch {
+            // Persist the unit preference before saving the profile so the
+            // profile observer doesn't transition to tabs with a stale unit.
+            saveUnit(state.unit)
+            saveProfile(
+                state.name.trim(),
+                state.age.toIntOrNull(),
+                state.gender,
+                weightKgToSave(state),
+                heightCmToSave(state),
             )
             _uiState.value = _uiState.value.copy(saving = false)
             onSaved()
         }
     }
 
-    /** Prefill text still showing → keep the exact stored kilograms. */
+    /** Untouched prefill keeps the exact stored kilograms without rounding drift. */
     private fun weightKgToSave(state: ProfileFormUiState): Double? =
-        if (state.weight == initialWeightText) {
+        if (weightPrefilled) {
             initialWeightKg
         } else {
-            state.weight.toDoubleOrNull()?.let { unit.toKilograms(it) }
+            state.weight.toDoubleOrNull()?.let { state.unit.toKilograms(it) }
         }
 
     /**
-     * Untouched wheels — or wheels put back on the prefill's feet/inches —
-     * keep the exact stored centimeters; same for unchanged metric text.
+     * Untouched prefill — or wheels put back on the prefill's feet/inches —
+     * keeps the exact stored centimeters.
      */
-    private fun heightCmToSave(state: ProfileFormUiState): Double? = when (unit) {
-        WeightUnit.METRIC ->
-            if (state.height == initialHeightText) initialHeightCm else state.height.toDoubleOrNull()
-        WeightUnit.IMPERIAL -> when {
-            !heightWheelTouched -> initialHeightCm
-            initialFeetInches == FeetInches(state.heightFeet, state.heightInches) -> initialHeightCm
-            else -> HeightConversion.feetInchesToCm(state.heightFeet, state.heightInches)
+    private fun heightCmToSave(state: ProfileFormUiState): Double? {
+        if (heightPrefilled) return initialHeightCm
+        return when (state.unit) {
+            WeightUnit.METRIC -> state.height.toDoubleOrNull()
+            WeightUnit.IMPERIAL -> when {
+                !heightWheelSelected -> null
+                initialFeetInches == FeetInches(state.heightFeet, state.heightInches) -> initialHeightCm
+                else -> HeightConversion.feetInchesToCm(state.heightFeet, state.heightInches)
+            }
         }
     }
 }

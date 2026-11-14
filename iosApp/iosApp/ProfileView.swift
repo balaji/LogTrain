@@ -45,18 +45,12 @@ struct ProfileView: View {
                             // for more later. Sits above Settings so the
                             // profile's own numbers flow into the tools.
                             Section(L10n.tools) {
-                                Button {
+                                toolRow(L10n.oneRmCalculator, value: formulaName(settings.oneRmFormula)) {
                                     showOneRmCalculator = true
-                                } label: {
-                                    LabeledContent(L10n.oneRmCalculator, value: formulaName(settings.oneRmFormula))
                                 }
-                                .tint(.primary)
-                                Button {
+                                toolRow(L10n.bmiCalculator, value: bmiFormulaName(settings.bmiFormula)) {
                                     showBmiCalculator = true
-                                } label: {
-                                    LabeledContent(L10n.bmiCalculator, value: bmiFormulaName(settings.bmiFormula))
                                 }
-                                .tint(.primary)
                             }
                             // Always-editable app settings backed by
                             // user_settings; each change saves immediately, no
@@ -64,23 +58,28 @@ struct ProfileView: View {
                             // stores language-neutral keys, so they can be
                             // regionalized later.
                             Section(L10n.settings) {
-                                Picker(L10n.weekStartsOn, selection: settingBinding(settings.weekStart, save: {
-                                    try await UserSettingsRepository.shared.setWeekStart(weekStart: $0)
-                                })) {
-                                    Text(L10n.weekdaySunday).tag(WeekStart.sunday)
-                                    Text(L10n.weekdayMonday).tag(WeekStart.monday)
+                                segmentedSettingRow(
+                                    L10n.weekStartsOn,
+                                    current: settings.weekStart,
+                                    save: { try await UserSettingsRepository.shared.setWeekStart(weekStart: $0) }
+                                ) {
+                                    Text(L10n.weekdaySunShort).tag(WeekStart.sunday)
+                                    Text(L10n.weekdayMonShort).tag(WeekStart.monday)
                                 }
-                                Picker(L10n.appearance, selection: settingBinding(settings.appearance, save: {
-                                    try await UserSettingsRepository.shared.setAppearance(appearance: $0)
-                                })) {
+                                segmentedSettingRow(
+                                    L10n.appearance,
+                                    current: settings.appearance,
+                                    save: { try await UserSettingsRepository.shared.setAppearance(appearance: $0) }
+                                ) {
                                     Image(systemName: "sun.max.fill").tag(Appearance.light)
                                     Image(systemName: "moon.fill").tag(Appearance.dark)
                                     Image(systemName: "circle.lefthalf.filled").tag(Appearance.system)
                                 }
-                                .pickerStyle(.segmented)
-                                Picker(L10n.weightUnits, selection: settingBinding(settings.weightUnit, save: {
-                                    try await UserSettingsRepository.shared.setWeightUnit(weightUnit: $0)
-                                })) {
+                                segmentedSettingRow(
+                                    L10n.weightUnits,
+                                    current: settings.weightUnit,
+                                    save: { try await UserSettingsRepository.shared.setWeightUnit(weightUnit: $0) }
+                                ) {
                                     Text(L10n.unitsMetric).tag(WeightUnit.metric)
                                     Text(L10n.unitsImperial).tag(WeightUnit.imperial)
                                 }
@@ -240,6 +239,26 @@ struct ProfileView: View {
         }
     }
 
+    /// Tappable row for standalone tools: shows the current default formula in
+    /// the accent color beside a disclosure chevron to signal it opens a sheet.
+    private func toolRow(_ label: String, value: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            LabeledContent {
+                HStack(spacing: 6) {
+                    Text(value)
+                        .foregroundStyle(Color.accentColor)
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+            } label: {
+                Text(label)
+                    .foregroundStyle(Color.primary)
+            }
+        }
+        .tint(.primary)
+    }
+
     /// Binding whose setter persists the new value; the repository flow echoes
     /// the change back into `settings`, which refreshes the getter.
     private func settingBinding<T>(_ current: T, save: @escaping (T) async throws -> Void) -> Binding<T> {
@@ -247,6 +266,23 @@ struct ProfileView: View {
             get: { current },
             set: { newValue in Task { try? await save(newValue) } }
         )
+    }
+
+    /// Inline settings row with the label on the left and a uniform-width
+    /// segmented picker on the right, matching Android's `SegmentedSettingRow`.
+    @ViewBuilder
+    private func segmentedSettingRow<T: Hashable, Content: View>(
+        _ label: String,
+        current: T,
+        save: @escaping (T) async throws -> Void,
+        @ViewBuilder options: () -> Content
+    ) -> some View {
+        LabeledContent(label) {
+            Picker(label, selection: settingBinding(current, save: save), content: options)
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 176)
+        }
     }
 
     private var unit: WeightUnit { settings?.weightUnit ?? .metric }
