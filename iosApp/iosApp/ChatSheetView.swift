@@ -52,7 +52,24 @@ final class ChatCoordinator {
     }
 }
 
+private struct ChatScrollMetrics: Equatable {
+    let offsetY: CGFloat
+    let distanceFromBottom: CGFloat
+    let canScroll: Bool
+}
+
+private struct ChatScrollObservationKey: Equatable {
+    let messageCount: Int
+    let lastId: String
+    let lastTextLen: Int
+    let lastStatus: String
+    let lastSourcesCount: Int
+    let isGenerating: Bool
+}
+
 struct ChatSheetView: View {
+    private static let bottomAnchorId = "__chat_bottom_anchor__"
+
     let chatState: ChatState
     let onSourceTap: (ChatSourceRef) -> Void
 
@@ -65,6 +82,30 @@ struct ChatSheetView: View {
         suggestedPrompts: []
     )
     @State private var inputText = ""
+    @State private var scrollController = ChatAutoScrollController(
+        throttleIntervalMillis: ChatAutoScrollController.companion.DEFAULT_THROTTLE_INTERVAL_MS
+    )
+    @State private var showScrollToBottomBadge = false
+    @State private var throttleTask: Task<Void, Never>?
+    @State private var scrollPhase: ScrollPhase = .idle
+    @State private var lastUserScrollDirectionDown = false
+    @State private var latestDistanceFromBottom: CGFloat = 0
+
+    private var bottomThreshold: CGFloat {
+        CGFloat(ChatAutoScrollController.companion.BOTTOM_THRESHOLD_DP)
+    }
+
+    private var scrollObservationKey: ChatScrollObservationKey {
+        let last = uiState.messages.last
+        return ChatScrollObservationKey(
+            messageCount: uiState.messages.count,
+            lastId: last?.id ?? "",
+            lastTextLen: last?.text.utf16.count ?? 0,
+            lastStatus: last?.status ?? "",
+            lastSourcesCount: last?.sources.count ?? 0,
+            isGenerating: uiState.isGenerating
+        )
+    }
 
     var body: some View {
         NavigationStack {
@@ -111,6 +152,15 @@ struct ChatSheetView: View {
                 uiState = state
             }
         }
+        .onChange(of: uiState.messages.isEmpty) { _, isEmpty in
+            if isEmpty {
+                throttleTask?.cancel()
+                throttleTask = nil
+                _ = scrollController.onMessagesUpdated(messages: [], isGenerating: false)
+                showScrollToBottomBadge = false
+                lastUserScrollDirectionDown = false
+            }
+        }
     }
 
     private var emptyState: some View {
@@ -143,29 +193,170 @@ struct ChatSheetView: View {
     private var messageList: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 12) {
-                    ForEach(uiState.messages, id: \.id) { message in
-                        ChatBubbleRow(
-                            message: message,
-                            onRetry: { chatState.retryLast() },
-                            onSourceTap: { source in
-                                chatState.cancelGeneration()
-                                dismiss()
-                                onSourceTap(source)
-                            }
-                        )
-                        .id(message.id)
+                VStack(spacing: 0) {
+                    LazyVStack(spacing: 12) {
+                        ForEach(uiState.messages, id: \.id) { message in
+                            ChatBubbleRow(
+                                message: message,
+                                onRetry: { chatState.retryLast() },
+                                onSourceTap: { source in
+                                    chatState.cancelGeneration()
+                                    dismiss()
+                                    onSourceTap(source)
+                                }
+                            )
+                            .id(message.id)
+                        }
                     }
+                    .padding(16)
+
+                    Color.clear
+                        .frame(height: 1)
+                        .id(Self.bottomAnchorId)
                 }
-                .padding(16)
             }
             .scrollDismissesKeyboard(.interactively)
-            .onChange(of: uiState.messages.last?.text) { _, _ in
-                if let lastId = uiState.messages.last?.id {
-                    withAnimation(.easeOut(duration: 0.15)) {
-                        proxy.scrollTo(lastId, anchor: .bottom)
+            .onScrollPhaseChange { oldPhase, newPhase, context in
+                scrollPhase = newPhase
+                let dist = max(0, context.geometry.contentSize.height - context.geometry.visibleRect.maxY)
+                if latestDistanceFromBottom != dist {
+                    latestDistanceFromBottom = dist
+                }
+
+                let wasTouching = oldPhase == .tracking || oldPhase == .interacting
+                let isTouching = newPhase == .tracking || newPhase == .interacting
+
+                if isTouching && !wasTouching {
+                    if lastUserScrollDirectionDown {
+                        lastUserScrollDirectionDown = false
+                    }
+                    applyScrollDecision(scrollController.onUserTouchDown(), proxy: proxy)
+                } else if wasTouching && !isTouching {
+                    applyScrollDecision(scrollController.onUserTouchUp(), proxy: proxy)
+                }
+
+                if newPhase == .idle &&
+                    !scrollController.isPinnedToBottom &&
+                    dist <= bottomThreshold &&
+                    (lastUserScrollDirectionDown || oldPhase == .tracking || oldPhase == .animating)
+                {
+                    applyScrollDecision(scrollController.onUserReachedBottom(), proxy: proxy)
+                }
+            }
+            .onScrollGeometryChange(for: ChatScrollMetrics.self) { geo in
+                let distanceFromBottom = max(0, geo.contentSize.height - geo.visibleRect.maxY)
+                let canScroll = geo.contentSize.height > geo.visibleRect.height + 1
+                return ChatScrollMetrics(
+                    offsetY: geo.contentOffset.y,
+                    distanceFromBottom: distanceFromBottom,
+                    canScroll: canScroll
+                )
+            } action: { oldMetrics, newMetrics in
+                let isUserDriven = scrollPhase == .tracking || scrollPhase == .interacting || scrollPhase == .decelerating
+                guard isUserDriven else { return }
+
+                if newMetrics.offsetY < oldMetrics.offsetY - 0.5 &&
+                    (newMetrics.canScroll || newMetrics.distanceFromBottom > bottomThreshold)
+                {
+                    if lastUserScrollDirectionDown {
+                        lastUserScrollDirectionDown = false
+                    }
+                    if scrollController.isPinnedToBottom || scrollController.isAtBottom {
+                        applyScrollDecision(scrollController.onUserScrolledUp(), proxy: proxy)
+                    }
+                } else if newMetrics.offsetY > oldMetrics.offsetY + 0.5 {
+                    if !lastUserScrollDirectionDown {
+                        lastUserScrollDirectionDown = true
+                    }
+                    if !scrollController.isPinnedToBottom && newMetrics.distanceFromBottom <= bottomThreshold {
+                        applyScrollDecision(scrollController.onUserReachedBottom(), proxy: proxy)
                     }
                 }
+            }
+            .onChange(of: scrollObservationKey, initial: true) { _, _ in
+                applyScrollDecision(
+                    scrollController.onMessagesUpdated(
+                        messages: uiState.messages,
+                        isGenerating: uiState.isGenerating
+                    ),
+                    proxy: proxy
+                )
+            }
+            .overlay(alignment: .bottom) {
+                if showScrollToBottomBadge {
+                    Button {
+                        lastUserScrollDirectionDown = false
+                        applyScrollDecision(
+                            scrollController.onScrollToBottomTapped(),
+                            proxy: proxy
+                        )
+                    } label: {
+                        Label(L10n.chatScrollToBottom, systemImage: "arrow.down")
+                            .font(.subheadline.weight(.medium))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(.regularMaterial, in: Capsule())
+                            .shadow(color: .black.opacity(0.14), radius: 6, y: 2)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.bottom, 12)
+                    .transition(.scale(scale: 0.9).combined(with: .opacity))
+                }
+            }
+            .animation(.easeInOut(duration: 0.18), value: showScrollToBottomBadge)
+            .onDisappear {
+                throttleTask?.cancel()
+                throttleTask = nil
+            }
+        }
+    }
+
+    private func applyScrollDecision(_ decision: ChatScrollDecision, proxy: ScrollViewProxy) {
+        if showScrollToBottomBadge != decision.showScrollToBottomBadge {
+            showScrollToBottomBadge = decision.showScrollToBottomBadge
+        }
+
+        switch decision.action {
+        case ChatScrollDecision.companion.ACTION_CANCEL:
+            throttleTask?.cancel()
+            throttleTask = nil
+        case ChatScrollDecision.companion.ACTION_SCROLL_SMOOTH:
+            throttleTask?.cancel()
+            throttleTask = nil
+            withAnimation(.easeOut(duration: 0.08)) {
+                proxy.scrollTo(Self.bottomAnchorId, anchor: .bottom)
+            }
+        case ChatScrollDecision.companion.ACTION_SCROLL_SETTLE:
+            throttleTask?.cancel()
+            throttleTask = nil
+            settleToBottom(proxy: proxy)
+        default:
+            break
+        }
+
+        if decision.scheduleDelayMillis > 0 {
+            throttleTask?.cancel()
+            let delayMs = UInt64(decision.scheduleDelayMillis)
+            throttleTask = Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(delayMs))
+                guard !Task.isCancelled else { return }
+                applyScrollDecision(scrollController.onThrottleTimerFired(), proxy: proxy)
+            }
+        }
+    }
+
+    private func settleToBottom(proxy: ScrollViewProxy) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            proxy.scrollTo(Self.bottomAnchorId, anchor: .bottom)
+        }
+        Task { @MainActor in
+            await Task.yield()
+            var followUp = Transaction()
+            followUp.disablesAnimations = true
+            withTransaction(followUp) {
+                proxy.scrollTo(Self.bottomAnchorId, anchor: .bottom)
             }
         }
     }

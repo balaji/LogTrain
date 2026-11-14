@@ -1,5 +1,14 @@
 package dev.balaji.moonrose.logtrain.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,14 +19,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -26,6 +38,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
@@ -48,16 +61,35 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import dev.balaji.moonrose.logtrain.chat.ChatAutoScrollController
 import dev.balaji.moonrose.logtrain.chat.ChatMessage
+import dev.balaji.moonrose.logtrain.chat.ChatScrollDecision
 import dev.balaji.moonrose.logtrain.chat.ChatSourceRef
 import dev.balaji.moonrose.logtrain.chat.ChatState
 import dev.balaji.moonrose.logtrain.chat.ChatUiState
 import dev.balaji.moonrose.logtrain.sharedui.resources.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -127,6 +159,7 @@ fun ChatSheet(
                 } else {
                     ChatMessageList(
                         messages = uiState.messages,
+                        isGenerating = uiState.isGenerating,
                         onRetry = chatState::retryLast,
                         onSourceClick = onSourceClick,
                     )
@@ -225,33 +258,278 @@ private fun ChatEmptyState(
     }
 }
 
+private const val BOTTOM_ANCHOR_KEY = "__chat_bottom_anchor__"
+
 @Composable
 private fun ChatMessageList(
     messages: List<ChatMessage>,
+    isGenerating: Boolean,
     onRetry: () -> Unit,
     onSourceClick: (ChatSourceRef) -> Unit,
 ) {
     val listState = rememberLazyListState()
-    val lastTextLen = messages.lastOrNull()?.text?.length ?: 0
+    val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val bottomThresholdPx = remember(density) {
+        with(density) { ChatAutoScrollController.BOTTOM_THRESHOLD_DP.dp.roundToPx() }
+    }
+    val controller = remember { ChatAutoScrollController() }
+    var showScrollToBottomBadge by remember { mutableStateOf(false) }
+    var scrollJob by remember { mutableStateOf<Job?>(null) }
+    var throttleJob by remember { mutableStateOf<Job?>(null) }
+    var lastUserScrollDirectionDown by remember { mutableStateOf(false) }
+    val currentBottomAnchorIndex by rememberUpdatedState(messages.size)
 
-    LaunchedEffect(messages.size, lastTextLen) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.lastIndex)
+    fun applyDecision(decision: ChatScrollDecision) {
+        if (showScrollToBottomBadge != decision.showScrollToBottomBadge) {
+            showScrollToBottomBadge = decision.showScrollToBottomBadge
+        }
+        when (decision.action) {
+            ChatScrollDecision.ACTION_CANCEL -> {
+                throttleJob?.cancel()
+                throttleJob = null
+                scrollJob?.cancel()
+                scrollJob = null
+            }
+            ChatScrollDecision.ACTION_SCROLL_SMOOTH -> {
+                throttleJob?.cancel()
+                throttleJob = null
+                scrollJob?.cancel()
+                scrollJob = coroutineScope.launch {
+                    scrollSmoothToBottom(listState, currentBottomAnchorIndex)
+                }
+            }
+            ChatScrollDecision.ACTION_SCROLL_SETTLE -> {
+                throttleJob?.cancel()
+                throttleJob = null
+                scrollJob?.cancel()
+                scrollJob = coroutineScope.launch {
+                    settleAtBottom(listState, currentBottomAnchorIndex)
+                }
+            }
+        }
+        if (decision.scheduleDelayMillis > 0L) {
+            throttleJob?.cancel()
+            throttleJob = coroutineScope.launch {
+                delay(decision.scheduleDelayMillis)
+                applyDecision(controller.onThrottleTimerFired())
+            }
         }
     }
 
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+    fun onScrollDirection(deltaY: Float, thresholdPx: Float): Boolean {
+        if (
+            deltaY > thresholdPx &&
+            (listState.canScrollBackward || !isAtBottom(listState, bottomThresholdPx))
+        ) {
+            if (lastUserScrollDirectionDown) {
+                lastUserScrollDirectionDown = false
+            }
+            if (controller.isPinnedToBottom || controller.isAtBottom) {
+                applyDecision(controller.onUserScrolledUp())
+            }
+            return true
+        } else if (deltaY < -thresholdPx && !lastUserScrollDirectionDown) {
+            lastUserScrollDirectionDown = true
+        }
+        return false
+    }
+
+    val lastMessage = messages.lastOrNull()
+    LaunchedEffect(
+        messages.size,
+        lastMessage?.id,
+        lastMessage?.text?.length ?: 0,
+        lastMessage?.status,
+        lastMessage?.sources?.size ?: 0,
+        isGenerating,
     ) {
-        items(messages, key = { it.id }) { message ->
-            ChatMessageBubble(
-                message = message,
-                onRetry = onRetry,
-                onSourceClick = onSourceClick,
+        applyDecision(controller.onMessagesUpdated(messages, isGenerating))
+    }
+
+    LaunchedEffect(listState, bottomThresholdPx) {
+        snapshotFlow {
+            isAtBottom(listState, bottomThresholdPx) && lastUserScrollDirectionDown
+        }
+            .distinctUntilChanged()
+            .collect { reachedViaDownScroll ->
+                if (reachedViaDownScroll && !controller.isPinnedToBottom) {
+                    applyDecision(controller.onUserReachedBottom())
+                }
+            }
+    }
+
+    val nestedScrollConnection = remember(listState, bottomThresholdPx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source == NestedScrollSource.UserInput) {
+                    onScrollDirection(available.y, thresholdPx = 0f)
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                onScrollDirection(available.y, thresholdPx = 0f)
+                return Velocity.Zero
+            }
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .nestedScroll(nestedScrollConnection)
+                .pointerInput(listState, bottomThresholdPx) {
+                    awaitPointerEventScope {
+                        var draggedUp = false
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            when (event.type) {
+                                PointerEventType.Press -> {
+                                    draggedUp = false
+                                    lastUserScrollDirectionDown = false
+                                    applyDecision(controller.onUserTouchDown())
+                                }
+                                PointerEventType.Move -> {
+                                    val change = event.changes.firstOrNull()
+                                    if (change != null) {
+                                        val dy = change.position.y - change.previousPosition.y
+                                        if (onScrollDirection(dy, thresholdPx = 1f)) {
+                                            draggedUp = true
+                                        }
+                                    }
+                                }
+                                PointerEventType.Release -> {
+                                    if (event.changes.none { it.pressed }) {
+                                        applyDecision(controller.onUserTouchUp())
+                                        if (
+                                            !draggedUp &&
+                                            !controller.isPinnedToBottom &&
+                                            isAtBottom(listState, bottomThresholdPx)
+                                        ) {
+                                            applyDecision(controller.onUserReachedBottom())
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+            contentPadding = PaddingValues(16.dp),
+        ) {
+            itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
+                ChatMessageBubble(
+                    message = message,
+                    onRetry = onRetry,
+                    onSourceClick = onSourceClick,
+                    modifier = Modifier.padding(bottom = if (index < messages.lastIndex) 12.dp else 0.dp),
+                )
+            }
+            item(key = BOTTOM_ANCHOR_KEY) {
+                Spacer(Modifier.height(1.dp))
+            }
+        }
+
+        AnimatedVisibility(
+            visible = showScrollToBottomBadge,
+            enter = fadeIn() + scaleIn(initialScale = 0.9f),
+            exit = fadeOut() + scaleOut(targetScale = 0.9f),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 12.dp),
+        ) {
+            ScrollToBottomBadge(
+                onClick = {
+                    lastUserScrollDirectionDown = false
+                    applyDecision(controller.onScrollToBottomTapped())
+                },
             )
+        }
+    }
+}
+
+@Composable
+private fun ScrollToBottomBadge(onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        shadowElevation = 4.dp,
+        tonalElevation = 2.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = stringResource(Res.string.chat_scroll_to_bottom),
+                style = MaterialTheme.typography.labelLarge,
+            )
+        }
+    }
+}
+
+private fun isAtBottom(listState: LazyListState, bottomThresholdPx: Int): Boolean {
+    val layoutInfo = listState.layoutInfo
+    val totalCount = layoutInfo.totalItemsCount
+    if (totalCount == 0) return true
+    val anchorIndex = totalCount - 1
+    val anchorItem = layoutInfo.visibleItemsInfo.lastOrNull { it.index == anchorIndex }
+    val distanceToBottom = if (anchorItem != null) {
+        (anchorItem.offset + anchorItem.size + layoutInfo.afterContentPadding) -
+            layoutInfo.viewportEndOffset
+    } else {
+        Int.MAX_VALUE
+    }
+    return distanceToBottom <= bottomThresholdPx || !listState.canScrollForward
+}
+
+private suspend fun scrollSmoothToBottom(
+    listState: LazyListState,
+    bottomAnchorIndex: Int,
+) {
+    if (bottomAnchorIndex < 0) return
+    val layoutInfo = listState.layoutInfo
+    val visibleItem = layoutInfo.visibleItemsInfo.lastOrNull { it.index == bottomAnchorIndex }
+        ?: layoutInfo.visibleItemsInfo.lastOrNull { it.index == bottomAnchorIndex - 1 }
+    if (visibleItem != null) {
+        val remaining = (visibleItem.offset + visibleItem.size + layoutInfo.afterContentPadding) -
+            layoutInfo.viewportEndOffset
+        if (remaining > 0) {
+            listState.animateScrollBy(
+                value = remaining.toFloat(),
+                animationSpec = tween(durationMillis = 80, easing = FastOutSlowInEasing),
+            )
+        }
+    } else {
+        listState.animateScrollToItem(bottomAnchorIndex)
+    }
+}
+
+private suspend fun settleAtBottom(
+    listState: LazyListState,
+    bottomAnchorIndex: Int,
+) {
+    if (bottomAnchorIndex < 0) return
+    withFrameNanos {}
+    listState.scrollToItem(bottomAnchorIndex)
+    val layoutInfo = listState.layoutInfo
+    val visibleItem = layoutInfo.visibleItemsInfo.lastOrNull { it.index == bottomAnchorIndex }
+        ?: layoutInfo.visibleItemsInfo.lastOrNull { it.index == bottomAnchorIndex - 1 }
+    if (visibleItem != null) {
+        val remaining = (visibleItem.offset + visibleItem.size + layoutInfo.afterContentPadding) -
+            layoutInfo.viewportEndOffset
+        if (remaining > 0) {
+            listState.scrollBy(remaining.toFloat())
         }
     }
 }
@@ -262,10 +540,11 @@ private fun ChatMessageBubble(
     message: ChatMessage,
     onRetry: () -> Unit,
     onSourceClick: (ChatSourceRef) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val isUser = message.role == ChatMessage.ROLE_USER
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
     ) {
         Surface(

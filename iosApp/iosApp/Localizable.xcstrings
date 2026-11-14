@@ -4811,6 +4811,23 @@
           }
         }
       }
+    },
+    "chat_scroll_to_bottom": {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rulla längst ner"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scroll to bottom"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

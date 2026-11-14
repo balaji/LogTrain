@@ -402,4 +402,5 @@
     <string name="chat_prompt_exercise_form">Form tips for %1$s</string>
     <string name="chat_prompt_exercise_substitutes">Good substitutes for %1$s</string>
     <string name="chat_prompt_day_summary">How did this workout compare?</string>
+    <string name="chat_scroll_to_bottom">Scroll to bottom</string>
 </resources>

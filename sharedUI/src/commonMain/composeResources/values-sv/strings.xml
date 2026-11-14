@@ -397,4 +397,5 @@
     <string name="chat_prompt_exercise_form">Tekniktips för %1$s</string>
     <string name="chat_prompt_exercise_substitutes">Bra alternativ till %1$s</string>
     <string name="chat_prompt_day_summary">Hur stod sig det här passet?</string>
+    <string name="chat_scroll_to_bottom">Rulla längst ner</string>
 </resources>
