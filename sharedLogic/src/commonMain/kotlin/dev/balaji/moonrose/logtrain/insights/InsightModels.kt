@@ -176,9 +176,9 @@ data class ExerciseSetCount(val exerciseId: Long, val setCount: Int)
 
 /**
  * Pre-aggregated chart data for the exercise detail history section. All four
- * weekly series have one entry per calendar week (12 weeks, oldest first);
- * weeks with no logged sets have value 0.0. [hasAnyData] shortcuts the
- * "no history yet" empty-state check.
+ * weekly series have one entry per calendar week (from the exercise's first
+ * logged week to the current week, oldest first); weeks with no logged sets
+ * have value 0.0. [hasAnyData] shortcuts the "no history yet" empty-state check.
  */
 data class ExerciseHistoryUiState(
     val loading: Boolean = true,

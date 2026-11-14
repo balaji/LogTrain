@@ -127,15 +127,15 @@
     <string name="name_required">Name is required</string>
     <string name="duplicate_exercise_name">An exercise with this name already exists</string>
 
-    <!-- Exercise detail — 12-week history chart -->
-    <string name="exercise_history_section">12-week history</string>
+    <!-- Exercise detail — Recent history chart -->
+    <string name="exercise_history_section">Recent history</string>
     <string name="exercise_history_no_data">Log some sets to see history here.</string>
     <string name="exercise_history_metric_1rm">1RM</string>
     <string name="exercise_history_metric_volume">Volume</string>
     <string name="exercise_history_metric_duration">Duration</string>
     <string name="exercise_history_metric_distance">Distance</string>
-    <string name="exercise_history_zoom_in">Zoom in y-axis</string>
-    <string name="exercise_history_zoom_out">Zoom out y-axis to 0</string>
+    <string name="exercise_history_zoom_in">Zoom in to recent weeks</string>
+    <string name="exercise_history_zoom_out">Zoom out to all history</string>
 
     <!-- Exercise list — completed set count badge -->
     <plurals name="exercise_set_count">

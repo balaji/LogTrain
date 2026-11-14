@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
+import dev.balaji.moonrose.logtrain.calendar.WeekMath
 import dev.balaji.moonrose.logtrain.insights.BmiCategory
 import dev.balaji.moonrose.logtrain.insights.BmiClassification
 import dev.balaji.moonrose.logtrain.insights.InsightMath
@@ -52,7 +53,6 @@ internal fun ProgressionChart(
     series: List<SparkSeries>,
     showPctChange: Boolean,
     modifier: Modifier = Modifier,
-    startYAtZero: Boolean = false,
 ) {
     val colors = series.indices.map { seriesColor(it) }
     val labelStyle = MaterialTheme.typography.labelSmall
@@ -70,8 +70,7 @@ internal fun ProgressionChart(
         val all = lines.flatten()
         val minX = all.minOf { it.epochDay }
         val maxX = all.maxOf { it.epochDay }
-        val rawMinY = all.minOf { it.value }
-        val minY = if (startYAtZero && !showPctChange) minOf(0.0, rawMinY) else rawMinY
+        val minY = all.minOf { it.value }
         val maxY = all.maxOf { it.value }
         val spanX = (maxX - minX).coerceAtLeast(1).toFloat()
         val spanY = (maxY - minY).toFloat().coerceAtLeast(1e-3f)
@@ -103,6 +102,20 @@ internal fun ProgressionChart(
             }
         }
     }
+}
+
+private val MonthAbbrev = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+/** Formats an epoch day as `MMM-dd` (e.g. `Nov-14`). */
+internal fun formatMonthDay(epochDay: Long, months: List<String> = MonthAbbrev): String {
+    val parts = WeekMath.dayParts(epochDay)
+    return "${months[parts.monthOfYear - 1]}-${parts.dayOfMonth.toString().padStart(2, '0')}"
+}
+
+/** Formats an epoch day as `MMM yy` (e.g. `Nov 26`), for axes spanning more than a year. */
+internal fun formatMonthYear(epochDay: Long, months: List<String> = MonthAbbrev): String {
+    val parts = WeekMath.dayParts(epochDay)
+    return "${months[parts.monthOfYear - 1]} ${(parts.year.mod(100)).toString().padStart(2, '0')}"
 }
 
 @Composable

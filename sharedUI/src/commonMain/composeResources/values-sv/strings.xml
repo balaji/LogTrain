@@ -127,15 +127,15 @@
     <string name="name_required">Namn krävs</string>
     <string name="duplicate_exercise_name">En övning med det här namnet finns redan</string>
 
-    <!-- Exercise detail — 12-week history chart -->
-    <string name="exercise_history_section">12-veckors historik</string>
+    <!-- Exercise detail — Recent history chart -->
+    <string name="exercise_history_section">Senaste historik</string>
     <string name="exercise_history_no_data">Logga några set för att se historik här.</string>
     <string name="exercise_history_metric_1rm">1RM</string>
     <string name="exercise_history_metric_volume">Volym</string>
     <string name="exercise_history_metric_duration">Tid</string>
     <string name="exercise_history_metric_distance">Distans</string>
-    <string name="exercise_history_zoom_in">Zooma in y-axeln</string>
-    <string name="exercise_history_zoom_out">Zooma ut y-axeln till 0</string>
+    <string name="exercise_history_zoom_in">Zooma in till senaste veckorna</string>
+    <string name="exercise_history_zoom_out">Zooma ut till hela historiken</string>
 
     <!-- Exercise list — completed set count badge -->
     <plurals name="exercise_set_count">
