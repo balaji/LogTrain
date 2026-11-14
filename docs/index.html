@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Train Free — Offline, Open-Source Workout Logger for iOS &amp; Android</title>
+  <meta name="description" content="An opinionated gym workout logger for iOS and Android. Always free and open source, 100% offline with zero accounts, and powered by your device's own on-device AI models when available.">
+  <link rel="canonical" href="https://www.balaji.dev/trainfree">
+
+  <meta property="og:title" content="Train Free — Offline, Open-Source Workout Logger for iOS &amp; Android">
+  <meta property="og:description" content="An opinionated gym workout logger for iOS and Android. Always free and open source, 100% offline with zero accounts, and powered by your device's own on-device AI models when available.">
+  <meta property="og:url" content="https://www.balaji.dev/trainfree">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Train Free">
+
+  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0B0D10" media="(prefers-color-scheme: dark)">
+
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23007AFF'/%3E%3Cpath d='M6 16h20M9 11v10M23 11v10M6.5 13v6M25.5 13v6' stroke='%23FFFFFF' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
+
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #FAFAFA;
+      --surface: #FFFFFF;
+      --surface-subtle: #F2F4F7;
+      --text: #111317;
+      --text-secondary: #4E5562;
+      --text-muted: #6E7685;
+      --border: #E4E7EC;
+      --accent: #007AFF;
+      --accent-soft: rgba(0, 122, 255, 0.09);
+      --accent-border: rgba(0, 122, 255, 0.24);
+      --ok: #15803D;
+      --ok-soft: rgba(21, 128, 61, 0.1);
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0B0D10;
+        --surface: #13161B;
+        --surface-subtle: #1B1F27;
+        --text: #F2F4F8;
+        --text-secondary: #B0B7C3;
+        --text-muted: #848D9B;
+        --border: #252A34;
+        --accent: #0A84FF;
+        --accent-soft: rgba(10, 132, 255, 0.14);
+        --accent-border: rgba(10, 132, 255, 0.32);
+        --ok: #4ADE80;
+        --ok-soft: rgba(74, 222, 128, 0.12);
+      }
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      margin: 0;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.875em;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 0.1em 0.38em;
+    }
+
+    .wrap {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Top bar */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 24px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text);
+      font-weight: 650;
+      font-size: 1.05rem;
+      letter-spacing: -0.015em;
+    }
+
+    .brand:hover {
+      text-decoration: none;
+    }
+
+    .brand-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      background: var(--accent);
+      color: #FFFFFF;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 5px 10px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .repo-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.9rem;
+      font-weight: 550;
+      color: var(--text);
+      padding: 5px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .repo-link:hover {
+      text-decoration: none;
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Hero */
+    .hero {
+      padding: 56px 0 40px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border: 1px solid var(--accent-border);
+      padding: 5px 11px;
+      border-radius: 999px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      margin: 0 0 18px;
+      font-size: clamp(2rem, 4.6vw, 2.85rem);
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+      font-weight: 750;
+    }
+
+    .subheadline {
+      margin: 0 0 28px;
+      font-size: 1.125rem;
+      line-height: 1.58;
+      color: var(--text-secondary);
+      max-width: 64ch;
+    }
+
+    /* Honest typographic set-row motif */
+    .motif {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-family: var(--font-mono);
+      font-size: 0.84rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+    }
+
+    .motif-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .motif-label {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+    }
+
+    .motif-value {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .motif-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--ok);
+      background: var(--ok-soft);
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    /* Availability callout */
+    .callout {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .callout-title {
+      font-weight: 650;
+      font-size: 0.95rem;
+      color: var(--text);
+      margin: 0;
+    }
+
+    .callout-body {
+      margin: 0;
+      font-size: 0.94rem;
+      color: var(--text-secondary);
+    }
+
+    /* Section chrome */
+    section {
+      padding: 36px 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .section-heading {
+      margin: 0 0 8px;
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .section-lead {
+      margin: 0 0 24px;
+      color: var(--text-secondary);
+      font-size: 0.96rem;
+    }
+
+    /* Four core pillars grid */
+    .pillars-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .card h3 {
+      margin: 0;
+      font-size: 1.02rem;
+      font-weight: 650;
+      letter-spacing: -0.01em;
+    }
+
+    .card p {
+      margin: 0;
+      font-size: 0.93rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    /* Opinionated principles */
+    .principles-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .principle {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+
+    .principle-header {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+
+    .principle-num {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .principle-title {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 650;
+      letter-spacing: -0.01em;
+    }
+
+    .principle-body {
+      margin: 0;
+      font-size: 0.93rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 28px 0 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    .footer-links {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    @media (max-width: 640px) {
+      .hero {
+        padding: 40px 0 32px;
+      }
+
+      .pillars-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar {
+        padding: 18px 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <a class="brand" href="https://www.balaji.dev/trainfree">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <path d="M4 12h16M7 7v10M17 7v10M4.5 9.5v5M19.5 9.5v5"/>
+          </svg>
+        </span>
+        <span>Train Free</span>
+      </a>
+
+      <div class="topbar-right">
+        <span class="status-pill">
+          <span class="status-dot" aria-hidden="true"></span>
+          In Development · Coming Soon
+        </span>
+        <a class="repo-link" href="https://github.com/balaji/TrainFree">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 1.5C6.2 1.5 1.5 6.2 1.5 12c0 4.64 3.01 8.58 7.18 9.97.52.1.71-.23.71-.5 0-.25-.01-1.08-.01-1.95-2.64.49-3.32-.64-3.53-1.23-.12-.3-.63-1.23-1.08-1.48-.37-.2-.9-.69-.01-.7.83-.01 1.43.76 1.63 1.08.95 1.6 2.47 1.15 3.08.87.09-.69.37-1.15.67-1.42-2.34-.26-4.79-1.17-4.79-5.2 0-1.15.41-2.09 1.08-2.82-.11-.26-.47-1.34.1-2.79 0 0 .88-.28 2.89 1.08a10 10 0 0 1 5.26 0c2.01-1.36 2.89-1.08 2.89-1.08.57 1.45.21 2.53.1 2.79.67.73 1.08 1.67 1.08 2.82 0 4.04-2.46 4.94-4.81 5.2.38.33.71.97.71 1.96 0 1.42-.01 2.56-.01 2.91 0 .28.19.61.72.5A10.51 10.51 0 0 0 22.5 12c0-5.8-4.7-10.5-10.5-10.5Z"/>
+          </svg>
+          GitHub
+        </a>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero" style="border-top: 0;">
+        <div class="eyebrow">iOS &amp; Android · Free &amp; Open Source · 100% Offline</div>
+        <h1>A gym workout logger that gets out of your way.</h1>
+        <p class="subheadline">
+          Pick the exercise, punch in weight and reps between sets, and get back to the bar.
+          No account, no sign-in, no cloud lock-in, and no subscription wall between you and your lifting history.
+        </p>
+
+        <div class="motif" aria-label="Sample workout set entry">
+          <div class="motif-left">
+            <span class="motif-label">SET 1</span>
+            <span class="motif-value">Barbell Bench Press · 100 kg × 5</span>
+          </div>
+          <span class="motif-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Saved to local SQLite
+          </span>
+        </div>
+
+        <div class="callout">
+          <p class="callout-title">Not on the App Store or Google Play yet</p>
+          <p class="callout-body">
+            Train Free is currently in active development and will be released for both <strong>iOS</strong> and <strong>Android</strong>.
+            Follow progress, read the architecture, or build it yourself on
+            <a href="https://github.com/balaji/TrainFree">GitHub</a>.
+          </p>
+        </div>
+      </section>
+
+      <section aria-labelledby="pillars-heading">
+        <h2 class="section-heading" id="pillars-heading">Built around four guarantees</h2>
+        <p class="section-lead">No compromises for monetization, growth hacks, or server dependencies.</p>
+
+        <div class="pillars-grid">
+          <article class="card">
+            <div class="card-head">
+              <span class="card-icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="6" y="2" width="12" height="20" rx="2.5"/>
+                  <path d="M10 18h4"/>
+                </svg>
+              </span>
+              <h3>Native on iOS &amp; Android</h3>
+            </div>
+            <p>
+              Built natively for both platforms — SwiftUI with iOS 26 Liquid Glass on iPhone, and Jetpack Compose with Material 3 Expressive on Android — backed by a shared Kotlin Multiplatform engine.
+            </p>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <span class="card-icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  <path d="M9 12l2 2 4-4"/>
+                </svg>
+              </span>
+              <h3>Always Free &amp; Open Source</h3>
+            </div>
+            <p>
+              No subscriptions to unlock your own history, no paywalled exercise catalog, no ads, and no telemetry. Every line of code is open source on GitHub.
+            </p>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <span class="card-icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <ellipse cx="12" cy="5" rx="8" ry="3"/>
+                  <path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/>
+                  <path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/>
+                </svg>
+              </span>
+              <h3>100% Offline &amp; Local-First</h3>
+            </div>
+            <p>
+              The app doesn't even request the <code>INTERNET</code> permission. Your profile, routines, workout sessions, and body metrics live in a plain on-device SQLite (Room) database that you own.
+            </p>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <span class="card-icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6l2.1 2.1m0-12.8l-2.1 2.1m-8.6 8.6l-2.1 2.1"/>
+                  <circle cx="12" cy="12" r="3.5"/>
+                </svg>
+              </span>
+              <h3>On-Device AI (When Available)</h3>
+            </div>
+            <p>
+              Uses your phone's built-in language models — <strong>Apple Intelligence</strong> (<code>FoundationModels</code>) on iOS and <strong>Gemini Nano</strong> (ML Kit GenAI) on Android — to narrate progress trends and answer questions over your training log. If your device doesn't support on-device AI, every logging and analytics feature works completely without it.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="principles-heading">
+        <h2 class="section-heading" id="principles-heading">What we refuse to compromise on</h2>
+        <p class="section-lead">Opinionated rules that keep the app fast, honest, and respectful of your time.</p>
+
+        <ol class="principles-list">
+          <li class="principle">
+            <div class="principle-header">
+              <span class="principle-num">01 /</span>
+              <h3 class="principle-title">Logging speed beats features</h3>
+            </div>
+            <p class="principle-body">
+              Anything on the log-a-set path must work one-handed, in seconds, mid-workout. If a feature slows down logging a set, it doesn't ship.
+            </p>
+          </li>
+
+          <li class="principle">
+            <div class="principle-header">
+              <span class="principle-num">02 /</span>
+              <h3 class="principle-title">Deterministic math, local narration</h3>
+            </div>
+            <p class="principle-body">
+              1RM estimates (Epley, Brzycki, Lombardi, O'Conner), volume trends, and streaks are calculated deterministically in Kotlin. The on-device model never invents statistics — it only explains the verified numbers on your phone.
+            </p>
+          </li>
+
+          <li class="principle">
+            <div class="principle-header">
+              <span class="principle-num">03 /</span>
+              <h3 class="principle-title">Native feel over cross-platform shortcuts</h3>
+            </div>
+            <p class="principle-body">
+              Sharing business logic across platforms is an engineering strategy, never an excuse for a lowest-common-denominator UI.
+            </p>
+          </li>
+
+          <li class="principle">
+            <div class="principle-header">
+              <span class="principle-num">04 /</span>
+              <h3 class="principle-title">Your data outlives the app</h3>
+            </div>
+            <p class="principle-body">
+              Everything sits in a clean, documented SQLite schema on your device — never trapped on someone else's server.
+            </p>
+          </li>
+        </ol>
+      </section>
+    </main>
+
+    <footer>
+      <span>Built with Kotlin Multiplatform, SwiftUI, and Jetpack Compose.</span>
+      <nav class="footer-links" aria-label="Project links">
+        <a href="https://github.com/balaji/TrainFree">GitHub</a>
+        <a href="https://www.balaji.dev">balaji.dev</a>
+      </nav>
+    </footer>
+  </div>
+</body>
+</html>
