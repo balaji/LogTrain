@@ -545,6 +545,7 @@ enum L10n {
     static let chatErrorUnavailable = String(localized: "chat_error_unavailable", defaultValue: "The on-device model is currently unavailable.")
     static let chatErrorContextTooLong = String(localized: "chat_error_context_too_long", defaultValue: "Conversation grew too long for the on-device limit. Tap New chat to continue.")
     static let chatErrorGenerationFailed = String(localized: "chat_error_generation_failed", defaultValue: "Could not generate a response. Please try again.")
+    static let chatScrollToBottom = String(localized: "chat_scroll_to_bottom", defaultValue: "Scroll to bottom")
 
     static func chatSuggestedPrompt(_ prompt: ChatSuggestedPrompt) -> String {
         switch prompt.key {
