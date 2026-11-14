@@ -106,6 +106,21 @@ object InsightsRepository {
             .observeCompletedSetCountsByExercise(PROFILE_ID)
             .map { rows -> rows.map { ExerciseSetCount(it.exerciseId, it.setCount) } }
 
+    /** Snapshot of all-time completed working-set counts per exercise. */
+    suspend fun completedSetCountsByExercise(): Map<Long, Int> =
+        AppDb.db.workoutSessionDetailDao()
+            .getCompletedSetCountsByExercise(PROFILE_ID)
+            .associate { it.exerciseId to it.setCount }
+
+    /**
+     * Completed working sets per primary body part over the last [days] days,
+     * most trained first. Sets whose exercise has no body part are omitted.
+     */
+    suspend fun bodyPartBreakdown(days: Int = 365): List<BodyPartSlice> {
+        val startMillis = startOfDayMillis(WeekMath.todayEpochDay() - days.coerceAtLeast(1))
+        return bodyPartBreakdownFrom(completedSetsSince(startMillis))
+    }
+
     /** Exercises that have at least one completed working set, most trained first. */
     suspend fun trainedExerciseNames(limit: Int = 10): List<String> =
         completedSetsSince(0)

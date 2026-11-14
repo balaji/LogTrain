@@ -54,6 +54,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import dev.balaji.moonrose.logtrain.chat.ChatSeedContext
+import dev.balaji.moonrose.logtrain.chat.ChatState
 import dev.balaji.moonrose.logtrain.db.ActiveWorkoutSession
 import dev.balaji.moonrose.logtrain.db.ProfileRepository
 import dev.balaji.moonrose.logtrain.db.REST_TIMER_DURATION_SECONDS
@@ -61,7 +63,10 @@ import dev.balaji.moonrose.logtrain.db.UserSettingsRepository
 import dev.balaji.moonrose.logtrain.db.WorkoutSessionRepository
 import dev.balaji.moonrose.logtrain.model.UserSettings
 import dev.balaji.moonrose.logtrain.navigation.CalendarRoute
+import dev.balaji.moonrose.logtrain.navigation.DayDetailRoute
+import dev.balaji.moonrose.logtrain.navigation.ExerciseDetailRoute
 import dev.balaji.moonrose.logtrain.navigation.ExercisesRoute
+import dev.balaji.moonrose.logtrain.navigation.LocalBottomFabPadding
 import dev.balaji.moonrose.logtrain.navigation.NavStack
 import dev.balaji.moonrose.logtrain.navigation.PlatformBackHandler
 import dev.balaji.moonrose.logtrain.navigation.ProfileRoute
@@ -71,8 +76,10 @@ import dev.balaji.moonrose.logtrain.navigation.TopLevelRoute
 import dev.balaji.moonrose.logtrain.navigation.WorkoutSessionRoute
 import dev.balaji.moonrose.logtrain.navigation.WorkoutsRoute
 import dev.balaji.moonrose.logtrain.notifications.rememberRestTimerNotifier
+import dev.balaji.moonrose.logtrain.screens.ChatSheet
 import dev.balaji.moonrose.logtrain.screens.ProfileSetupFlow
 import dev.balaji.moonrose.logtrain.screens.formatElapsed
+import dev.balaji.moonrose.logtrain.screens.rememberChatGenerationProvider
 import dev.balaji.moonrose.logtrain.screens.remainingSecondsUntil
 import dev.balaji.moonrose.logtrain.screens.rememberElapsedSeconds
 import dev.balaji.moonrose.logtrain.screens.rememberStartWorkoutHandler
@@ -138,6 +145,18 @@ private fun MainTabs() {
     val sessionScreenVisible = stack.current is WorkoutSessionRoute ||
         directWorkoutSession != null ||
         (showWorkouts && workoutsStack.current is WorkoutSessionRoute)
+
+    val chatProvider = rememberChatGenerationProvider()
+    val chatState = remember(chatProvider) { ChatState(chatProvider) }
+    var showChat by remember { mutableStateOf(false) }
+    val openChat: ((ChatSeedContext) -> Unit)? = if (chatProvider != null) {
+        { seed ->
+            chatState.openWithSeed(seed)
+            showChat = true
+        }
+    } else {
+        null
+    }
 
     val activeRestTimer by WorkoutSessionRepository.activeRestTimer.collectAsState()
     val restRemainingSeconds = rememberRestTimerRemainingSeconds()
@@ -247,11 +266,16 @@ private fun MainTabs() {
                 .padding(padding)
                 .consumeWindowInsets(padding),
         ) {
-            ScreenContent(
-                route = stack.current,
-                onNavigate = stack::push,
-                onGoBack = stack::pop,
-            )
+            CompositionLocalProvider(
+                LocalBottomFabPadding provides if (!sessionScreenVisible && !showWorkouts) 72.dp else 0.dp,
+            ) {
+                ScreenContent(
+                    route = stack.current,
+                    onNavigate = stack::push,
+                    onGoBack = stack::pop,
+                    onOpenChat = openChat,
+                )
+            }
             AnimatedVisibility(
                 visible = workoutMenuExpanded && !sessionScreenVisible && !showWorkouts,
                 enter = fadeIn(),
@@ -344,6 +368,33 @@ private fun MainTabs() {
                 }
             }
         }
+    }
+
+    if (showChat) {
+        ChatSheet(
+            chatState = chatState,
+            onDismiss = { showChat = false },
+            onSourceClick = { ref ->
+                showChat = false
+                when (ref.kind) {
+                    "exercise" -> if (ref.exerciseId > 0L) {
+                        stack.push(ExerciseDetailRoute(ref.exerciseId, ref.label))
+                    }
+                    "day" -> if (ref.epochDay > 0L) {
+                        stack.push(DayDetailRoute(ref.epochDay))
+                    }
+                    "program" -> {
+                        workoutMenuExpanded = false
+                        workoutsStack.popToRoot()
+                        showWorkouts = true
+                    }
+                    "progress" -> {
+                        workoutMenuExpanded = false
+                        currentTab = ProgressRoute
+                    }
+                }
+            },
+        )
     }
 
     if (showDiscardConfirm) {

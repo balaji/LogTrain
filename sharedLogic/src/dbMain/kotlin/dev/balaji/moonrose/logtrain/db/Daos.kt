@@ -44,6 +44,35 @@ data class ExerciseSetCountRow(
     @ColumnInfo(name = "set_count") val setCount: Int,
 )
 
+/** Projection for chat workout-history recall: one row per completed session. */
+data class RecentCompletedSessionRow(
+    val id: Long,
+    @ColumnInfo(name = "routine_id") val routineId: Long?,
+    @ColumnInfo(name = "routine_name") val routineName: String?,
+    @ColumnInfo(name = "performed_at") val performedAt: Long,
+    @ColumnInfo(name = "completed_at") val completedAt: Long,
+)
+
+/** Projection for routine recency: latest completed timestamp per routine. */
+data class RoutineLastPerformedRow(
+    @ColumnInfo(name = "routine_id") val routineId: Long,
+    @ColumnInfo(name = "last_performed_at") val lastPerformedAt: Long,
+)
+
+/** Projection for chat session summaries: one completed working set joined with exercise metadata. */
+data class SessionDetailWithExerciseRow(
+    @ColumnInfo(name = "workout_session_id") val workoutSessionId: Long,
+    @ColumnInfo(name = "exercise_id") val exerciseId: Long,
+    @ColumnInfo(name = "exercise_name") val exerciseName: String,
+    @ColumnInfo(name = "exercise_type") val exerciseType: String?,
+    @ColumnInfo(name = "actual_weight") val actualWeight: Double?,
+    @ColumnInfo(name = "actual_reps") val actualReps: Int?,
+    @ColumnInfo(name = "actual_duration") val actualDuration: Int?,
+    @ColumnInfo(name = "actual_distance") val actualDistance: Double?,
+    @ColumnInfo(name = "set_type") val setType: dev.balaji.moonrose.logtrain.model.SetType,
+    @ColumnInfo(name = "weight_unit") val weightUnit: WeightUnit,
+)
+
 @Dao
 interface ProfileDao {
     @Query("SELECT * FROM profile WHERE id = 1")
@@ -74,6 +103,9 @@ interface ProgramDao {
     @Query("SELECT * FROM programs ORDER BY id")
     fun observeAll(): Flow<List<ProgramEntity>>
 
+    @Query("SELECT * FROM programs ORDER BY id")
+    suspend fun getAll(): List<ProgramEntity>
+
     @Query("SELECT * FROM programs WHERE id = :id")
     suspend fun findById(id: Long): ProgramEntity?
 
@@ -91,6 +123,9 @@ interface ProgramDao {
 interface RoutineDao {
     @Query("SELECT * FROM routines ORDER BY program_id, position")
     fun observeAll(): Flow<List<RoutineEntity>>
+
+    @Query("SELECT * FROM routines ORDER BY program_id, position")
+    suspend fun getAll(): List<RoutineEntity>
 
     @Query("SELECT * FROM routines WHERE id = :id")
     suspend fun findById(id: Long): RoutineEntity?
@@ -112,6 +147,9 @@ interface RoutineDao {
 interface ExerciseDao {
     @Query("SELECT * FROM exercises ORDER BY name COLLATE NOCASE")
     fun observeAll(): Flow<List<ExerciseEntity>>
+
+    @Query("SELECT * FROM exercises ORDER BY name COLLATE NOCASE")
+    suspend fun getAll(): List<ExerciseEntity>
 
     @Query("SELECT * FROM exercises WHERE id = :id")
     suspend fun findById(id: Long): ExerciseEntity?
@@ -170,6 +208,9 @@ interface WorkSetDetailDao {
 
     @Query("SELECT * FROM work_set_details WHERE work_set_id = :workSetId ORDER BY position")
     suspend fun getForWorkSet(workSetId: Long): List<WorkSetDetailEntity>
+
+    @Query("SELECT * FROM work_set_details WHERE work_set_id IN (:workSetIds) ORDER BY work_set_id, position")
+    suspend fun getForWorkSets(workSetIds: List<Long>): List<WorkSetDetailEntity>
 
     @Insert
     suspend fun insert(detail: WorkSetDetailEntity): Long
@@ -266,6 +307,42 @@ interface WorkoutSessionDao {
     )
     fun observeCompletedInRange(profileId: Long, startMillis: Long, endMillis: Long): Flow<List<WorkoutSessionEntity>>
 
+    @Query(
+        "SELECT s.id AS id, s.routine_id AS routine_id, r.name AS routine_name, " +
+            "s.performed_at AS performed_at, s.completed_at AS completed_at " +
+            "FROM workout_sessions s LEFT JOIN routines r ON r.id = s.routine_id " +
+            "WHERE s.profile_id = :profileId AND s.completed_at IS NOT NULL " +
+            "AND s.performed_at >= :sinceMillis " +
+            "ORDER BY s.performed_at DESC LIMIT :limit",
+    )
+    suspend fun getRecentCompletedWithRoutine(
+        profileId: Long,
+        sinceMillis: Long,
+        limit: Int,
+    ): List<RecentCompletedSessionRow>
+
+    @Query(
+        "SELECT s.id AS id, s.routine_id AS routine_id, r.name AS routine_name, " +
+            "s.performed_at AS performed_at, s.completed_at AS completed_at " +
+            "FROM workout_sessions s LEFT JOIN routines r ON r.id = s.routine_id " +
+            "WHERE s.profile_id = :profileId AND s.completed_at IS NOT NULL " +
+            "AND s.performed_at >= :startMillis AND s.performed_at < :endMillis " +
+            "ORDER BY s.performed_at",
+    )
+    suspend fun getCompletedWithRoutineInRange(
+        profileId: Long,
+        startMillis: Long,
+        endMillis: Long,
+    ): List<RecentCompletedSessionRow>
+
+    @Query(
+        "SELECT routine_id AS routine_id, MAX(performed_at) AS last_performed_at " +
+            "FROM workout_sessions " +
+            "WHERE profile_id = :profileId AND completed_at IS NOT NULL AND routine_id IS NOT NULL " +
+            "GROUP BY routine_id",
+    )
+    suspend fun getLastPerformedByRoutine(profileId: Long): List<RoutineLastPerformedRow>
+
     @Insert
     suspend fun insert(session: WorkoutSessionEntity): Long
 
@@ -360,6 +437,26 @@ interface WorkoutSessionDetailDao {
     ): Flow<List<CompletedSetRow>>
 
     @Query(
+        "SELECT s.performed_at AS performed_at, d.exercise_id AS exercise_id, " +
+            "e.name AS exercise_name, e.body_part AS body_part, " +
+            "d.actual_weight AS actual_weight, d.actual_reps AS actual_reps, " +
+            "d.actual_duration AS actual_duration, d.actual_distance AS actual_distance, " +
+            "d.weight_unit AS weight_unit " +
+            "FROM workout_session_details d " +
+            "JOIN workout_sessions s ON s.id = d.workout_session_id " +
+            "JOIN exercises e ON e.id = d.exercise_id " +
+            "WHERE s.profile_id = :profileId AND s.completed_at IS NOT NULL " +
+            "AND d.completed != 0 AND d.set_type != 'warmup' " +
+            "AND d.exercise_id = :exerciseId AND s.performed_at >= :startMillis " +
+            "ORDER BY s.performed_at",
+    )
+    suspend fun getCompletedSetsForExercise(
+        profileId: Long,
+        exerciseId: Long,
+        startMillis: Long,
+    ): List<CompletedSetRow>
+
+    @Query(
         "SELECT d.exercise_id AS exercise_id, COUNT(*) AS set_count " +
             "FROM workout_session_details d " +
             "JOIN workout_sessions s ON s.id = d.workout_session_id " +
@@ -368,6 +465,30 @@ interface WorkoutSessionDetailDao {
             "GROUP BY d.exercise_id",
     )
     fun observeCompletedSetCountsByExercise(profileId: Long): Flow<List<ExerciseSetCountRow>>
+
+    @Query(
+        "SELECT d.exercise_id AS exercise_id, COUNT(*) AS set_count " +
+            "FROM workout_session_details d " +
+            "JOIN workout_sessions s ON s.id = d.workout_session_id " +
+            "WHERE s.profile_id = :profileId AND s.completed_at IS NOT NULL " +
+            "AND d.completed != 0 AND d.set_type != 'warmup' " +
+            "GROUP BY d.exercise_id",
+    )
+    suspend fun getCompletedSetCountsByExercise(profileId: Long): List<ExerciseSetCountRow>
+
+    @Query(
+        "SELECT d.workout_session_id AS workout_session_id, d.exercise_id AS exercise_id, " +
+            "e.name AS exercise_name, e.exercise_type AS exercise_type, " +
+            "d.actual_weight AS actual_weight, d.actual_reps AS actual_reps, " +
+            "d.actual_duration AS actual_duration, d.actual_distance AS actual_distance, " +
+            "d.set_type AS set_type, d.weight_unit AS weight_unit " +
+            "FROM workout_session_details d " +
+            "JOIN exercises e ON e.id = d.exercise_id " +
+            "WHERE d.workout_session_id IN (:sessionIds) " +
+            "AND d.completed != 0 AND d.set_type != 'warmup' " +
+            "ORDER BY d.workout_session_id, d.position",
+    )
+    suspend fun getCompletedForSessions(sessionIds: List<Long>): List<SessionDetailWithExerciseRow>
 
     /**
      * Sets of the most recent completed session that includes the exercise, in

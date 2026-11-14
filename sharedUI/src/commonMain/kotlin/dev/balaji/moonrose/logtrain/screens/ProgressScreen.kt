@@ -73,6 +73,7 @@ import dev.balaji.moonrose.logtrain.insights.InsightMath
 import dev.balaji.moonrose.logtrain.insights.SparkPoint
 import dev.balaji.moonrose.logtrain.insights.SparkSeries
 import dev.balaji.moonrose.logtrain.insights.llm.CardNarration
+import dev.balaji.moonrose.logtrain.navigation.LocalBottomFabPadding
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import kotlin.math.PI
 import kotlin.math.cos
@@ -87,7 +88,9 @@ import dev.balaji.moonrose.logtrain.sharedui.resources.*
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProgressScreen() {
+fun ProgressScreen(
+    onOpenChat: (() -> Unit)? = null,
+) {
     val state = remember { ProgressScreenState() }
     val provider = rememberInsightGenerationProvider()
     val narrationState = remember(provider) { InsightNarrationState(provider) }
@@ -99,6 +102,16 @@ fun ProgressScreen() {
             topBar = {
                 TopAppBar(
                     title = { Text(stringResource(Res.string.tab_progress)) },
+                    actions = {
+                        if (onOpenChat != null) {
+                            IconButton(onClick = onOpenChat) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = stringResource(Res.string.chat_title),
+                                )
+                            }
+                        }
+                    },
                 )
             },
         ) { padding ->
@@ -125,7 +138,12 @@ private fun ProgressContent(
     } else {
         LazyColumn(
             modifier = modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                top = 16.dp,
+                end = 16.dp,
+                bottom = 16.dp + LocalBottomFabPadding.current,
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item(key = "log_weight") {

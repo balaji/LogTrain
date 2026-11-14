@@ -1,6 +1,7 @@
 package dev.balaji.moonrose.logtrain.navigation
 
 import androidx.compose.runtime.Composable
+import dev.balaji.moonrose.logtrain.chat.ChatSeedContext
 import dev.balaji.moonrose.logtrain.screens.CalendarScreen
 import dev.balaji.moonrose.logtrain.screens.DayDetailScreen
 import dev.balaji.moonrose.logtrain.screens.ExerciseCreateScreen
@@ -22,6 +23,7 @@ fun ScreenContent(
     route: Route,
     onNavigate: (Route) -> Unit,
     onGoBack: () -> Unit,
+    onOpenChat: ((ChatSeedContext) -> Unit)? = null,
 ) {
     when (route) {
         ExercisesRoute -> ExercisesScreen(onNavigate = onNavigate)
@@ -29,12 +31,22 @@ fun ScreenContent(
         CalendarRoute -> CalendarScreen(
             onDayClick = { epochDay -> onNavigate(DayDetailRoute(epochDay)) },
         )
-        ProgressRoute -> ProgressScreen()
+        ProgressRoute -> ProgressScreen(
+            onOpenChat = onOpenChat?.let { open -> { open(ChatSeedContext()) } },
+        )
         ProfileRoute -> ProfileScreen()
         is RoutineDetailRoute -> RoutineDetailScreen(route = route, onNavigate = onNavigate, onGoBack = onGoBack)
         ExerciseCreateRoute -> ExerciseCreateScreen(onGoBack = onGoBack)
-        is ExerciseDetailRoute -> ExerciseDetailScreen(route = route, onGoBack = onGoBack)
+        is ExerciseDetailRoute -> ExerciseDetailScreen(
+            route = route,
+            onGoBack = onGoBack,
+            onOpenChat = onOpenChat,
+        )
         is WorkoutSessionRoute -> WorkoutSessionScreen(route = route, onGoBack = onGoBack)
-        is DayDetailRoute -> DayDetailScreen(route = route, onGoBack = onGoBack)
+        is DayDetailRoute -> DayDetailScreen(
+            route = route,
+            onGoBack = onGoBack,
+            onOpenChat = onOpenChat,
+        )
     }
 }

@@ -16,8 +16,16 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.ZoomIn
+import androidx.compose.material.icons.filled.ZoomOut
+import androidx.compose.material3.OutlinedButton
+import dev.balaji.moonrose.logtrain.chat.ChatSeedContext
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,6 +38,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -52,6 +63,7 @@ import dev.balaji.moonrose.logtrain.insights.SparkPoint
 import dev.balaji.moonrose.logtrain.insights.SparkSeries
 import dev.balaji.moonrose.logtrain.model.ExerciseType
 import dev.balaji.moonrose.logtrain.navigation.ExerciseDetailRoute
+import dev.balaji.moonrose.logtrain.navigation.LocalBottomFabPadding
 import dev.balaji.moonrose.logtrain.navigation.LocalUseNativeNavigation
 import org.jetbrains.compose.resources.stringResource
 import dev.balaji.moonrose.logtrain.sharedui.resources.*
@@ -70,10 +82,15 @@ private val EQUIPMENT_OPTIONS = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExerciseDetailScreen(route: ExerciseDetailRoute, onGoBack: () -> Unit) {
+fun ExerciseDetailScreen(
+    route: ExerciseDetailRoute,
+    onGoBack: () -> Unit,
+    onOpenChat: ((ChatSeedContext) -> Unit)? = null,
+) {
     if (LocalUseNativeNavigation.current) {
         ExerciseDetailContent(
             route = route,
+            onOpenChat = onOpenChat,
             modifier = Modifier.padding(WindowInsets.safeDrawing.asPaddingValues()),
         )
     } else {
@@ -89,7 +106,11 @@ fun ExerciseDetailScreen(route: ExerciseDetailRoute, onGoBack: () -> Unit) {
                 )
             },
         ) { padding ->
-            ExerciseDetailContent(route = route, modifier = Modifier.padding(padding))
+            ExerciseDetailContent(
+                route = route,
+                onOpenChat = onOpenChat,
+                modifier = Modifier.padding(padding),
+            )
         }
     }
 }
@@ -129,14 +150,23 @@ private fun ExerciseCreateContent(onSaved: () -> Unit, modifier: Modifier = Modi
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .padding(
+                start = 24.dp,
+                top = 24.dp,
+                end = 24.dp,
+                bottom = 24.dp + LocalBottomFabPadding.current,
+            ),
     ) {
         ExerciseEditForm(uiState = uiState, formState = formState, onDone = onSaved)
     }
 }
 
 @Composable
-private fun ExerciseDetailContent(route: ExerciseDetailRoute, modifier: Modifier = Modifier) {
+private fun ExerciseDetailContent(
+    route: ExerciseDetailRoute,
+    onOpenChat: ((ChatSeedContext) -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
     val formState = remember(route.exerciseId) { ExerciseFormState(route.exerciseId) }
     val uiState by formState.uiState.collectAsState()
     val historyState = remember(route.exerciseId) { ExerciseHistoryState(route.exerciseId) }
@@ -152,16 +182,28 @@ private fun ExerciseDetailContent(route: ExerciseDetailRoute, modifier: Modifier
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .padding(
+                start = 24.dp,
+                top = 24.dp,
+                end = 24.dp,
+                bottom = 24.dp + LocalBottomFabPadding.current,
+            ),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (editing) {
             ExerciseEditForm(uiState = uiState, formState = formState, onDone = { editing = false })
         } else {
-            ExerciseReadOnlyDetails(uiState = uiState, onEdit = { editing = true })
+            ExerciseReadOnlyDetails(
+                exerciseId = route.exerciseId,
+                uiState = uiState,
+                onEdit = { editing = true },
+                onOpenChat = onOpenChat,
+            )
             if (!historyUiState.loading) {
-                HorizontalDivider()
+                if (!uiState.builtin) {
+                    HorizontalDivider()
+                }
                 ExerciseHistorySection(
                     historyUiState = historyUiState,
                     exerciseType = ExerciseType.fromValue(uiState.exerciseType),
@@ -172,10 +214,37 @@ private fun ExerciseDetailContent(route: ExerciseDetailRoute, modifier: Modifier
 }
 
 @Composable
-private fun ExerciseReadOnlyDetails(uiState: ExerciseFormUiState, onEdit: () -> Unit) {
+private fun ExerciseReadOnlyDetails(
+    exerciseId: Long,
+    uiState: ExerciseFormUiState,
+    onEdit: () -> Unit,
+    onOpenChat: ((ChatSeedContext) -> Unit)?,
+) {
     val uriHandler = LocalUriHandler.current
     val searchQuery = stringResource(Res.string.describe_exercise_query, uiState.name)
-    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (onOpenChat != null && uiState.name.isNotBlank()) {
+            OutlinedButton(
+                onClick = {
+                    onOpenChat(
+                        ChatSeedContext(
+                            kind = "exercise",
+                            exerciseId = exerciseId,
+                            exerciseName = uiState.name,
+                        ),
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(Res.string.chat_ask_exercise))
+            }
+        }
         Text(
             stringResource(Res.string.search_in_google),
             style = MaterialTheme.typography.bodyLarge,
@@ -344,7 +413,7 @@ private fun ExerciseEditForm(
     }
 }
 
-private data class HistoryMetricEntry(val label: String, val points: List<SparkPoint>)
+private data class HistoryMetricEntry(val label: String, val unitLabel: String, val points: List<SparkPoint>)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -359,18 +428,24 @@ private fun ExerciseHistorySection(
     val showDistance = exerciseType == null ||
         exerciseType in listOf(ExerciseType.DISTANCE, ExerciseType.REPS_DISTANCE, ExerciseType.DISTANCE_DURATION)
 
+    val weightUnitText = weightUnitLabel(historyUiState.weightUnit)
+    val distanceUnitText = distanceUnitLabel(historyUiState.weightUnit)
+    val durationUnitText = stringResource(Res.string.unit_s)
+
     val metrics = buildList {
         if (showOneRmVolume) {
-            add(HistoryMetricEntry(stringResource(Res.string.exercise_history_metric_1rm), historyUiState.weeklyOneRm))
-            add(HistoryMetricEntry(stringResource(Res.string.exercise_history_metric_volume), historyUiState.weeklyVolume))
+            add(HistoryMetricEntry(stringResource(Res.string.exercise_history_metric_1rm), weightUnitText, historyUiState.weeklyOneRm))
+            add(HistoryMetricEntry(stringResource(Res.string.exercise_history_metric_volume), weightUnitText, historyUiState.weeklyVolume))
         }
-        if (showDuration) add(HistoryMetricEntry(stringResource(Res.string.exercise_history_metric_duration), historyUiState.weeklyDuration))
-        if (showDistance) add(HistoryMetricEntry(stringResource(Res.string.exercise_history_metric_distance), historyUiState.weeklyDistance))
+        if (showDuration) add(HistoryMetricEntry(stringResource(Res.string.exercise_history_metric_duration), durationUnitText, historyUiState.weeklyDuration))
+        if (showDistance) add(HistoryMetricEntry(stringResource(Res.string.exercise_history_metric_distance), distanceUnitText, historyUiState.weeklyDistance))
     }
     if (metrics.isEmpty()) return
 
     var selectedLabel by remember(metrics.first().label) { mutableStateOf(metrics.first().label) }
-    val selectedPoints = metrics.firstOrNull { it.label == selectedLabel }?.points ?: metrics.first().points
+    var startYAtZero by remember { mutableStateOf(false) }
+    val selectedEntry = metrics.firstOrNull { it.label == selectedLabel } ?: metrics.first()
+    val selectedPoints = selectedEntry.points
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -414,8 +489,46 @@ private fun ExerciseHistorySection(
                         ),
                     ),
                     showPctChange = false,
-                    modifier = Modifier.fillMaxWidth().height(80.dp),
+                    modifier = Modifier.fillMaxWidth().height(96.dp),
+                    startYAtZero = startYAtZero,
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = selectedEntry.unitLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    SingleChoiceSegmentedButtonRow {
+                        SegmentedButton(
+                            selected = !startYAtZero,
+                            onClick = { startYAtZero = false },
+                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                            icon = {},
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ZoomIn,
+                                contentDescription = stringResource(Res.string.exercise_history_zoom_in),
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                        SegmentedButton(
+                            selected = startYAtZero,
+                            onClick = { startYAtZero = true },
+                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                            icon = {},
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ZoomOut,
+                                contentDescription = stringResource(Res.string.exercise_history_zoom_out),
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    }
+                }
             } else {
                 Text(
                     stringResource(Res.string.exercise_history_no_data),

@@ -7,6 +7,7 @@ import SharedUI
 /// observes the database while visible and refreshes when it reappears —
 /// e.g. after a session is finished from the mini bar on another tab.
 struct DayDetailView: View {
+    @Environment(ChatCoordinator.self) private var chatCoordinator
     let epochDay: Int64
     @State private var state: DayDetailState
     @State private var uiState = DayDetailUiState(loading: true, sessions: [], weightUnit: .metric)
@@ -24,6 +25,16 @@ struct DayDetailView: View {
                 ContentUnavailableView(L10n.noCompletedWorkouts, systemImage: "calendar")
             } else {
                 List {
+                    if chatCoordinator.isEntryVisible {
+                        Section {
+                            Button {
+                                chatCoordinator.openForDay(epochDay: epochDay)
+                            } label: {
+                                Label(L10n.chatAskWorkout, systemImage: "sparkles")
+                            }
+                        }
+                    }
+
                     ForEach(uiState.sessions, id: \.id) { session in
                         Section(session.routineName ?? L10n.workout) {
                             ForEach(Array(session.exercises.enumerated()), id: \.offset) { _, exercise in
@@ -32,6 +43,7 @@ struct DayDetailView: View {
                         }
                     }
                 }
+                .floatingWorkoutMenuClearance()
             }
         }
         .navigationTitle(dayTitle)

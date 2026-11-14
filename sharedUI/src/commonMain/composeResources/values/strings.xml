@@ -134,6 +134,8 @@
     <string name="exercise_history_metric_volume">Volume</string>
     <string name="exercise_history_metric_duration">Duration</string>
     <string name="exercise_history_metric_distance">Distance</string>
+    <string name="exercise_history_zoom_in">Zoom in y-axis</string>
+    <string name="exercise_history_zoom_out">Zoom out y-axis to 0</string>
 
     <!-- Exercise list — completed set count badge -->
     <plurals name="exercise_set_count">
@@ -237,6 +239,9 @@
     <string name="unit_cm">cm</string>
     <string name="unit_ft">ft</string>
     <string name="unit_in">in</string>
+    <string name="unit_km">km</string>
+    <string name="unit_mi">mi</string>
+    <string name="unit_s">s</string>
 
     <!-- Months (short) -->
     <string name="month_jan_short">Jan</string>
@@ -370,4 +375,31 @@
     <string name="bmi_info_trefethen">Nick Trefethen, professor of numerical analysis at the University of Oxford, proposed this revision in a 2013 letter to The Economist. His observation was that the standard index scales weight against height squared, as if people were two-dimensional, while true three-dimensional scaling would use height cubed; real bodies grow somewhere in between, because taller people are not simply scaled-up copies of shorter ones. He split the difference with an exponent of 2.5 and multiplied by 1.3 so that adults of average height get roughly the same number under either formula. The effect is a modest correction at the extremes: short people score a little higher than the standard index says, and tall people score a little lower — undoing the standard formula's tendency to flatter the tall and penalize the short. The values land on the same scale, so the usual category cutoffs still apply. The New BMI has not been adopted by any health body and remains a mathematician's refinement rather than a clinical standard, but it is a reasonable choice if you are notably tall or short and want a fairer number.</string>
     <string name="bmi_info_who">The World Health Organization's international classification is the one behind the familiar BMI chart: below 18.5 is underweight, 18.5 to just under 25 is the normal range, 25 to just under 30 is overweight, and 30 or above is obese. The bands trace back to actuarial and epidemiological work linking body mass to mortality, and the WHO formalized them for adults in the 1990s as simple, memorable action points where health risks begin to climb. Because nearly every study, guideline, and medical record uses these cutoffs, they are the right choice when you want your category to match what a clinician or published research would say. Their main caveat is that risk does not rise at the same BMI in every population: the thresholds were derived largely from European data, and for some groups disease risk climbs noticeably earlier — which is exactly what the Asian-Pacific classification addresses. The categories also inherit BMI's blindness to body composition, so a muscular lifter should read them loosely. LogTrain uses the WHO international classification by default.</string>
     <string name="bmi_info_asian_pacific">In 2000 the WHO's Western Pacific regional office, with the International Obesity Task Force, published The Asia-Pacific Perspective: Redefining Obesity, proposing lower action points for adults of Asian descent: overweight from a BMI of 23 and obesity from 27.5, instead of the international 25 and 30. The evidence behind it is that at the same BMI, many Asian populations carry a higher percentage of body fat and face a higher risk of type 2 diabetes and cardiovascular disease, so waiting for the international thresholds means acting too late. A 2004 WHO expert consultation published in The Lancet endorsed 23 and 27.5 as public-health action points, and several countries, including India, Singapore, and Japan, use cutoffs in this range in clinical practice. The underweight boundary stays at 18.5, and the BMI number itself is unchanged — only the point where it starts counting as elevated moves down. Choose this classification if your background is South or East Asian, or if your clinician uses the lower action points with you.</string>
+
+    <!-- On-device chat assistant -->
+    <string name="chat_title">Ask Coach</string>
+    <string name="chat_new_chat">New chat</string>
+    <string name="chat_input_placeholder">Ask about your workouts...</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_stop">Stop</string>
+    <string name="chat_retry">Retry</string>
+    <string name="chat_ask_exercise">Ask about this exercise</string>
+    <string name="chat_ask_workout">Ask about this workout</string>
+    <string name="chat_on_device_subtitle">Runs on-device using your logged workouts, routines, exercises, and body metrics.</string>
+    <string name="chat_thinking">Thinking...</string>
+    <string name="chat_cancelled">Stopped</string>
+    <string name="chat_status_apple_intelligence_disabled">Enable Apple Intelligence in Settings to chat with your training data.</string>
+    <string name="chat_status_model_downloading">Downloading the on-device language model. Chat will be ready shortly.</string>
+    <string name="chat_status_unavailable">On-device AI chat is unavailable on this device.</string>
+    <string name="chat_error_unavailable">The on-device model is currently unavailable.</string>
+    <string name="chat_error_context_too_long">Conversation grew too long for the on-device limit. Tap New chat to continue.</string>
+    <string name="chat_error_generation_failed">Could not generate a response. Please try again.</string>
+    <string name="chat_prompt_summary">How has my training been going?</string>
+    <string name="chat_prompt_prs">What are my best lifts?</string>
+    <string name="chat_prompt_last_workout">Summarize my last workout</string>
+    <string name="chat_prompt_next_routine">What workout should I do next?</string>
+    <string name="chat_prompt_exercise_progression">How is my %1$s progressing?</string>
+    <string name="chat_prompt_exercise_form">Form tips for %1$s</string>
+    <string name="chat_prompt_exercise_substitutes">Good substitutes for %1$s</string>
+    <string name="chat_prompt_day_summary">How did this workout compare?</string>
 </resources>

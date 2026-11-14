@@ -134,6 +134,8 @@
     <string name="exercise_history_metric_volume">Volym</string>
     <string name="exercise_history_metric_duration">Tid</string>
     <string name="exercise_history_metric_distance">Distans</string>
+    <string name="exercise_history_zoom_in">Zooma in y-axeln</string>
+    <string name="exercise_history_zoom_out">Zooma ut y-axeln till 0</string>
 
     <!-- Exercise list — completed set count badge -->
     <plurals name="exercise_set_count">
@@ -232,6 +234,9 @@
     <!-- Weight units -->
     <string name="unit_kg">kg</string>
     <string name="unit_lb">lb</string>
+    <string name="unit_km">km</string>
+    <string name="unit_mi">mi</string>
+    <string name="unit_s">s</string>
 
     <!-- Months (short) -->
     <string name="month_jan_short">Jan</string>
@@ -365,4 +370,31 @@
     <string name="bmi_info_trefethen">Nick Trefethen, professor i numerisk analys vid University of Oxford, föreslog denna revidering i ett brev till The Economist 2013. Hans iakttagelse var att standardindexet ställer vikten mot längden i kvadrat, som om människor vore tvådimensionella, medan äkta tredimensionell skalning skulle använda längden i kubik; verkliga kroppar växer någonstans däremellan, eftersom långa människor inte bara är uppförstorade kopior av korta. Han valde mellanvägen med exponenten 2,5 och multiplicerade med 1,3 så att vuxna av genomsnittslängd får ungefär samma siffra med båda formlerna. Effekten är en måttlig korrigering i ytterkanterna: korta personer får något högre värde än standardindexet visar och långa något lägre — vilket rättar till standardformelns tendens att smickra de långa och missgynna de korta. Värdena hamnar på samma skala, så de vanliga kategorigränserna gäller fortfarande. Nya BMI har inte antagits av någon hälsomyndighet och förblir en matematikers förfining snarare än en klinisk standard, men det är ett rimligt val om du är påtagligt lång eller kort och vill ha en rättvisare siffra.</string>
     <string name="bmi_info_who">Världshälsoorganisationens internationella klassificering är den som ligger bakom den välbekanta BMI-tabellen: under 18,5 är undervikt, 18,5 till strax under 25 är normalintervallet, 25 till strax under 30 är övervikt och 30 eller mer är fetma. Gränserna går tillbaka till försäkrings- och epidemiologiska studier som kopplade kroppsmassa till dödlighet, och WHO fastställde dem för vuxna på 1990-talet som enkla, lätta att minnas åtgärdspunkter där hälsoriskerna börjar stiga. Eftersom nästan varje studie, riktlinje och journal använder dessa gränser är de rätt val när du vill att din kategori ska stämma överens med vad en kliniker eller publicerad forskning skulle säga. Deras främsta förbehåll är att risken inte stiger vid samma BMI i alla befolkningar: tröskelvärdena härleddes till stor del ur europeiska data, och i vissa grupper stiger sjukdomsrisken märkbart tidigare — vilket är precis vad Asien-Stillahavsklassificeringen tar fasta på. Kategorierna ärver också BMI:s blindhet för kroppssammansättning, så en muskulös lyftare bör tolka dem med försiktighet. LogTrain använder WHO:s internationella klassificering som standard.</string>
     <string name="bmi_info_asian_pacific">År 2000 publicerade WHO:s regionkontor för västra Stilla havet, tillsammans med International Obesity Task Force, rapporten The Asia-Pacific Perspective: Redefining Obesity, som föreslog lägre åtgärdspunkter för vuxna av asiatisk härkomst: övervikt från ett BMI på 23 och fetma från 27,5, i stället för de internationella 25 och 30. Underlaget är att många asiatiska befolkningar vid samma BMI har en högre andel kroppsfett och en högre risk för typ 2-diabetes och hjärt-kärlsjukdom, så att vänta på de internationella tröskelvärdena innebär att agera för sent. En WHO-expertkonsultation publicerad i The Lancet 2004 ställde sig bakom 23 och 27,5 som åtgärdspunkter för folkhälsan, och flera länder, däribland Indien, Singapore och Japan, använder gränser i det här spannet i klinisk praxis. Underviktsgränsen ligger kvar på 18,5, och själva BMI-siffran är oförändrad — det är bara punkten där den börjar räknas som förhöjd som flyttas ner. Välj den här klassificeringen om din bakgrund är syd- eller östasiatisk, eller om din läkare använder de lägre åtgärdspunkterna med dig.</string>
+
+    <!-- On-device chat assistant -->
+    <string name="chat_title">Fråga coachen</string>
+    <string name="chat_new_chat">Ny chatt</string>
+    <string name="chat_input_placeholder">Fråga om din träning...</string>
+    <string name="chat_send">Skicka</string>
+    <string name="chat_stop">Stoppa</string>
+    <string name="chat_retry">Försök igen</string>
+    <string name="chat_ask_exercise">Fråga om övningen</string>
+    <string name="chat_ask_workout">Fråga om passet</string>
+    <string name="chat_on_device_subtitle">Körs lokalt på enheten med dina loggade pass, rutiner, övningar och kroppsmått.</string>
+    <string name="chat_thinking">Tänker...</string>
+    <string name="chat_cancelled">Stoppad</string>
+    <string name="chat_status_apple_intelligence_disabled">Aktivera Apple Intelligence i Inställningar för att chatta med din träningsdata.</string>
+    <string name="chat_status_model_downloading">Laddar ner språkmodellen till enheten. Chatten är snart redo.</string>
+    <string name="chat_status_unavailable">Lokal AI-chatt är inte tillgänglig på den här enheten.</string>
+    <string name="chat_error_unavailable">Den lokala modellen är inte tillgänglig just nu.</string>
+    <string name="chat_error_context_too_long">Konversationen blev för lång för enhetens gräns. Tryck på Ny chatt för att fortsätta.</string>
+    <string name="chat_error_generation_failed">Kunde inte generera ett svar. Försök igen.</string>
+    <string name="chat_prompt_summary">Hur har min träning gått på senaste tiden?</string>
+    <string name="chat_prompt_prs">Vilka är mina bästa lyft?</string>
+    <string name="chat_prompt_last_workout">Sammanfatta mitt senaste pass</string>
+    <string name="chat_prompt_next_routine">Vilket pass bör jag köra härnäst?</string>
+    <string name="chat_prompt_exercise_progression">Hur utvecklas min %1$s?</string>
+    <string name="chat_prompt_exercise_form">Tekniktips för %1$s</string>
+    <string name="chat_prompt_exercise_substitutes">Bra alternativ till %1$s</string>
+    <string name="chat_prompt_day_summary">Hur stod sig det här passet?</string>
 </resources>
