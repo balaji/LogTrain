@@ -117,7 +117,8 @@ struct ExerciseDetailView: View {
                             } else {
                                 let allPoints = selectedPoints.filter { $0.value > 0 }
                                 let canZoom = HistoryWindow.shared.canZoom(points: allPoints)
-                                let nonZeroPoints = zoomedIn ? HistoryWindow.shared.recent(points: allPoints) : allPoints
+                                let effectiveZoomedIn = zoomedIn || !canZoom
+                                let nonZeroPoints = effectiveZoomedIn ? HistoryWindow.shared.recent(points: allPoints) : allPoints
                                 let showYear = HistoryWindow.shared.spansYears(points: nonZeroPoints)
                                 if applicableMetrics.count > 1 {
                                     Picker("", selection: $selectedMetric) {
@@ -135,7 +136,7 @@ struct ExerciseDetailView: View {
                                                 .font(.caption)
                                                 .foregroundStyle(.secondary)
                                             Spacer()
-                                            Picker("", selection: $zoomedIn) {
+                                            Picker("", selection: Binding(get: { effectiveZoomedIn }, set: { zoomedIn = $0 })) {
                                                 Image(systemName: "plus.magnifyingglass")
                                                     .accessibilityLabel(L10n.exerciseHistoryZoomIn)
                                                     .tag(true)
@@ -157,13 +158,7 @@ struct ExerciseDetailView: View {
                                             }
                                         }
                                         .chartXAxis {
-                                            // Label every point; thin to every Nth (counting back
-                                            // from the newest) when 12 labels would collide.
-                                            let step = max(1, Int((Double(nonZeroPoints.count) / 6).rounded(.up)))
-                                            let days = nonZeroPoints.map { Int64($0.epochDay) }
-                                            let shown = days.indices.reversed()
-                                                .filter { (days.count - 1 - $0) % step == 0 }
-                                                .map { days[$0] }
+                                            let shown = HistoryWindow.shared.xAxisLabelDays(points: nonZeroPoints).map(\.int64Value)
                                             AxisMarks(preset: .aligned, values: shown) { value in
                                                 AxisTick(stroke: StrokeStyle(lineWidth: 1))
                                                 AxisValueLabel {
@@ -220,15 +215,16 @@ struct ExerciseDetailView: View {
         }
     }
 
-    /// `MMM-dd` (e.g. `Nov-14`), or `MMM yy` (e.g. `Nov 26`) when the chart spans over a year;
+    /// `MMM-dd` (e.g. `Nov-14`), or `MMM yy` (e.g. `Nov 26`) when the chart spans a year or more;
     /// epoch days are UTC calendar days.
     private static func dateLabel(epochDay: Int64, showYear: Bool) -> String {
-        let date = Date(timeIntervalSince1970: TimeInterval(epochDay) * 86_400)
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = TimeZone(identifier: "UTC")
-        f.dateFormat = showYear ? "MMM yy" : "MMM-dd"
-        return f.string(from: date)
+        let parts = WeekMath.shared.dayParts(epochDay: epochDay)
+        let month = L10n.monthAbbreviation(Int(parts.monthOfYear))
+        if showYear {
+            return String(format: "%@ %02d", month, Int(parts.year) % 100)
+        } else {
+            return String(format: "%@-%02d", month, Int(parts.dayOfMonth))
+        }
     }
 
     private func xDomain(_ points: [SparkPoint]) -> ClosedRange<Int64> {

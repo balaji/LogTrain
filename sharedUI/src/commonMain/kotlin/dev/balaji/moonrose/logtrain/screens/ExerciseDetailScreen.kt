@@ -480,7 +480,8 @@ private fun ExerciseHistorySection(
         } else {
             val allPoints = selectedPoints.filter { it.value > 0.0 }
             val canZoom = HistoryWindow.canZoom(allPoints)
-            val nonZeroPoints = if (zoomedIn) HistoryWindow.recent(allPoints) else allPoints
+            val effectiveZoomedIn = zoomedIn || !canZoom
+            val nonZeroPoints = if (effectiveZoomedIn) HistoryWindow.recent(allPoints) else allPoints
             if (nonZeroPoints.size >= 2) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -494,7 +495,7 @@ private fun ExerciseHistorySection(
                     )
                     SingleChoiceSegmentedButtonRow {
                         SegmentedButton(
-                            selected = zoomedIn,
+                            selected = effectiveZoomedIn,
                             onClick = { zoomedIn = true },
                             enabled = canZoom,
                             shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
@@ -507,7 +508,7 @@ private fun ExerciseHistorySection(
                             )
                         }
                         SegmentedButton(
-                            selected = !zoomedIn,
+                            selected = !effectiveZoomedIn,
                             onClick = { zoomedIn = false },
                             enabled = canZoom,
                             shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),

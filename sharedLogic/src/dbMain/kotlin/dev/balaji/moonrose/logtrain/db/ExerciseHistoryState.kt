@@ -35,8 +35,12 @@ class ExerciseHistoryState(private val exerciseId: Long) {
                 val todayDay = WeekMath.todayEpochDay()
                 val sets = rows.map { it.toSetPoint(zone).convertedTo(settings.weightUnit) }
 
-                val weeks = sets.minOfOrNull { WeekMath.weekStartOnOrBefore(it.epochDay, settings.weekStart) }
-                    ?.let { first -> ((WeekMath.weekStartOnOrBefore(todayDay, settings.weekStart) - first) / 7L).toInt() + 1 }
+                val currentWeekStart = WeekMath.weekStartOnOrBefore(todayDay, settings.weekStart)
+                val weeks = sets.minOfOrNull { it.epochDay }
+                    ?.let { earliestDay ->
+                        val firstWeekStart = WeekMath.weekStartOnOrBefore(earliestDay, settings.weekStart)
+                        (((currentWeekStart - firstWeekStart) / 7L).toInt() + 1).coerceAtLeast(1)
+                    }
                     ?: 1
 
                 val oneRm = singleExerciseWeeklyOneRm(sets, weeks, todayDay, settings.weekStart, settings.oneRmFormula)

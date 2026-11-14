@@ -29,29 +29,41 @@ import dev.balaji.moonrose.logtrain.insights.HistoryWindow
 import dev.balaji.moonrose.logtrain.insights.InsightMath
 import dev.balaji.moonrose.logtrain.insights.SparkPoint
 import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.round
 
-// Y-range travels with the model (ExtraStore) so the range provider is read
-// consistently with the data it applies to, instead of racing recomposition.
-private val MinYKey = ExtraStore.Key<Double>()
-private val MaxYKey = ExtraStore.Key<Double>()
 private val LabelSpacingKey = ExtraStore.Key<Int>()
 private val LabelOffsetKey = ExtraStore.Key<Int>()
-private val YRangeProvider = object : CartesianLayerRangeProvider {
-    override fun getMinY(minY: Double, maxY: Double, extraStore: ExtraStore) =
-        extraStore.getOrNull(MinYKey) ?: minY
+private val ShowYearKey = ExtraStore.Key<Boolean>()
 
-    override fun getMaxY(minY: Double, maxY: Double, extraStore: ExtraStore) =
-        extraStore.getOrNull(MaxYKey) ?: maxY
+/**
+ * Ensures at least a 2-unit span on integer boundaries so 3 integer-formatted
+ * vertical ticks never collapse or repeat the same number on flat/narrow series.
+ */
+internal fun yAxisBounds(minY: Double, maxY: Double): Pair<Double, Double> {
+    if (maxY - minY >= 2.0) return minY to maxY
+    val center = round((minY + maxY) / 2.0).coerceAtLeast(1.0)
+    if (center - 1.0 <= minY && center + 1.0 >= maxY) {
+        return (center - 1.0) to (center + 1.0)
+    }
+    val lo = floor(minY).coerceAtLeast(0.0)
+    val hi = maxOf(ceil(maxY), lo + 2.0)
+    return lo to hi
 }
 
-private const val WEEK_DAYS = 7
-private const val MAX_X_LABELS = 6
+private val YRangeProvider = object : CartesianLayerRangeProvider {
+    override fun getMinY(minY: Double, maxY: Double, extraStore: ExtraStore) =
+        yAxisBounds(minY, maxY).first
+
+    override fun getMaxY(minY: Double, maxY: Double, extraStore: ExtraStore) =
+        yAxisBounds(minY, maxY).second
+}
 
 /**
  * Weekly history line chart (exercise detail) built on Vico. [points] are one
  * entry per calendar week (x = epoch day, 7 apart). The x-axis shows `MMM-dd`
  * labels on the weekly grid, thinned to every Nth week (counting back from the
- * newest, which is always labelled) once there are more than [MAX_X_LABELS].
+ * newest, which is always labelled) once there are more than [HistoryWindow.MAX_X_LABELS].
  * Over a year of history the labels switch to `MMM yy`. Scrolling is off for now; flip `scrollEnabled` when >12 weeks are shown.
  */
 @Composable
@@ -62,30 +74,26 @@ internal fun VicoHistoryChart(
     val lineColor = seriesColor(0)
     val axisColor = MaterialTheme.colorScheme.outlineVariant
     val labelStyle = TextStyle(color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+    val months = (1..12).map { monthAbbreviation(it) }
 
     val minX = points.minOf { it.epochDay }
-    val weekSpan = ((points.maxOf { it.epochDay } - minX) / WEEK_DAYS).toInt()
-    val labelSpacing = ceil((weekSpan + 1) / MAX_X_LABELS.toDouble()).toInt().coerceAtLeast(1)
+    val weekSpan = ((points.maxOf { it.epochDay } - minX) / HistoryWindow.WEEK_DAYS).toInt().coerceAtLeast(0)
+    val labelSpacing = HistoryWindow.labelSpacingWeeks(weekSpan)
     val labelOffset = weekSpan % labelSpacing
 
     // Over a year of history, `MMM-dd` is ambiguous: switch to `MMM yy`.
     val showYear = HistoryWindow.spansYears(points)
 
-    val rawMinY = points.minOf { it.value }
-    val maxY = points.maxOf { it.value }
-    val minY = rawMinY
-
     val modelProducer = remember { CartesianChartModelProducer() }
-    LaunchedEffect(points, minY, maxY, labelSpacing, labelOffset) {
+    LaunchedEffect(points, labelSpacing, labelOffset, showYear) {
         modelProducer.runTransaction {
             lineSeries {
                 series(x = points.map { it.epochDay.toDouble() }, y = points.map { it.value })
             }
             extras {
-                it[MinYKey] = minY
-                it[MaxYKey] = maxY
                 it[LabelSpacingKey] = labelSpacing
                 it[LabelOffsetKey] = labelOffset
+                it[ShowYearKey] = showYear
             }
         }
     }
@@ -112,13 +120,14 @@ internal fun VicoHistoryChart(
             tick = rememberAxisTickComponent(fill = Fill(axisColor)),
             label = rememberAxisLabelComponent(style = labelStyle),
             guideline = null,
-            valueFormatter = remember(showYear) {
-                CartesianValueFormatter { _, value, _ ->
-                    if (showYear) formatMonthYear(value.toLong()) else formatMonthDay(value.toLong())
+            valueFormatter = remember(months) {
+                CartesianValueFormatter { context, value, _ ->
+                    val useYear = context.model.extraStore.getOrNull(ShowYearKey) == true
+                    if (useYear) formatMonthYear(value.toLong(), months) else formatMonthDay(value.toLong(), months)
                 }
             },
-            // Spacing/offset are read from the model so they always match the
-            // data being drawn (never a stale value mid-transition).
+            // Spacing/offset/showYear are read from the model so they always match
+            // the data being drawn (never a stale value mid-transition).
             itemPlacer = remember {
                 HorizontalAxis.ItemPlacer.aligned(
                     spacing = { (it.getOrNull(LabelSpacingKey) ?: 1).coerceAtLeast(1) },
@@ -127,7 +136,7 @@ internal fun VicoHistoryChart(
                 )
             },
         ),
-        getXStep = { _, _, _ -> WEEK_DAYS.toDouble() },
+        getXStep = { _, _, _ -> HistoryWindow.WEEK_DAYS.toDouble() },
     )
 
     CartesianChartHost(

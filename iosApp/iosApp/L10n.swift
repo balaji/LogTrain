@@ -175,8 +175,8 @@ enum L10n {
     static let exerciseHistoryMetricVolume = String(localized: "exercise_history_metric_volume", defaultValue: "Volume")
     static let exerciseHistoryMetricDuration = String(localized: "exercise_history_metric_duration", defaultValue: "Duration")
     static let exerciseHistoryMetricDistance = String(localized: "exercise_history_metric_distance", defaultValue: "Distance")
-    static let exerciseHistoryZoomIn = String(localized: "exercise_history_zoom_in", defaultValue: "Zoom in y-axis")
-    static let exerciseHistoryZoomOut = String(localized: "exercise_history_zoom_out", defaultValue: "Zoom out y-axis to 0")
+    static let exerciseHistoryZoomIn = String(localized: "exercise_history_zoom_in", defaultValue: "Zoom in to recent weeks")
+    static let exerciseHistoryZoomOut = String(localized: "exercise_history_zoom_out", defaultValue: "Zoom out to all history")
     static func exerciseSetCount(_ count: Int) -> String {
         count == 1
             ? String(localized: "exercise_set_count_one", defaultValue: "1 set")

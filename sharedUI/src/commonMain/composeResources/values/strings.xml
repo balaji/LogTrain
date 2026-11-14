@@ -134,8 +134,8 @@
     <string name="exercise_history_metric_volume">Volume</string>
     <string name="exercise_history_metric_duration">Duration</string>
     <string name="exercise_history_metric_distance">Distance</string>
-    <string name="exercise_history_zoom_in">Zoom in y-axis</string>
-    <string name="exercise_history_zoom_out">Zoom out y-axis to 0</string>
+    <string name="exercise_history_zoom_in">Zoom in to recent weeks</string>
+    <string name="exercise_history_zoom_out">Zoom out to all history</string>
 
     <!-- Exercise list — completed set count badge -->
     <plurals name="exercise_set_count">
