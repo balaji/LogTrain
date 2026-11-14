@@ -1,10 +1,10 @@
-# LogTrain
+# Train Free
 
 A gym workout logger that gets out of your way. Log your sets between sets —
 pick the exercise, punch in weight and reps, done — and let the app keep the
 long-term record: what you lifted, when, and how it's trending.
 
-LogTrain is local-first: all data (profile, exercises, plans, routines,
+Train Free is local-first: all data (profile, exercises, plans, routines,
 workout sessions and their sets) lives in an on-device Room database. No
 account, no sign-in — you create a profile on first launch and start logging.
 Syncing local data to a backend (to view progress on the web) is planned as a

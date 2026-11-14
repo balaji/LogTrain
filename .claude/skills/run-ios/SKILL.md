@@ -1,9 +1,9 @@
 ---
 name: run-ios
-description: Build, install, and launch LogTrain in the iOS Simulator via scripts/run-ios.py. Use when asked to run, launch, or test the iOS app, or to verify a change works in the simulator.
+description: Build, install, and launch Train Free in the iOS Simulator via scripts/run-ios.py. Use when asked to run, launch, or test the iOS app, or to verify a change works in the simulator.
 ---
 
-# Running LogTrain on iOS
+# Running Train Free on iOS
 
 Run from the repo root:
 

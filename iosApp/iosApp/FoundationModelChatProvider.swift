@@ -156,7 +156,7 @@ final class FoundationModelChatProvider: ChatGenerationProvider {
 
         let trimmedContext = request.preloadedContext.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedContext.isEmpty {
-            sections.append("Context from LogTrain:\n\(trimmedContext)")
+            sections.append("Context from Train Free:\n\(trimmedContext)")
         }
 
         sections.append(sections.isEmpty ? request.userMessage : "Question: \(request.userMessage)")

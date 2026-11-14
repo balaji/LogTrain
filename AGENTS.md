@@ -77,7 +77,7 @@ Room KMP (`androidx.room` + bundled SQLite driver, KSP codegen) in
   (`commonMain/.../model/Models.kt`), suspend writes. `ProfileStore` is a
   callback bridge for the SwiftUI shell (it can't consume Flows).
 - **Database file**: `AppDb.db` lazy singleton; file lives at
-  `getDatabasePath("logtrain.db")` (Android, context via `DbContextHolder`,
+  `getDatabasePath("trainfree.db")` (Android, context via `DbContextHolder`,
   set in `MainActivity`) or the app documents dir (iOS).
 - **Schema JSON** is exported to `sharedLogic/schemas/` (committed). Bump the
   `@Database` version and write a migration for any schema change — then
@@ -135,6 +135,6 @@ to be present.
 The tab shell is behind the profile gate; creating a profile through the
 first-run form is the fast path. To get back to a fresh install:
 
-- Android: `adb shell pm clear dev.balaji.moonrose.logtrain`
+- Android: `adb shell pm clear dev.balaji.moonrose.trainfree`
 - iOS simulator: delete the app (the database lives in the app's Documents
   directory).

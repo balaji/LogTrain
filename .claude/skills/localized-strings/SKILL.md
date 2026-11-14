@@ -36,7 +36,7 @@ Every string a user can see or hear (titles, buttons, tabs, alerts, overlays, me
 
 ## Not localized (deliberately)
 
-- The brand name "LogTrain" (`app_name` / `L10n.appName`).
+- The brand name "Train Free" (`app_name` / `L10n.appName`).
 - Language-neutral symbols/data: "—", numbers, units passed in as args,
   SF Symbol names, ids/keys, DB values used as values rather than display text.
 - `Route.title` defaults in Routes.kt are never-displayed fallbacks (tab labels

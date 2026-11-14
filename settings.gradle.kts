@@ -1,4 +1,4 @@
-rootProject.name = "LogTrain"
+rootProject.name = "trainfree"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
