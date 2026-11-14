@@ -32,11 +32,11 @@ from run_common import (
 )
 
 SIM_NAME = "iPhone 17"
-APP_ID = "dev.balaji.moonrose.logtrain.LogTrain"
+APP_ID = "dev.balaji.moonrose.trainfree.trainfree"
 PROJECT_PATH = "iosApp/iosApp.xcodeproj"
 SCHEME = "iosApp"
 DERIVED_DATA_PATH = "iosApp/build"
-APP_BUNDLE_PATH = f"{DERIVED_DATA_PATH}/Build/Products/Debug-iphonesimulator/LogTrain.app"
+APP_BUNDLE_PATH = f"{DERIVED_DATA_PATH}/Build/Products/Debug-iphonesimulator/trainfree.app"
 
 
 def configure_environment() -> None:

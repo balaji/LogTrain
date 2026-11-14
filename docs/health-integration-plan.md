@@ -6,7 +6,7 @@ shared abstraction.
 
 ## Guiding constraints
 
-- LogTrain stays **fully offline**. Health Connect and HealthKit are both
+- Train Free stays **fully offline**. Health Connect and HealthKit are both
   on-device OS stores — no network, no `INTERNET` permission, no sign-in.
 - **Integrate with Health Connect, not the Google Health API.** The Google
   Health app (ex-Fitbit) is a separate cloud app that syncs *into* Health
@@ -14,7 +14,7 @@ shared abstraction.
   internet and is only relevant to a future premium sync backend.
 - On-device AI narration over health data is fine — nothing leaves the device.
 - Value depends on what else the user has: phone-only users mostly get
-  LogTrain's own workouts/weight; HR/sleep/HRV need a watch, scale, or other
+  Train Free's own workouts/weight; HR/sleep/HRV need a watch, scale, or other
   app feeding the store.
 
 ## Current state
@@ -25,12 +25,12 @@ No Health Connect / HealthKit code exists. Relevant local data:
 `work_sets` / `work_set_details` (routine targets), `body_metrics` (weight
 only), `profile` (height/weight).
 
-## Phase 1 — LogTrain as a data source (write)
+## Phase 1 — Train Free as a data source (write)
 
 1. **Workouts → `ExerciseSessionRecord`**
    - `EXERCISE_TYPE_STRENGTH_TRAINING`, start = `performed_at`,
      end = `completed_at`, title = routine name.
-   - Idempotent: `clientRecordId = "logtrain:session:<id>"`,
+   - Idempotent: `clientRecordId = "trainfree:session:<id>"`,
      `clientRecordVersion = updated_at`. Edits upsert; local delete →
      delete in HC.
    - Skip `test_data` rows.
@@ -45,7 +45,7 @@ only), `profile` (height/weight).
    `HeightRecord`.
 4. **Cardio** — distance sets → `DistanceRecord` / laps.
 
-## Phase 2 — Enrich LogTrain (read)
+## Phase 2 — Enrich Train Free (read)
 
 5. **Smart-scale import** — `WeightRecord`, `BodyFatRecord` into
    `body_metrics` (new `source` + `external_id` columns). Filter out our own
@@ -125,6 +125,6 @@ only), `profile` (height/weight).
 
 - Which HC exercise type: `STRENGTH_TRAINING` vs `WEIGHTLIFTING`?
 - Segment granularity: one per set vs one per exercise?
-- Should imported body-weight rows be editable/deletable in LogTrain?
+- Should imported body-weight rows be editable/deletable in Train Free?
 - Do other-app workouts count toward streaks/insights?
 - Is the user-facing toggle one master switch or per data type?

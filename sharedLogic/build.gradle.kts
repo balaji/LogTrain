@@ -16,7 +16,7 @@ kotlin {
     iosSimulatorArm64()
 
     androidLibrary {
-        namespace = "dev.balaji.moonrose.logtrain.sharedLogic"
+        namespace = "dev.balaji.moonrose.trainfree.sharedLogic"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
 

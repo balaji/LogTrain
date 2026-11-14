@@ -1,9 +1,9 @@
 ---
 name: run-android
-description: Build, install, and launch LogTrain in the Android Emulator via scripts/run-android.py. Use when asked to run, launch, or test the Android app, or to verify a change works in the emulator.
+description: Build, install, and launch Train Free in the Android Emulator via scripts/run-android.py. Use when asked to run, launch, or test the Android app, or to verify a change works in the emulator.
 ---
 
-# Running LogTrain on Android
+# Running Train Free on Android
 
 Run from the repo root:
 

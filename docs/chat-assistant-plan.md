@@ -4,7 +4,7 @@ Status: **Phase 1 in progress** (`ChatToolbox` + `ExerciseMatcher` in `sharedLog
 
 ## Guiding constraints
 
-- **Strictly offline / on-device.** LogTrain has no backend, no sign-in, and no `INTERNET` permission. All inference runs locally via Apple Foundation Models (iOS 26+) and Gemini Nano via ML Kit GenAI Prompt (`com.google.mlkit:genai-prompt`, Android).
+- **Strictly offline / on-device.** Train Free has no backend, no sign-in, and no `INTERNET` permission. All inference runs locally via Apple Foundation Models (iOS 26+) and Gemini Nano via ML Kit GenAI Prompt (`com.google.mlkit:genai-prompt`, Android).
 - **Read-only Q&A + catalog coaching in v1.** The assistant answers questions over the user's logged workouts, PRs, progression, routines, body metrics, and profile, plus exercise form/substitution guidance grounded in the app's exercise catalog. No write actions (creating routines, logging sets/weight) and no active-session recall in v1.
 - **Deterministic Kotlin math.** Every statistic, 1RM estimate, volume sum, streak, BMI, date label, and unit formatting is computed in Kotlin (`InsightsRepository`, `InsightMath`, `ChatToolbox`). The language model only selects tools/context and phrases responses using the numbers returned to it.
 - **Ephemeral in-memory sessions in v1.** Conversation history lives in `ChatState` while the app is open, with a "New Chat" reset action. No Room schema migration (`AppDatabase` stays at v15).

@@ -4,7 +4,7 @@ import AudioToolbox
 import AVFoundation
 import UserNotifications
 
-private let restTimerNotificationId = "logtrain_rest_timer"
+private let restTimerNotificationId = "trainfree_rest_timer"
 
 /// Plays and prepares the rest-timer completion tones for both foreground
 /// alerts/previews (`AVAudioPlayer`) and background notifications

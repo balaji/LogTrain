@@ -37,7 +37,7 @@ from run_common import (
 )
 
 AVD_NAME = "Medium_Phone"
-APP_ID = "dev.balaji.moonrose.logtrain"
+APP_ID = "dev.balaji.moonrose.trainfree"
 
 
 def configure_environment() -> None:
@@ -196,7 +196,7 @@ def wait_for_boot(adb: str, timeout_sec: int = 180) -> bool:
 
 def boot_emulator(adb: str, avd_name: str = AVD_NAME) -> None:
     emulator = require_tool("emulator")
-    log_path = Path(tempfile.gettempdir()) / "logtrain-emulator.log"
+    log_path = Path(tempfile.gettempdir()) / "trainfree-emulator.log"
     print(f'Starting emulator "{avd_name}" (log: {log_path})...')
 
     popen_kwargs: dict = {}

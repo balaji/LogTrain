@@ -21,7 +21,7 @@ kotlin {
     }
 
     androidLibrary {
-        namespace = "dev.balaji.moonrose.logtrain.sharedUI"
+        namespace = "dev.balaji.moonrose.trainfree.sharedUI"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
 
@@ -63,7 +63,7 @@ kotlin {
 }
 
 compose.resources {
-    packageOfResClass = "dev.balaji.moonrose.logtrain.sharedui.resources"
+    packageOfResClass = "dev.balaji.moonrose.trainfree.sharedui.resources"
 }
 
 dependencies {

@@ -12,7 +12,7 @@
             android:roundIcon="@mipmap/ic_launcher_round"
             android:supportsRtl="true"
             android:enableOnBackInvokedCallback="true"
-            android:theme="@style/Theme.LogTrain">
+            android:theme="@style/Theme.trainfree">
         <activity
                 android:exported="true"
                 android:name=".MainActivity">
@@ -23,7 +23,7 @@
             </intent-filter>
         </activity>
         <receiver
-                android:name="dev.balaji.moonrose.logtrain.notifications.RestTimerAlarmReceiver"
+                android:name="dev.balaji.moonrose.trainfree.notifications.RestTimerAlarmReceiver"
                 android:exported="false"/>
     </application>
 

@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		D6C5514B9E7A18884A7D7AB2 /* LogTrain.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LogTrain.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D6C5514B9E7A18884A7D7AB2 /* trainfree.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = trainfree.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -51,7 +51,7 @@
 		0C37406D456A22CAD969EAEC /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				D6C5514B9E7A18884A7D7AB2 /* LogTrain.app */,
+				D6C5514B9E7A18884A7D7AB2 /* trainfree.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -88,7 +88,7 @@
 			packageProductDependencies = (
 			);
 			productName = iosApp;
-			productReference = D6C5514B9E7A18884A7D7AB2 /* LogTrain.app */;
+			productReference = D6C5514B9E7A18884A7D7AB2 /* trainfree.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
