@@ -27,7 +27,8 @@ struct ExerciseDetailView: View {
     @State private var historyUiState: ExerciseHistoryUiState
     @State private var editing = false
     @State private var selectedMetric: HistoryMetric = .oneRm
-    @State private var startYAtZero = false
+    /// true = most recent weeks (`HistoryWindow.recentWeeks`); false = all history.
+    @State private var zoomedIn = true
 
     init(exerciseId: Int64) {
         self.exerciseId = exerciseId
@@ -114,7 +115,10 @@ struct ExerciseDetailView: View {
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             } else {
-                                let nonZeroPoints = selectedPoints.filter { $0.value > 0 }
+                                let allPoints = selectedPoints.filter { $0.value > 0 }
+                                let canZoom = HistoryWindow.shared.canZoom(points: allPoints)
+                                let nonZeroPoints = zoomedIn ? HistoryWindow.shared.recent(points: allPoints) : allPoints
+                                let showYear = HistoryWindow.shared.spansYears(points: nonZeroPoints)
                                 if applicableMetrics.count > 1 {
                                     Picker("", selection: $selectedMetric) {
                                         ForEach(applicableMetrics, id: \.self) { metric in
@@ -122,43 +126,62 @@ struct ExerciseDetailView: View {
                                         }
                                     }
                                     .pickerStyle(.segmented)
+                                    .listRowSeparator(.hidden)
                                 }
                                 if nonZeroPoints.count >= 2 {
                                     VStack(alignment: .leading, spacing: 8) {
+                                        HStack {
+                                            Text(selectedUnit)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                            Spacer()
+                                            Picker("", selection: $zoomedIn) {
+                                                Image(systemName: "plus.magnifyingglass")
+                                                    .accessibilityLabel(L10n.exerciseHistoryZoomIn)
+                                                    .tag(true)
+                                                Image(systemName: "minus.magnifyingglass")
+                                                    .accessibilityLabel(L10n.exerciseHistoryZoomOut)
+                                                    .tag(false)
+                                            }
+                                            .pickerStyle(.segmented)
+                                            .labelsHidden()
+                                            .fixedSize()
+                                            .disabled(!canZoom)
+                                        }
                                         Chart {
                                             ForEach(nonZeroPoints, id: \.epochDay) { point in
                                                 LineMark(
                                                     x: .value("Week", point.epochDay),
                                                     y: .value("Value", point.value)
                                                 )
-                                                .interpolationMethod(.monotone)
                                             }
                                         }
-                                        .chartXAxis(.hidden)
+                                        .chartXAxis {
+                                            // Label every point; thin to every Nth (counting back
+                                            // from the newest) when 12 labels would collide.
+                                            let step = max(1, Int((Double(nonZeroPoints.count) / 6).rounded(.up)))
+                                            let days = nonZeroPoints.map { Int64($0.epochDay) }
+                                            let shown = days.indices.reversed()
+                                                .filter { (days.count - 1 - $0) % step == 0 }
+                                                .map { days[$0] }
+                                            AxisMarks(preset: .aligned, values: shown) { value in
+                                                AxisTick(stroke: StrokeStyle(lineWidth: 1))
+                                                AxisValueLabel {
+                                                    if let day = value.as(Int64.self) {
+                                                        Text(Self.dateLabel(epochDay: day, showYear: showYear))
+                                                            .font(.caption2)
+                                                    }
+                                                }
+                                            }
+                                        }
                                         .chartYAxis {
                                             AxisMarks(position: .leading, values: .automatic(desiredCount: 3))
                                         }
                                         .chartXScale(domain: xDomain(nonZeroPoints))
                                         .chartYScale(domain: yDomain(nonZeroPoints))
-                                        .frame(height: 96)
-
-                                        HStack {
-                                            Text(selectedUnit)
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                            Spacer()
-                                            Picker("", selection: $startYAtZero) {
-                                                Image(systemName: "plus.magnifyingglass")
-                                                    .accessibilityLabel(L10n.exerciseHistoryZoomIn)
-                                                    .tag(false)
-                                                Image(systemName: "minus.magnifyingglass")
-                                                    .accessibilityLabel(L10n.exerciseHistoryZoomOut)
-                                                    .tag(true)
-                                            }
-                                            .pickerStyle(.segmented)
-                                            .labelsHidden()
-                                            .fixedSize()
-                                        }
+                                        .frame(height: 120)
+                                        // Room for the centered last date label past the plot edge.
+                                        .padding(.trailing, 20)
                                     }
                                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                                 } else {
@@ -197,6 +220,17 @@ struct ExerciseDetailView: View {
         }
     }
 
+    /// `MMM-dd` (e.g. `Nov-14`), or `MMM yy` (e.g. `Nov 26`) when the chart spans over a year;
+    /// epoch days are UTC calendar days.
+    private static func dateLabel(epochDay: Int64, showYear: Bool) -> String {
+        let date = Date(timeIntervalSince1970: TimeInterval(epochDay) * 86_400)
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = showYear ? "MMM yy" : "MMM-dd"
+        return f.string(from: date)
+    }
+
     private func xDomain(_ points: [SparkPoint]) -> ClosedRange<Int64> {
         let days = points.map(\.epochDay)
         let lo = days.min() ?? 0
@@ -207,10 +241,6 @@ struct ExerciseDetailView: View {
     private func yDomain(_ points: [SparkPoint]) -> ClosedRange<Double> {
         let values = points.map(\.value)
         let hi = values.max() ?? 1
-        if startYAtZero {
-            let pad = Swift.max(hi * 0.1, 0.5)
-            return 0...(hi + pad)
-        }
         let lo = values.min() ?? 0
         let pad = Swift.max((hi - lo) * 0.1, 0.5)
         return (lo - pad)...(hi + pad)

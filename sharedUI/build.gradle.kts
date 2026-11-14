@@ -49,6 +49,8 @@ kotlin {
             implementation(libs.compose.materialIconsCore)
             implementation(libs.compose.materialIconsExtended)
             implementation(libs.compose.ui)
+            implementation(libs.vico.compose)
+            implementation(libs.vico.composeM3)
             implementation(libs.compose.components.resources)
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)

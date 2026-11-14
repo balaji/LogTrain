@@ -11,12 +11,13 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 
-private const val HISTORY_WEEKS = 12
-
 /**
  * Reactive history data for the Exercise Detail screen's chart section.
  * Observes completed sets for [exerciseId] and produces pre-aggregated
  * weekly series for all applicable metrics; the UI picks which to display.
+ * Series span from the exercise's first completed set to the current week
+ * (empty weeks are 0.0), so the UI can offer both an all-history view and a
+ * recent-weeks zoom (see `HistoryWindow`).
  */
 class ExerciseHistoryState(private val exerciseId: Long) {
     private val _uiState = MutableStateFlow(ExerciseHistoryUiState())
@@ -24,23 +25,24 @@ class ExerciseHistoryState(private val exerciseId: Long) {
     private val scope = CoroutineScope(Dispatchers.Main)
 
     init {
-        val today = WeekMath.todayEpochDay()
-        val firstWeekStartApprox = today - 7L * HISTORY_WEEKS
-        val startMillis = startOfDayMillis(firstWeekStartApprox)
         scope.launch {
             combine(
                 AppDb.db.workoutSessionDetailDao()
-                    .observeCompletedSetsForExercise(PROFILE_ID, exerciseId, startMillis),
+                    .observeCompletedSetsForExercise(PROFILE_ID, exerciseId, 0L),
                 UserSettingsRepository.settings,
             ) { rows, settings ->
                 val zone = TimeZone.currentSystemDefault()
                 val todayDay = WeekMath.todayEpochDay()
                 val sets = rows.map { it.toSetPoint(zone).convertedTo(settings.weightUnit) }
 
-                val oneRm = singleExerciseWeeklyOneRm(sets, HISTORY_WEEKS, todayDay, settings.weekStart, settings.oneRmFormula)
-                val volume = singleExerciseWeeklyVolume(sets, HISTORY_WEEKS, todayDay, settings.weekStart)
-                val duration = singleExerciseWeeklyDuration(sets, HISTORY_WEEKS, todayDay, settings.weekStart)
-                val distance = singleExerciseWeeklyDistance(sets, HISTORY_WEEKS, todayDay, settings.weekStart)
+                val weeks = sets.minOfOrNull { WeekMath.weekStartOnOrBefore(it.epochDay, settings.weekStart) }
+                    ?.let { first -> ((WeekMath.weekStartOnOrBefore(todayDay, settings.weekStart) - first) / 7L).toInt() + 1 }
+                    ?: 1
+
+                val oneRm = singleExerciseWeeklyOneRm(sets, weeks, todayDay, settings.weekStart, settings.oneRmFormula)
+                val volume = singleExerciseWeeklyVolume(sets, weeks, todayDay, settings.weekStart)
+                val duration = singleExerciseWeeklyDuration(sets, weeks, todayDay, settings.weekStart)
+                val distance = singleExerciseWeeklyDistance(sets, weeks, todayDay, settings.weekStart)
 
                 ExerciseHistoryUiState(
                     loading = false,

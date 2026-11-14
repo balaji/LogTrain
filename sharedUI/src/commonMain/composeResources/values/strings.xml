@@ -127,8 +127,8 @@
     <string name="name_required">Name is required</string>
     <string name="duplicate_exercise_name">An exercise with this name already exists</string>
 
-    <!-- Exercise detail — 12-week history chart -->
-    <string name="exercise_history_section">12-week history</string>
+    <!-- Exercise detail — Recent history chart -->
+    <string name="exercise_history_section">Recent history</string>
     <string name="exercise_history_no_data">Log some sets to see history here.</string>
     <string name="exercise_history_metric_1rm">1RM</string>
     <string name="exercise_history_metric_volume">Volume</string>

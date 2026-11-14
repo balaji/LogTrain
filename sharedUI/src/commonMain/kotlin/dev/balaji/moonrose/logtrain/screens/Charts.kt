@@ -53,6 +53,7 @@ internal fun ProgressionChart(
     showPctChange: Boolean,
     modifier: Modifier = Modifier,
     startYAtZero: Boolean = false,
+    showDateAxis: Boolean = false,
 ) {
     val colors = series.indices.map { seriesColor(it) }
     val labelStyle = MaterialTheme.typography.labelSmall
@@ -83,8 +84,30 @@ internal fun ProgressionChart(
         val chartLeft = maxOf(maxLabel.size.width, minLabel.size.width) + 6.dp.toPx()
         val chartWidth = (size.width - chartLeft).coerceAtLeast(1f)
 
+        // Plot area; with a date axis the bottom strip is reserved for x labels.
+        val axisHeight = if (showDateAxis) textMeasurer.measure("Mmm-00", labelStyle).size.height + 4.dp.toPx() else 0f
+        val plotHeight = (size.height - axisHeight).coerceAtLeast(1f)
+
         drawText(maxLabel, topLeft = Offset(0f, 0f))
-        drawText(minLabel, topLeft = Offset(0f, size.height - minLabel.size.height))
+        drawText(minLabel, topLeft = Offset(0f, plotHeight - minLabel.size.height))
+
+        if (showDateAxis) {
+            // Label every point; when they would collide, keep every Nth,
+            // counting back from the newest so the latest date is always shown.
+            val xs = lines.first().map { it.epochDay }
+            val measured = xs.map { textMeasurer.measure(formatMonthDay(it), labelStyle) }
+            val gap = 8.dp.toPx()
+            val minStep = if (xs.size < 2) 1 else (1..xs.size).first { step ->
+                val pxPerPoint = chartWidth * (xs.zipWithNext { a, b -> (b - a) }.minOrNull() ?: 1) / spanX
+                pxPerPoint * step >= measured.maxOf { it.size.width } + gap
+            }
+            for (i in xs.indices.reversed().filter { (xs.lastIndex - it) % minStep == 0 }) {
+                val m = measured[i]
+                val cx = chartLeft + (xs[i] - minX) / spanX * chartWidth
+                val left = (cx - m.size.width / 2f).coerceIn(0f, size.width - m.size.width)
+                drawText(m, topLeft = Offset(left, size.height - m.size.height))
+            }
+        }
 
         lines.forEachIndexed { seriesIndex, points ->
             if (points.size < 2) return@forEachIndexed
@@ -92,17 +115,45 @@ internal fun ProgressionChart(
             val path = Path()
             points.forEachIndexed { i, p ->
                 val x = chartLeft + (p.epochDay - minX) / spanX * chartWidth
-                val y = size.height - (p.value - minY).toFloat() / spanY * size.height
+                val y = plotHeight - (p.value - minY).toFloat() / spanY * plotHeight
                 if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
             }
             drawPath(path, color, style = Stroke(width = 2.dp.toPx()))
             points.last().let { p ->
                 val x = chartLeft + (p.epochDay - minX) / spanX * chartWidth
-                val y = size.height - (p.value - minY).toFloat() / spanY * size.height
+                val y = plotHeight - (p.value - minY).toFloat() / spanY * plotHeight
                 drawCircle(color, radius = 3.dp.toPx(), center = Offset(x, y))
             }
         }
     }
+}
+
+private val MonthAbbrev = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+/** Civil (year, month 1-12, day) from an epoch day, via the civil-from-days algorithm. */
+private fun civilFromEpochDay(epochDay: Long): Triple<Int, Int, Int> {
+    val z = epochDay + 719468
+    val era = z.floorDiv(146097L)
+    val doe = z - era * 146097
+    val yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365
+    val doy = doe - (365 * yoe + yoe / 4 - yoe / 100)
+    val mp = (5 * doy + 2) / 153
+    val day = (doy - (153 * mp + 2) / 5 + 1).toInt()
+    val month = (if (mp < 10) mp + 3 else mp - 9).toInt()
+    val year = (yoe + era * 400 + if (month <= 2) 1 else 0).toInt()
+    return Triple(year, month, day)
+}
+
+/** Formats an epoch day as `MMM-dd` (e.g. `Nov-14`). */
+internal fun formatMonthDay(epochDay: Long): String {
+    val (_, month, day) = civilFromEpochDay(epochDay)
+    return "${MonthAbbrev[month - 1]}-${day.toString().padStart(2, '0')}"
+}
+
+/** Formats an epoch day as `MMM yy` (e.g. `Nov 26`), for axes spanning more than a year. */
+internal fun formatMonthYear(epochDay: Long): String {
+    val (year, month, _) = civilFromEpochDay(epochDay)
+    return "${MonthAbbrev[month - 1]} ${(year % 100).toString().padStart(2, '0')}"
 }
 
 @Composable

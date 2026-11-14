@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import dev.balaji.moonrose.logtrain.db.ExerciseFormState
 import dev.balaji.moonrose.logtrain.db.ExerciseFormUiState
 import dev.balaji.moonrose.logtrain.db.ExerciseHistoryState
+import dev.balaji.moonrose.logtrain.insights.HistoryWindow
 import dev.balaji.moonrose.logtrain.insights.ExerciseHistoryUiState
 import dev.balaji.moonrose.logtrain.insights.SparkPoint
 import dev.balaji.moonrose.logtrain.insights.SparkSeries
@@ -443,7 +444,8 @@ private fun ExerciseHistorySection(
     if (metrics.isEmpty()) return
 
     var selectedLabel by remember(metrics.first().label) { mutableStateOf(metrics.first().label) }
-    var startYAtZero by remember { mutableStateOf(false) }
+    // true = most recent weeks (HistoryWindow.RECENT_WEEKS); false = all history.
+    var zoomedIn by remember { mutableStateOf(true) }
     val selectedEntry = metrics.firstOrNull { it.label == selectedLabel } ?: metrics.first()
     val selectedPoints = selectedEntry.points
 
@@ -476,22 +478,10 @@ private fun ExerciseHistorySection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
-            val nonZeroPoints = selectedPoints.filter { it.value > 0.0 }
+            val allPoints = selectedPoints.filter { it.value > 0.0 }
+            val canZoom = HistoryWindow.canZoom(allPoints)
+            val nonZeroPoints = if (zoomedIn) HistoryWindow.recent(allPoints) else allPoints
             if (nonZeroPoints.size >= 2) {
-                ProgressionChart(
-                    series = listOf(
-                        SparkSeries(
-                            name = selectedLabel,
-                            latest = nonZeroPoints.last().value,
-                            slopePerWeek = 0.0,
-                            trend = "none",
-                            points = nonZeroPoints,
-                        ),
-                    ),
-                    showPctChange = false,
-                    modifier = Modifier.fillMaxWidth().height(96.dp),
-                    startYAtZero = startYAtZero,
-                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -504,8 +494,9 @@ private fun ExerciseHistorySection(
                     )
                     SingleChoiceSegmentedButtonRow {
                         SegmentedButton(
-                            selected = !startYAtZero,
-                            onClick = { startYAtZero = false },
+                            selected = zoomedIn,
+                            onClick = { zoomedIn = true },
+                            enabled = canZoom,
                             shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                             icon = {},
                         ) {
@@ -516,8 +507,9 @@ private fun ExerciseHistorySection(
                             )
                         }
                         SegmentedButton(
-                            selected = startYAtZero,
-                            onClick = { startYAtZero = true },
+                            selected = !zoomedIn,
+                            onClick = { zoomedIn = false },
+                            enabled = canZoom,
                             shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                             icon = {},
                         ) {
@@ -529,6 +521,10 @@ private fun ExerciseHistorySection(
                         }
                     }
                 }
+                VicoHistoryChart(
+                    points = nonZeroPoints,
+                    modifier = Modifier.fillMaxWidth().height(160.dp),
+                )
             } else {
                 Text(
                     stringResource(Res.string.exercise_history_no_data),

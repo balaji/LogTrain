@@ -169,7 +169,7 @@ enum L10n {
     static func describeExerciseQuery(_ name: String) -> String {
         String(localized: "describe_exercise_query", defaultValue: "Describe the exercise \(name)")
     }
-    static let exerciseHistorySection = String(localized: "exercise_history_section", defaultValue: "12-week history")
+    static let exerciseHistorySection = String(localized: "exercise_history_section", defaultValue: "Recent history")
     static let exerciseHistoryNoData = String(localized: "exercise_history_no_data", defaultValue: "Log some sets to see history here.")
     static let exerciseHistoryMetric1rm = String(localized: "exercise_history_metric_1rm", defaultValue: "1RM")
     static let exerciseHistoryMetricVolume = String(localized: "exercise_history_metric_volume", defaultValue: "Volume")
